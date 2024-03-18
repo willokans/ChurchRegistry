@@ -4,6 +4,8 @@ import com.wyloks.churchregistry.application.dtos.BaptismDTO;
 import com.wyloks.churchregistry.domain.services.BaptismServiceV1;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,7 +38,6 @@ public class BaptismControllerV1 {
             @RequestParam(name = "officiatingPriests", required = false) List<String> officiatingPriest,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "5") int size
-
     ) {
         BaptismDTO.GetRequest request = BaptismDTO.GetRequest
                 .builder()
@@ -55,4 +56,15 @@ public class BaptismControllerV1 {
         Pageable pageable = PageRequest.of(page, size);
         return service.getAllBaptismRecord(request, pageable);
     }
+
+    @PostMapping
+    public ResponseEntity<BaptismDTO.PostResponse> createSingleBaptismRecord(@RequestBody BaptismDTO.PostRequest postRequest) {
+        BaptismDTO.PostResponse postResponse = service.createSingleBaptismRecord(postRequest);
+        if (postResponse != null) {
+            return new ResponseEntity<>(postResponse, HttpStatus.CREATED);
+        } else {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }

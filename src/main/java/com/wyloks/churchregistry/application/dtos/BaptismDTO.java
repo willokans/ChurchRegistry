@@ -54,6 +54,8 @@ public class BaptismDTO {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class GetResponse implements Id, BaptismalName, Surname, DateOfBirth, FatherFullName, MotherFullName, FatherFullAddress, MotherFullAddress, Sponsor1FullName, Sponsor2FullName, Church, OfficiatingPriest {
         private Long id;
         private String baptismalName;
@@ -67,5 +69,43 @@ public class BaptismDTO {
         private String sponsor2FullName;
         private String church;
         private String officiatingPriest;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PostRequest {
+        Long id;
+        String baptismalName;
+        String surname;
+        ZonedDateTime dateOfBirth;
+        String fatherFullName;
+        String motherFullName;
+        String fatherFullAddress;
+        String motherFullAddress;
+        String sponsor1FullName;
+        String sponsor2FullName;
+        String church;
+        String officiatingPriest;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PostResponse {
+        Long id;
+        String baptismalName;
+        String surname;
+        ZonedDateTime dateOfBirth;
+        String fatherFullName;
+        String motherFullName;
+        String fatherFullAddress;
+        String motherFullAddress;
+        String sponsor1FullName;
+        String sponsor2FullName;
+        String church;
+        String officiatingPriest;
     }
 }

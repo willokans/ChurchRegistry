@@ -33,4 +33,10 @@ public class BaptismServiceV1 {
         return baptisms.stream().map(baptism -> modelMapper.map(baptism, BaptismDTO.GetResponse.class))
                 .collect(Collectors.toList());
     }
+
+    public BaptismDTO.PostResponse createSingleBaptismRecord(BaptismDTO.PostRequest postRequest) {
+        Baptism baptism = modelMapper.map(postRequest, Baptism.class);
+        Baptism savedBaptism = baptismRepository.save(baptism);
+        return modelMapper.map(savedBaptism, BaptismDTO.PostResponse.class);
+    }
 }
