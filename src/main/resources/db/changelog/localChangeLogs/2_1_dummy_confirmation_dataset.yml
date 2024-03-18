@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: insert-confirmation-data
+      author: liquibase-docs
+      changes:
+        - insert:
+            tableName: CONFIRMATION_REGISTRY
+            columns:
+              - column:
+                  name: id
+                  value: -200
+              - column:
+                  name: confirmationName
+                  value: 'Jane Smith'
+              - column:
+                  name: churchName
+                  value: 'St. John's Church'
+              - column:
+                  name: churchAddress
+                  value: '789 Oak St, Anytown, Dublin'
+              - column:
+                  name: dateOfConfirmation
+                  value: '2023-05-15T10:00:00'
+              - column:
+                  name: baptism_id
+                  value: (SELECT id FROM BAPTISM_REGISTRY WHERE baptismalName = 'John' AND surname = 'Doe')
+            dbms: 'h2, !postgres'
+            schemaName: public
+        - insert:
+            tableName: CONFIRMATION_REGISTRY
+            columns:
+              - column:
+                  name: confirmationName
+                  value: 'Ada Jones'
+              - column:
+                  name: churchName
+                  value: 'St. John's Church'
+              - column:
+                  name: churchAddress
+                  value: '23543 Slack Street, Cork, Ireland'
+              - column:
+                  name: dateOfConfirmation
+                  value: '2023-05-15T10:00:00'
+              - column:
+                  name: baptism_id
+                  value: (SELECT id FROM BAPTISM_REGISTRY WHERE baptismalName = 'John' AND surname = 'Doe')
+            dbms: 'h2, !mysql'
+            schemaName: public

@@ -1,10 +1,7 @@
 package com.wyloks.churchregistry.domain.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.ZonedDateTime;
 
@@ -13,10 +10,13 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@Table(schema = "PUBLIC", name = "BAPTISM_REGISTRY")
+@Builder
 public class Baptism extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @SequenceGenerator(name = "BAPTISM_SEQUENCE", sequenceName = "BAPTISM_SEQUENCE", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "BAPTISM_SEQUENCE")
     private Long id;
     private String baptismalName;
     private String surname;

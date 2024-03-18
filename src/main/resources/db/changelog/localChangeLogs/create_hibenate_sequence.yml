@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: defaultSequenceForSpringBootJPA
+      author: Will
+      changes:
+        - createSequence:
+            cacheSize: 371717
+            catalogName: cat
+            dataType: int
+            incrementBy: 2
+            maxValue: 100000
+            minValue: 10
+            ordered: true
+            schemaName: public
+            sequenceName: HIBERNATE_SEQUENCE
+            startValue: 25

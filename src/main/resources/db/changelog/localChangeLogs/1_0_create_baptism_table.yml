@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: create_baptism_table
+      author: Will
+      changes:
+        - createTable:
+            tableName: BAPTISM_REGISTRY
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: baptismalName
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: surname
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dateOfBirth
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fatherFullName
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: motherFullName
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fatherFullAddress
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: motherFullAddress
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sponsor1FullName
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sponsor2FullName
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: church
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: officiatingPriest
+                  type: varchar(255)
+                  constraints:
+                    nullable: false

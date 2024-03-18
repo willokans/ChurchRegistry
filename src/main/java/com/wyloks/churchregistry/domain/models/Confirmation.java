@@ -1,12 +1,9 @@
 package com.wyloks.churchregistry.domain.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 
 @Getter
@@ -14,15 +11,18 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-public class Confirmation extends Auditable{
+@Table(schema = "PUBLIC", name = "CONFIRMATION_REGISTRY")
+@Builder
+public class Confirmation extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @SequenceGenerator(name = "CONFIRMATION_SEQUENCE", sequenceName = "CONFIRMATION_SEQUENCE", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "CONFIRMATION_SEQUENCE")
     private Long id;
     private String confirmationName;
     private String churchName;
     private String churchAddress;
-    private LocalDateTime dateOfConfirmation;
+    private ZonedDateTime dateOfConfirmation;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "baptism_id", referencedColumnName = "id", unique = true)
