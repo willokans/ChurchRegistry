@@ -107,5 +107,6 @@ public class BaptismDTO {
         String sponsor2FullName;
         String church;
         String officiatingPriest;
+        String error;
     }
 }

@@ -11,6 +11,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -38,5 +40,23 @@ public class BaptismServiceV1 {
         Baptism baptism = modelMapper.map(postRequest, Baptism.class);
         Baptism savedBaptism = baptismRepository.save(baptism);
         return modelMapper.map(savedBaptism, BaptismDTO.PostResponse.class);
+    }
+
+    public List<BaptismDTO.PostResponse> createBatchBaptismRecords(List<BaptismDTO.PostRequest> postRequests){
+        List<BaptismDTO.PostResponse> responses = new ArrayList<>();
+
+        for(BaptismDTO.PostRequest postRequest : postRequests) {
+            try {
+                Baptism baptism = modelMapper.map(postRequest, Baptism.class);
+                Baptism savedBaptism = baptismRepository.save(baptism);
+                responses.add(modelMapper.map(savedBaptism, BaptismDTO.PostResponse.class));
+            } catch (Exception e) {
+                BaptismDTO.PostResponse response = new BaptismDTO.PostResponse();
+                logger.warn("Failed to save Baptism record: " + response.getBaptismalName() + response.getSurname());
+                response.setError("Failed to save Baptism record: " + response.getBaptismalName() + response.getSurname());
+                responses.add(response);
+            }
+        }
+        return responses;
     }
 }

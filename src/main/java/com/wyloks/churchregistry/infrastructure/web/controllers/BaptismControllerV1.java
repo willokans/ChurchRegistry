@@ -57,7 +57,7 @@ public class BaptismControllerV1 {
         return service.getAllBaptismRecord(request, pageable);
     }
 
-    @PostMapping
+    @PostMapping("/baptism")
     public ResponseEntity<BaptismDTO.PostResponse> createSingleBaptismRecord(@RequestBody BaptismDTO.PostRequest postRequest) {
         BaptismDTO.PostResponse postResponse = service.createSingleBaptismRecord(postRequest);
         if (postResponse != null) {
@@ -66,5 +66,15 @@ public class BaptismControllerV1 {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    @PostMapping("/baptisms")
+    public ResponseEntity<List<BaptismDTO.PostResponse>> createBatchBaptismRecord(@RequestBody List<BaptismDTO.PostRequest> postRequests) {
+        List<BaptismDTO.PostResponse> postResponses = service.createBatchBaptismRecords(postRequests);
+        if (!postResponses.isEmpty()) {
+            return new ResponseEntity<>(postResponses, HttpStatus.CREATED);
+        } else {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 
 }
