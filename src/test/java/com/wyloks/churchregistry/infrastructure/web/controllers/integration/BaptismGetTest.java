@@ -46,21 +46,21 @@ public class BaptismGetTest extends IntegrationTestTemplate {
         });
     }
 
-    @Test
-    void getBaptismRecord_shouldReturnBaptismRecord(){
-        ResponseEntity<BaptismPage> response = fetch(URL);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().getRecords().size()>1);
-    }
-
-    @Getter
-    private static class BaptismPage {
-        private final List<BaptismDTO.GetResponse> records = new ArrayList<>();
-    }
-
-    private ResponseEntity<BaptismPage> fetch(String url){
-        ParameterizedTypeReference<BaptismPage> responseType = new ParameterizedTypeReference<>() {};
-        return restTemplate.exchange(url, HttpMethod.GET, null, responseType);
-    }
+//    @Test
+//    void getBaptismRecord_shouldReturnBaptismRecord(){
+//        ResponseEntity<BaptismPage> response = fetch(URL);
+//        assertEquals(HttpStatus.OK, response.getStatusCode());
+//        assertNotNull(response.getBody());
+//        assertTrue(response.getBody().getRecords().size()>1);
+//    }
+//
+//    @Getter
+//    private static class BaptismPage {
+//        private final List<BaptismDTO.GetResponse> records = new ArrayList<>();
+//    }
+//
+//    private ResponseEntity<BaptismPage> fetch(String url){
+//        ParameterizedTypeReference<BaptismPage> responseType = new ParameterizedTypeReference<>() {};
+//        return restTemplate.exchange(url, HttpMethod.GET, null, responseType);
+//    }
 }

@@ -4,11 +4,17 @@ spring:
     console:
       enabled: true
 
+#  datasource:
+#    username: sa
+#    password: ""
+#    url: jdbc:h2:mem:testdb
+#    driverClassName: org.h2.Driver
   datasource:
     username: church_reg_dev_user
     password: "Welcome2024!"
     url: jdbc:postgresql://localhost:5432/church_register_dev
     driverClassName: org.postgresql.Driver
+
 
   liquibaseDatasource:
     username: ${spring.datasource.username}

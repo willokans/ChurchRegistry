@@ -19,22 +19,22 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: marriedTo
+                  name: married_to
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: churchName
+                  name: church_name
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: churchAddress
+                  name: church_address
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: marriageDate
+                  name: marriage_date
                   type: TIMESTAMP WITH TIME ZONE
                   constraints:
                     nullable: false

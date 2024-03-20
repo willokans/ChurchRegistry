@@ -10,16 +10,16 @@ databaseChangeLog:
                   name: id
                   value: -200
               - column:
-                  name: confirmationName
+                  name: confirmation_name
                   value: 'Jane Smith'
               - column:
-                  name: churchName
+                  name: church_name
                   value: "St. John's Church"
               - column:
-                  name: churchAddress
+                  name: church_address
                   value: '789 Oak St, Anytown, Dublin'
               - column:
-                  name: dateOfConfirmation
+                  name: date_of_confirmation
                   value: '2023-05-15T10:00:00'
               - column:
                   name: baptism_id
@@ -33,16 +33,16 @@ databaseChangeLog:
                   name: id
                   value: -201
               - column:
-                  name: confirmationName
+                  name: confirmation_name
                   value: 'Ada Jones'
               - column:
-                  name: churchName
+                  name: church_name
                   value: "St. John's Church"
               - column:
-                  name: churchAddress
+                  name: church_address
                   value: '23543 Slack Street, Cork, Ireland'
               - column:
-                  name: dateOfConfirmation
+                  name: date_of_confirmation
                   value: '2023-05-15T10:00:00'
               - column:
                   name: baptism_id

@@ -10,16 +10,16 @@ databaseChangeLog:
                   name: id
                   value: -301
               - column:
-                  name: marriedTo
+                  name: married_to
                   value: 'Alice Smith'
               - column:
-                  name: churchName
+                  name: church_name
                   value: "St. Paul''s Church"
               - column:
-                  name: churchAddress
+                  name: church_address
                   value: '456 Maple St, Anytown'
               - column:
-                  name: marriageDate
+                  name: marriage_date
                   value: '2022-10-20T14:30:00'
               - column:
                   name: baptism_id
@@ -31,16 +31,16 @@ databaseChangeLog:
                   name: id
                   value: -303
               - column:
-                  name: marriedTo
+                  name: married_to
                   value: 'Bob Johnson'
               - column:
-                  name: churchName
+                  name: church_name
                   value: 'St. Mary''s Church'
               - column:
-                  name: churchAddress
+                  name: church_address
                   value: '789 Oak St, Anytown'
               - column:
-                  name: marriageDate
+                  name: marriage_date
                   value: '2023-01-15T11:00:00'
               - column:
                   name: baptism_id
@@ -54,16 +54,16 @@ databaseChangeLog:
                     name: id
                     value: -304
               - column:
-                  name: marriedTo
+                  name: married_to
                   value: 'Charlie Brown'
               - column:
-                  name: churchName
+                  name: church_name
                   value: "St. John''s Church"
               - column:
-                  name: churchAddress
+                  name: church_address
                   value: "123 Elm St, Anytown"
               - column:
-                  name: marriageDate
+                  name: marriage_date
                   value: '2023-05-20T09:30:00'
               - column:
                   name: baptism_id
