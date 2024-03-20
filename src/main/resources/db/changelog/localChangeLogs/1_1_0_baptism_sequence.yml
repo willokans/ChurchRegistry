@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: create_baptism_sequence
+      author: Will
+      changes:
+        - createSequence:
+            sequenceName: baptism_sequence
+            startValue: 1
+            incrementBy: 1

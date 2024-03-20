@@ -76,7 +76,6 @@ public class BaptismDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PostRequest {
-        Long id;
         String baptismalName;
         String surname;
         ZonedDateTime dateOfBirth;

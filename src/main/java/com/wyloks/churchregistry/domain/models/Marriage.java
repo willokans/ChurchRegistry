@@ -10,7 +10,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(schema = "PUBLIC", name = "MARRIAGE_REGISTRY")
+@Table(schema = "CHURCH_REGISTRY", name = "MARRIAGE_REGISTRY")
 @Builder
 public class Marriage {
 

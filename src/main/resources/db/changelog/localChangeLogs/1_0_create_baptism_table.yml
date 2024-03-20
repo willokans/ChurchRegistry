@@ -13,7 +13,7 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: baptismalName
+                  name: baptismal_name
                   type: varchar(255)
                   constraints:
                     nullable: false
@@ -23,37 +23,37 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: dateOfBirth
+                  name: date_of_birth
                   type: TIMESTAMP WITH TIME ZONE
                   constraints:
                     nullable: false
               - column:
-                  name: fatherFullName
+                  name: father_full_name
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: motherFullName
+                  name: mother_full_name
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: fatherFullAddress
+                  name: father_full_address
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: motherFullAddress
+                  name: mother_full_address
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: sponsor1FullName
+                  name: sponsor_1_full_name
                   type: varchar(255)
                   constraints:
                     nullable: false
               - column:
-                  name: sponsor2FullName
+                  name: sponsor_2_full_name
                   type: varchar(255)
                   constraints:
                     nullable: false
@@ -63,7 +63,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: officiatingPriest
+                  name: officiating_priest
                   type: varchar(255)
                   constraints:
                     nullable: false

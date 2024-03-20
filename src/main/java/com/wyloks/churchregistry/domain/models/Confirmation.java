@@ -11,7 +11,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(schema = "PUBLIC", name = "CONFIRMATION_REGISTRY")
+@Table(schema = "CHURCH_REGISTRY", name = "CONFIRMATION_REGISTRY")
 @Builder
 public class Confirmation extends Auditable {
 
