@@ -14,7 +14,7 @@ databaseChangeLog:
                   value: 'Jane Smith'
               - column:
                   name: churchName
-                  value: 'St. John's Church'
+                  value: "St. John's Church"
               - column:
                   name: churchAddress
                   value: '789 Oak St, Anytown, Dublin'
@@ -23,18 +23,21 @@ databaseChangeLog:
                   value: '2023-05-15T10:00:00'
               - column:
                   name: baptism_id
-                  value: (SELECT id FROM BAPTISM_REGISTRY WHERE baptismalName = 'John' AND surname = 'Doe')
-            dbms: 'h2, !postgres'
-            schemaName: public
+                  value: -100
+            dbms: postgresql
+            schemaName: church_registry
         - insert:
             tableName: CONFIRMATION_REGISTRY
             columns:
+              - column:
+                  name: id
+                  value: -201
               - column:
                   name: confirmationName
                   value: 'Ada Jones'
               - column:
                   name: churchName
-                  value: 'St. John's Church'
+                  value: "St. John's Church"
               - column:
                   name: churchAddress
                   value: '23543 Slack Street, Cork, Ireland'
@@ -43,6 +46,6 @@ databaseChangeLog:
                   value: '2023-05-15T10:00:00'
               - column:
                   name: baptism_id
-                  value: (SELECT id FROM BAPTISM_REGISTRY WHERE baptismalName = 'John' AND surname = 'Doe')
-            dbms: 'h2, !mysql'
-            schemaName: public
+                  value: -100
+            dbms: postgresql
+            schemaName: church_registry

@@ -5,6 +5,24 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.0.xsd">
 
     <!-- Include all changelog files within a directory -->
-    <includeAll path="/db/changelog/" relativeToChangelogFile="true"/>
+<!--    <includeAll path="/db/changelog/" relativeToChangelogFile="true"/>-->
+
+    <!-- Include the create_baptism_table.xml change set -->
+    <include file="db/changelog/1_0_create_baptism_table.yml"/>
+    <include file="db/changelog/1_1_0_baptism_sequence.yml"/>
+    <include file="db/changelog/1_1_1_create_baptism_permissions.yml"/>
+    <include file="db/changelog/1_1_dummy_baptism_dataSet.yml"/>
+
+    <include file="db/changelog/2_0_create_confirmation_table.yml"/>
+    <include file="db/changelog/2_1_0_confirmation_sequence.yml"/>
+    <include file="db/changelog/2_1_1_create_confirmation_permissions.yml"/>
+    <include file="db/changelog/2_1_dummy_confirmation_dataset.yml"/>
+
+    <include file="db/changelog/3_0_create_marriage_table.yml"/>
+    <include file="db/changelog/3_1_0_marriage_sequence.yml"/>
+
+    <include file="db/changelog/3_1_dummy_marriage_dataset.yml"/>
+    <include file="db/changelog/create_hibenate_sequence.yml"/>
+
 </databaseChangeLog>
 

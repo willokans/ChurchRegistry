@@ -1,9 +1,10 @@
 databaseChangeLog:
   - changeSet:
-      id: create_baptism_sequence
+      id: create_marriage_sequence
       author: Will
       changes:
         - createSequence:
-            sequenceName: baptism_sequence
+            schemaName: church_registry
+            sequenceName: marriage_sequence
             startValue: 1
             incrementBy: 1

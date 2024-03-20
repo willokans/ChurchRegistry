@@ -4,6 +4,7 @@ databaseChangeLog:
       author: Will
       changes:
         - createTable:
+            schemaName: church_registry
             tableName: BAPTISM_REGISTRY
             columns:
               - column:

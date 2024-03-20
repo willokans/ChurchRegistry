@@ -1,9 +1,10 @@
 databaseChangeLog:
   - changeSet:
-      id: create_marriage_table
-      author: your_name
+      id: create_confirmation_table
+      author: Will
       changes:
         - createTable:
+            schemaName: church_registry
             tableName: CONFIRMATION_REGISTRY
             columns:
               - column:
@@ -13,7 +14,7 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: marriedTo
+                  name: confirmationName
                   type: varchar(255)
                   constraints:
                     nullable: false
@@ -28,17 +29,17 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: marriageDate
+                  name: dateOfConfirmation
                   type: TIMESTAMP WITH TIME ZONE
                   constraints:
                     nullable: false
               - column:
                   name: baptism_id
                   type: BIGINT
-                  foreignKey:
-                    constraintName: fk_baptism_id
-                    references:
-                      tableName: BAPTISM_REGISTRY
-                      columnNames: id
-                      onDelete: CASCADE
-                      onUpdate: CASCADE
+            foreignKey:
+              constraintName: fk_baptism_id
+              references:
+                tableName: BAPTISM_REGISTRY
+                columnNames: id
+              onDelete: CASCADE
+              onUpdate: CASCADE

@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: create_confirmation_sequence
+      author: Will
+      changes:
+        - createSequence:
+            schemaName: church_registry
+            sequenceName: confirmation_sequence
+            startValue: 1
+            incrementBy: 1

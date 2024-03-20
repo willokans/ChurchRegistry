@@ -11,40 +11,27 @@ spring:
     driverClassName: org.postgresql.Driver
 
   liquibaseDatasource:
-    username: sa
-    password: ""
-    url: jdbc:h2:mem:testdb;MODE=Oracle;INIT=CREATE SCHEMA IF NO EXIST CHURCH_REGISTRY
-    driverClassName: org.h2.Driver
+    username: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    url: ${spring.datasource.url}
+    driverClassName: ${spring.datasource.driverClassName}
 
   liquibase:
     enabled: true
     contexts: local
     change-log: classpath:/db/changelog/changelog-master.xml
+    default-schema: church_registry
   application:
     name: ChurchRegistry
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+    database: postgresql
 server:
   port: 8084
-
-#  spring.application.name=ChurchRegistry
-#  server.port=8084
-#  spring.datasource.url=jdbc:postgresql://localhost:5432/church_register_dev
-#  spring.datasource.username=
-#  spring.datasource.password=
-#  spring.jpa.hibernate.ddl-auto=create-drop
-#  spring.jpa.show-sql=true
-#  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-#  spring.jpa.properties.hibernate.format_sql=true
-#
-#  # Liquibase configuration
-#  spring.liquibase.change-log=classpath:/db/changelog/changelog-master.xml
-#
-#  spring.h2.console.enabled=true
 

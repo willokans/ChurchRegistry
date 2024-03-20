@@ -10,7 +10,6 @@ databaseChangeLog:
             incrementBy: 2
             maxValue: 100000
             minValue: 10
-            ordered: true
-            schemaName: public
+            schemaName: church_registry
             sequenceName: HIBERNATE_SEQUENCE
             startValue: 25

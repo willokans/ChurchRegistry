@@ -38,15 +38,18 @@ databaseChangeLog:
                   value: 'Emily Johnson1'
               - column:
                   name: church
-                  value: 'St. Mary''s Church1'
+                  value: "St. Mary's Church1"
               - column:
                   name: officiating_priest
                   value: 'Father James1'
-            dbms: 'h2, !postgres'
-            schemaName: public
+            dbms: postgresql
+            schemaName: church_registry
         - insert:
             tableName: BAPTISM_REGISTRY
             columns:
+              - column:
+                    name: id
+                    value: -101
               - column:
                   name: baptismal_name
                   value: 'John2'
@@ -76,9 +79,9 @@ databaseChangeLog:
                   value: 'Emily Johnson2'
               - column:
                   name: church
-                  value: 'St. Mary''s Church2'
+                  value: "St. Mary''s Church2"
               - column:
                   name: officiating_priest
                   value: 'Father James2'
-            dbms: 'h2, !postgres'
-            schemaName: public
+            dbms: postgresql
+            schemaName: church_registry

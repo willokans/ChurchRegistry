@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: grant_permissions_to_church_reg_dev_user
+      author: Will
+      changes:
+        - sql:
+            sql: |
+              GRANT ALL PRIVILEGES ON SCHEMA public TO church_reg_dev_user
+
+
