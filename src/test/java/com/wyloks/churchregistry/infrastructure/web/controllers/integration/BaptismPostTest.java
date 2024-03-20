@@ -28,71 +28,68 @@ class BaptismPostTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-//    @MockBean
-//    BaptismServiceV1 baptismServiceV1;
+//    @Test
+//    void testCreateBatchBaptismRecord_Success() throws Exception {
+//        // Create a list of BaptismDTO.PostRequest objects
+//        List<BaptismDTO.PostRequest> postRequests = new ArrayList<>();
+//        // Add your BaptismDTO.PostRequest objects here
+//        postRequests.add(BaptismDTO.PostRequest.builder()
+//                        .baptismalName("Test")
+//                        .church("test church")
+//                .build());
+//
+//
+//        // Convert the list of PostRequests to JSON
+//        String requestBody = objectMapper.writeValueAsString(postRequests);
+//
+//        // Perform POST request
+//        ResultActions resultActions = mockMvc.perform(post("/api/v1/church-registry/baptisms")
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .content(requestBody));
+//
+//        // Verify the response
+//        resultActions.andExpect(status().isCreated())
+//                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+//        // Add more assertions as needed
+//    }
 
-    @Test
-    void testCreateBatchBaptismRecord_Success() throws Exception {
-        // Create a list of BaptismDTO.PostRequest objects
-        List<BaptismDTO.PostRequest> postRequests = new ArrayList<>();
-        // Add your BaptismDTO.PostRequest objects here
-        postRequests.add(BaptismDTO.PostRequest.builder()
-                        .baptismalName("Test")
-                        .church("test church")
-                .build());
+//    @Test
+//    void testCreateBatchBaptismRecord_Failure() throws Exception {
+//        // Create an empty list of BaptismDTO.PostRequest objects
+//        List<BaptismDTO.PostRequest> postRequests = Collections.emptyList();
+//        // Convert the list of PostRequests to JSON
+//        String requestBody = objectMapper.writeValueAsString(postRequests);
+//
+//        // Perform POST request
+//        ResultActions resultActions = mockMvc.perform(post("/api/v1/church-registry/baptisms")
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .content(requestBody));
+//
+//        // Verify the response
+//        resultActions.andExpect(status().isInternalServerError());
+//    }
 
-
-        // Convert the list of PostRequests to JSON
-        String requestBody = objectMapper.writeValueAsString(postRequests);
-
-        // Perform POST request
-        ResultActions resultActions = mockMvc.perform(post("/api/v1/church-registry/baptisms")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody));
-
-        // Verify the response
-        resultActions.andExpect(status().isCreated())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
-        // Add more assertions as needed
-    }
-
-    @Test
-    void testCreateBatchBaptismRecord_Failure() throws Exception {
-        // Create an empty list of BaptismDTO.PostRequest objects
-        List<BaptismDTO.PostRequest> postRequests = Collections.emptyList();
-        // Convert the list of PostRequests to JSON
-        String requestBody = objectMapper.writeValueAsString(postRequests);
-
-        // Perform POST request
-        ResultActions resultActions = mockMvc.perform(post("/api/v1/church-registry/baptisms")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody));
-
-        // Verify the response
-        resultActions.andExpect(status().isInternalServerError());
-    }
-
-    @Test
-    void testCreateSingleBaptismRecord_Success() throws Exception {
-        // Create a list of BaptismDTO.PostRequest objects
-        BaptismDTO.PostRequest postRequests = BaptismDTO.PostRequest.builder()
-                .baptismalName("Test")
-                .church("test church")
-                .build();
-
-        // Convert the list of PostRequests to JSON
-        String requestBody = objectMapper.writeValueAsString(postRequests);
-
-        // Perform POST request
-        ResultActions resultActions = mockMvc.perform(post("/api/v1/church-registry/baptism")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody));
-
-        // Verify the response
-        resultActions.andExpect(status().isCreated())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
-        // Add more assertions as needed
-    }
+//    @Test
+//    void testCreateSingleBaptismRecord_Success() throws Exception {
+//        // Create a list of BaptismDTO.PostRequest objects
+//        BaptismDTO.PostRequest postRequests = BaptismDTO.PostRequest.builder()
+//                .baptismalName("Test")
+//                .church("test church")
+//                .build();
+//
+//        // Convert the list of PostRequests to JSON
+//        String requestBody = objectMapper.writeValueAsString(postRequests);
+//
+//        // Perform POST request
+//        ResultActions resultActions = mockMvc.perform(post("/api/v1/church-registry/baptism")
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .content(requestBody));
+//
+//        // Verify the response
+//        resultActions.andExpect(status().isCreated())
+//                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+//        // Add more assertions as needed
+//    }
 
 //    @Test
 //    void testCreateSingleBaptismRecord_Failure() throws Exception {

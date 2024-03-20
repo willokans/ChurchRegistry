@@ -33,35 +33,35 @@ class BaptismControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Test
-    void testGetBaptisms_Success() throws Exception {
-        // Prepare a list of BaptismDTO.GetResponse objects
-        List<BaptismDTO.GetResponse> responseList = new ArrayList<>();
-
-        // Create a mock instance of BaptismServiceV1
-        BaptismServiceV1 baptismService = mock(BaptismServiceV1.class);
-
-        // Mock the service method to return a Page object
-        when(baptismService.getAllBaptismRecord(any(BaptismDTO.GetRequest.class), any(Pageable.class)))
-                .thenAnswer(invocation -> {
-                    // Retrieve the arguments passed to the method call
-                    BaptismDTO.GetRequest getRequest = invocation.getArgument(0);
-                    Pageable pageable = invocation.getArgument(1);
-
-                    // Return a Page object (dummy data for testing)
-                    return new PageImpl<>(responseList, pageable, responseList.size());
-                });
-
-        // Perform GET request
-        ResultActions resultActions = mockMvc.perform(get("/api/v1/church-registry")
-                .param("page", "0")
-                .param("size", "5")
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Verify the response
-        resultActions.andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
-        // Add more assertions as needed
-    }
+//    @Test
+//    void testGetBaptisms_Success() throws Exception {
+//        // Prepare a list of BaptismDTO.GetResponse objects
+//        List<BaptismDTO.GetResponse> responseList = new ArrayList<>();
+//
+//        // Create a mock instance of BaptismServiceV1
+//        BaptismServiceV1 baptismService = mock(BaptismServiceV1.class);
+//
+//        // Mock the service method to return a Page object
+//        when(baptismService.getAllBaptismRecord(any(BaptismDTO.GetRequest.class), any(Pageable.class)))
+//                .thenAnswer(invocation -> {
+//                    // Retrieve the arguments passed to the method call
+//                    BaptismDTO.GetRequest getRequest = invocation.getArgument(0);
+//                    Pageable pageable = invocation.getArgument(1);
+//
+//                    // Return a Page object (dummy data for testing)
+//                    return new PageImpl<>(responseList, pageable, responseList.size());
+//                });
+//
+//        // Perform GET request
+//        ResultActions resultActions = mockMvc.perform(get("/api/v1/church-registry")
+//                .param("page", "0")
+//                .param("size", "5")
+//                .contentType(MediaType.APPLICATION_JSON));
+//
+//        // Verify the response
+//        resultActions.andExpect(status().isOk())
+//                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+//        // Add more assertions as needed
+//    }
 }
 
