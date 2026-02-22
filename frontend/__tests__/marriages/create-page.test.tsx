@@ -3,7 +3,7 @@
  * - When authenticated and parishId in query, shows form (confirmation picker, partners, date, priest, parish) and creates on submit
  * - Redirects to list after successful create
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MarriageCreatePage from '@/app/marriages/new/page';
@@ -19,6 +19,16 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchConfirmations: jest.fn(),
   createMarriage: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 const mockPush = jest.fn();
@@ -46,7 +56,8 @@ describe('Marriage create page', () => {
     expect(screen.getByLabelText(/partners|spouse/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/marriage date|date/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/officiating priest|priest/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/parish/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByLabelText(/parish/i)).toBeInTheDocument();
   });
 
   it('on submit creates marriage and redirects to list', async () => {
@@ -55,11 +66,12 @@ describe('Marriage create page', () => {
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
-    await user.selectOptions(screen.getByLabelText(/confirmation|select confirmation/i), '7');
-    await user.type(screen.getByLabelText(/partners|spouse/i), 'John & Jane Doe');
-    await user.type(screen.getByLabelText(/marriage date|date/i), '2025-06-15');
-    await user.type(screen.getByLabelText(/officiating priest|priest/i), 'Fr. Smith');
-    await user.type(screen.getByLabelText(/parish/i), 'St Mary');
+    const main = screen.getByRole('main');
+    await user.selectOptions(within(main).getByLabelText(/confirmation|select confirmation/i), '7');
+    await user.type(within(main).getByLabelText(/partners|spouse/i), 'John & Jane Doe');
+    await user.type(within(main).getByLabelText(/marriage date|date/i), '2025-06-15');
+    await user.type(within(main).getByLabelText(/officiating priest|priest/i), 'Fr. Smith');
+    await user.type(within(main).getByLabelText(/parish/i), 'St Mary');
     await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
 
     await waitFor(() => {
@@ -81,6 +93,7 @@ describe('Marriage create page', () => {
   it('when no parishId shows message', () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     render(<MarriageCreatePage />);
-    expect(screen.getByText(/parish|select parish/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/select a parish from the marriages list/i)).toBeInTheDocument();
   });
 });

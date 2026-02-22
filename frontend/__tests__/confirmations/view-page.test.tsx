@@ -3,7 +3,7 @@
  * - When authenticated, fetches confirmation by id and shows details
  * - When not found, shows not-found message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter, useParams } from 'next/navigation';
 import ConfirmationViewPage from '@/app/confirmations/[id]/page';
 import { getStoredToken, getStoredUser, fetchConfirmation } from '@/lib/api';
@@ -17,6 +17,16 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchConfirmation: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -49,8 +59,9 @@ describe('Confirmation view page', () => {
     await waitFor(() => {
       expect(screen.getByText(/Bishop Jones/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/St Mary/)).toBeInTheDocument();
-    expect(screen.getByText(/Communion #2|communion.*2/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/St Mary/)).toBeInTheDocument();
+    expect(within(main).getByText(/Communion #2|communion.*2/i)).toBeInTheDocument();
   });
 
   it('when confirmation not found shows not-found message', async () => {

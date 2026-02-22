@@ -3,7 +3,7 @@
  * - When authenticated, fetches baptism by id and shows details
  * - When not found, shows not-found message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter, useParams } from 'next/navigation';
 import BaptismViewPage from '@/app/baptisms/[id]/page';
 import { getStoredToken, getStoredUser, fetchBaptism } from '@/lib/api';
@@ -17,6 +17,16 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchBaptism: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -52,9 +62,10 @@ describe('Baptism view page', () => {
     await waitFor(() => {
       expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/James/i)).toBeInTheDocument();
-    expect(screen.getByText(/Mary/i)).toBeInTheDocument();
-    expect(screen.getByText(/Peter, Anne/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/James/i)).toBeInTheDocument();
+    expect(within(main).getByText(/^Mary$/)).toBeInTheDocument();
+    expect(within(main).getByText(/Peter, Anne/i)).toBeInTheDocument();
   });
 
   it('when baptism not found shows not-found message', async () => {

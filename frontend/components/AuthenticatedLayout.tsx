@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getStoredToken, getStoredUser, clearAuth } from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
 
 function CrossIcon({ className }: { className?: string }) {
   return (
@@ -20,6 +21,7 @@ export default function AuthenticatedLayout({
 }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const { parishId, setParishId, parishes, loading: parishLoading } = useParish();
 
   useEffect(() => {
     setMounted(true);
@@ -66,12 +68,31 @@ export default function AuthenticatedLayout({
         </span>
       </header>
       <aside className="hidden md:flex md:flex-col md:w-56 md:border-r md:border-gray-200 md:bg-white/80 md:py-6 md:px-4">
-        <div className="flex items-center gap-2 mb-6 px-2">
+        <div className="flex items-center gap-2 mb-4 px-2">
           <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
           <span className="font-serif font-semibold text-sancta-maroon text-lg">
             Church Registry
           </span>
         </div>
+        {!parishLoading && parishes.length > 0 && (
+          <div className="mb-4 px-2">
+            <label htmlFor="parish-select" className="block text-xs font-medium text-gray-500 mb-1">
+              Parish
+            </label>
+            <select
+              id="parish-select"
+              value={parishId ?? ''}
+              onChange={(e) => setParishId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+            >
+              {parishes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.parishName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <nav className="flex-1" aria-label="Main">
           <ul className="space-y-1">
             <li>

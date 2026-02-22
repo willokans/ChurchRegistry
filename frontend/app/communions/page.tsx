@@ -3,33 +3,26 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { fetchDioceses, fetchParishes, fetchCommunions, type FirstHolyCommunionResponse } from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
+import { fetchCommunions, type FirstHolyCommunionResponse } from '@/lib/api';
 
 export default function CommunionsListPage() {
-  const [parishId, setParishId] = useState<number | null>(null);
+  const { parishId, loading: parishLoading } = useParish();
   const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (parishId === null) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     (async () => {
       try {
-        const dioceses = await fetchDioceses();
-        if (cancelled || dioceses.length === 0) {
-          setLoading(false);
-          return;
-        }
-        const parishes = await fetchParishes(dioceses[0].id);
-        if (cancelled) return;
-        if (parishes.length === 0) {
-          setParishId(null);
-          setLoading(false);
-          return;
-        }
-        const firstParishId = parishes[0].id;
-        setParishId(firstParishId);
-        const list = await fetchCommunions(firstParishId);
+        const list = await fetchCommunions(parishId);
         if (!cancelled) setCommunions(list);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
@@ -38,9 +31,11 @@ export default function CommunionsListPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [parishId]);
 
-  if (loading) {
+  const isLoading = parishLoading || (parishId !== null && loading);
+
+  if (isLoading) {
     return (
       <AuthenticatedLayout>
         <p className="text-gray-600">Loading…</p>

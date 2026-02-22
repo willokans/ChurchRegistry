@@ -3,7 +3,7 @@
  * - When authenticated, fetches communion by id and shows details
  * - When not found, shows not-found message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter, useParams } from 'next/navigation';
 import CommunionViewPage from '@/app/communions/[id]/page';
 import { getStoredToken, getStoredUser, fetchCommunion } from '@/lib/api';
@@ -17,6 +17,16 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchCommunion: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -48,8 +58,9 @@ describe('Communion view page', () => {
     await waitFor(() => {
       expect(screen.getByText(/Fr\. Smith/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/St Mary/)).toBeInTheDocument();
-    expect(screen.getByText(/Baptism #5|baptism.*5/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/St Mary/)).toBeInTheDocument();
+    expect(within(main).getByText(/Baptism #5|baptism.*5/i)).toBeInTheDocument();
   });
 
   it('when communion not found shows not-found message', async () => {

@@ -42,6 +42,22 @@ export function clearAuth() {
   localStorage.removeItem('church_registry_user');
 }
 
+const PARISH_STORAGE_KEY = 'church_registry_parish_id';
+
+export function getStoredParishId(): number | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(PARISH_STORAGE_KEY);
+  if (!raw) return null;
+  const id = parseInt(raw, 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+export function setStoredParishId(parishId: number | null): void {
+  if (typeof window === 'undefined') return;
+  if (parishId == null) localStorage.removeItem(PARISH_STORAGE_KEY);
+  else localStorage.setItem(PARISH_STORAGE_KEY, String(parishId));
+}
+
 function getAuthHeaders(): HeadersInit {
   const token = getStoredToken();
   const headers: HeadersInit = { 'Content-Type': 'application/json' };

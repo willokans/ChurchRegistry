@@ -3,7 +3,7 @@
  * - When authenticated and parishId in query, shows form (baptism picker, date, priest, parish) and creates on submit
  * - Redirects to list after successful create
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CommunionCreatePage from '@/app/communions/new/page';
@@ -19,6 +19,16 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchBaptisms: jest.fn(),
   createCommunion: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 const mockPush = jest.fn();
@@ -45,7 +55,8 @@ describe('Communion create page', () => {
     expect(screen.getByLabelText(/baptism|select baptism/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/communion date|date/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/officiating priest|priest/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/parish/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByLabelText(/parish/i)).toBeInTheDocument();
   });
 
   it('on submit creates communion and redirects to list', async () => {
@@ -54,10 +65,11 @@ describe('Communion create page', () => {
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalled();
     });
-    await user.selectOptions(screen.getByLabelText(/baptism|select baptism/i), '5');
-    await user.type(screen.getByLabelText(/communion date|date/i), '2024-05-01');
-    await user.type(screen.getByLabelText(/officiating priest|priest/i), 'Fr. Smith');
-    await user.type(screen.getByLabelText(/parish/i), 'St Mary');
+    const main = screen.getByRole('main');
+    await user.selectOptions(within(main).getByLabelText(/baptism|select baptism/i), '5');
+    await user.type(within(main).getByLabelText(/communion date|date/i), '2024-05-01');
+    await user.type(within(main).getByLabelText(/officiating priest|priest/i), 'Fr. Smith');
+    await user.type(within(main).getByLabelText(/parish/i), 'St Mary');
     await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
 
     await waitFor(() => {
@@ -78,6 +90,7 @@ describe('Communion create page', () => {
   it('when no parishId shows message', () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     render(<CommunionCreatePage />);
-    expect(screen.getByText(/parish|select parish/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/select a parish from the communions list/i)).toBeInTheDocument();
   });
 });

@@ -7,7 +7,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import BaptismsPage from '@/app/baptisms/page';
-import { getStoredToken, getStoredUser, fetchDioceses, fetchParishes, fetchBaptisms } from '@/lib/api';
+import { getStoredToken, getStoredUser, fetchBaptisms } from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -16,9 +17,11 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
-  fetchDioceses: jest.fn(),
-  fetchParishes: jest.fn(),
   fetchBaptisms: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: jest.fn(),
 }));
 
 const mockPush = jest.fn();
@@ -29,11 +32,14 @@ describe('Baptisms list page', () => {
     mockPush.mockClear();
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (fetchDioceses as jest.Mock).mockResolvedValue([{ id: 1, name: 'Diocese A' }]);
-    (fetchParishes as jest.Mock).mockResolvedValue([{ id: 10, parishName: 'St Mary', dioceseId: 1 }]);
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: 10,
+      loading: false,
+      setParishId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      error: null,
+    });
     (fetchBaptisms as jest.Mock).mockResolvedValue([]);
-    (fetchDioceses as jest.Mock).mockClear();
-    (fetchParishes as jest.Mock).mockClear();
     (fetchBaptisms as jest.Mock).mockClear();
   });
 
@@ -74,7 +80,13 @@ describe('Baptisms list page', () => {
   });
 
   it('when no parishes shows message and no fetch to baptisms', async () => {
-    (fetchParishes as jest.Mock).mockResolvedValue([]);
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: null,
+      loading: false,
+      setParishId: jest.fn(),
+      parishes: [],
+      error: null,
+    });
     render(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getByText(/no parish/i)).toBeInTheDocument();

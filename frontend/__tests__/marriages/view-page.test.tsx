@@ -3,7 +3,7 @@
  * - When authenticated, fetches marriage by id and shows details
  * - When not found, shows not-found message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter, useParams } from 'next/navigation';
 import MarriageViewPage from '@/app/marriages/[id]/page';
 import { getStoredToken, getStoredUser, fetchMarriage } from '@/lib/api';
@@ -17,6 +17,16 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchMarriage: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -51,9 +61,10 @@ describe('Marriage view page', () => {
     await waitFor(() => {
       expect(screen.getByText(/Fr\. Smith/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/St Mary/)).toBeInTheDocument();
-    expect(screen.getByText(/2025-06-15/)).toBeInTheDocument();
-    expect(screen.getByText(/Confirmation #7|confirmation.*7/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/St Mary/)).toBeInTheDocument();
+    expect(within(main).getByText(/2025-06-15/)).toBeInTheDocument();
+    expect(within(main).getByText(/Confirmation #7|confirmation.*7/i)).toBeInTheDocument();
   });
 
   it('when marriage not found shows not-found message', async () => {

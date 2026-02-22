@@ -3,7 +3,7 @@
  * - When authenticated and parishId in query, shows form (confirmation picker, date, order type, bishop) and creates on submit
  * - Redirects to list after successful create
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import HolyOrderCreatePage from '@/app/holy-orders/new/page';
@@ -19,6 +19,16 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchConfirmations: jest.fn(),
   createHolyOrder: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: () => ({
+    parishId: 10,
+    setParishId: jest.fn(),
+    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    loading: false,
+    error: null,
+  }),
 }));
 
 const mockPush = jest.fn();
@@ -78,6 +88,7 @@ describe('Holy Order create page', () => {
   it('when no parishId shows message', () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     render(<HolyOrderCreatePage />);
-    expect(screen.getByText(/parish|select parish/i)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/select a parish from the holy orders list/i)).toBeInTheDocument();
   });
 });

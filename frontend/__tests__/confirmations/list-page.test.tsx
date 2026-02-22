@@ -7,7 +7,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import ConfirmationsPage from '@/app/confirmations/page';
-import { getStoredToken, getStoredUser, fetchDioceses, fetchParishes, fetchConfirmations } from '@/lib/api';
+import { getStoredToken, getStoredUser, fetchConfirmations } from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -16,9 +17,11 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
-  fetchDioceses: jest.fn(),
-  fetchParishes: jest.fn(),
   fetchConfirmations: jest.fn(),
+}));
+
+jest.mock('@/context/ParishContext', () => ({
+  useParish: jest.fn(),
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -27,11 +30,14 @@ describe('Confirmations list page', () => {
   beforeEach(() => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (fetchDioceses as jest.Mock).mockResolvedValue([{ id: 1, name: 'Diocese A' }]);
-    (fetchParishes as jest.Mock).mockResolvedValue([{ id: 10, parishName: 'St Mary', dioceseId: 1 }]);
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: 10,
+      loading: false,
+      setParishId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      error: null,
+    });
     (fetchConfirmations as jest.Mock).mockResolvedValue([]);
-    (fetchDioceses as jest.Mock).mockClear();
-    (fetchParishes as jest.Mock).mockClear();
     (fetchConfirmations as jest.Mock).mockClear();
   });
 
@@ -74,7 +80,13 @@ describe('Confirmations list page', () => {
   });
 
   it('when no parishes shows message and no fetch to confirmations', async () => {
-    (fetchParishes as jest.Mock).mockResolvedValue([]);
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: null,
+      loading: false,
+      setParishId: jest.fn(),
+      parishes: [],
+      error: null,
+    });
     render(<ConfirmationsPage />);
     await waitFor(() => {
       expect(screen.getByText(/no parish/i)).toBeInTheDocument();
