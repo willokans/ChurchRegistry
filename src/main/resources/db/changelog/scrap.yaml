@@ -1,0 +1,144 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: baptism
+            columns:
+              - name: id
+                type: bigint
+                autoIncrement: true
+                constraints:
+                  primaryKey: true
+                  nullable: false
+              - name: baptism_name
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: surname
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: gender
+                type: varchar(10)
+                constraints:
+                  nullable: false
+              - name: date_of_birth
+                type: date
+                constraints:
+                  nullable: false
+              - name: fathers_name
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: mothers_name
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: sponsor_names
+                type: varchar(255)
+                constraints:
+                  nullable: false
+
+        - createTable:
+            tableName: first_holy_communion
+            columns:
+              - name: id
+                type: bigint
+                autoIncrement: true
+                constraints:
+                  primaryKey: true
+                  nullable: false
+              - name: baptism_id
+                type: bigint
+                constraints:
+                  nullable: false
+                  foreignKeyName: fk_first_holy_communion_baptism_id
+                  references: baptism(id)
+              - name: communion_date
+                type: date
+                constraints:
+                  nullable: false
+              - name: officiating_priest
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: parish
+                type: varchar(255)
+                constraints:
+                  nullable: false
+
+        - createTable:
+            tableName: confirmation
+            columns:
+              - name: id
+                type: bigint
+                autoIncrement: true
+                constraints:
+                  primaryKey: true
+                  nullable: false
+              - name: baptism_id
+                type: bigint
+                constraints:
+                  nullable: false
+                  foreignKeyName: fk_confirmation_baptism_id
+                  references: baptism(id)
+              - name: communion_id
+                type: bigint
+                constraints:
+                  nullable: false
+                  foreignKeyName: fk_confirmation_communion_id
+                  references: first_holy_communion(id)
+              - name: confirmation_date
+                type: date
+                constraints:
+                  nullable: false
+              - name: officiating_bishop
+                type: varchar(255)
+                constraints:
+                  nullable: false
+
+        - createTable:
+            tableName: marriage
+            columns:
+              - name: id
+                type: bigint
+                autoIncrement: true
+                constraints:
+                  primaryKey: true
+                  nullable: false
+              - name: baptism_id
+                type: bigint
+                constraints:
+                  nullable: false
+                  foreignKeyName: fk_marriage_baptism_id
+                  references: baptism(id)
+              - name: partners_name
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: communion_id
+                type: bigint
+                constraints:
+                  nullable: false
+                  foreignKeyName: fk_marriage_communion_id
+                  references: first_holy_communion(id)
+              - name: confirmation_id
+                type: bigint
+                constraints:
+                  nullable: false
+                  foreignKeyName: fk_marriage_confirmation_id
+                  references: confirmation(id)
+              - name: marriage_date
+                type: date
+                constraints:
+                  nullable: false
+              - name: officiating_priest
+                type: varchar(255)
+                constraints:
+                  nullable: false
+              - name: parish
+                type: varchar(255)
+                constraints:
+                  nullable: false

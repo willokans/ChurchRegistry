@@ -1,0 +1,215 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: diocese
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: diocese_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: description
+                  type: varchar(1000)
+                  constraints:
+                    nullable: true
+
+        - createTable:
+            tableName: parish
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: parish_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: diocese_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_parish_diocese_id
+                    referencedTableName: diocese
+                    referencedColumnNames: id
+              - column:
+                  name: description
+                  type: varchar(1000)
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 4
+      author: will_okanumeh
+      changes:
+        - addColumn:
+            tableName: baptism
+            columns:
+              - column:
+                  name: parish_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+              - column:
+                  name: address
+                  type: varchar(500)
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: baptism
+            baseColumnNames: parish_id
+            constraintName: fk_baptism_parish_id
+            referencedTableName: parish
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 5
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: holy_order
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: baptism_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_holy_order_baptism_id
+                    referencedTableName: baptism
+                    referencedColumnNames: id
+              - column:
+                  name: communion_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_holy_order_communion_id
+                    referencedTableName: first_holy_communion
+                    referencedColumnNames: id
+              - column:
+                  name: confirmation_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_holy_order_confirmation_id
+                    referencedTableName: confirmation
+                    referencedColumnNames: id
+              - column:
+                  name: ordination_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: order_type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: officiating_bishop
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parish_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_holy_order_parish_id
+                    referencedTableName: parish
+                    referencedColumnNames: id
+
+  - changeSet:
+      id: 6
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: app_user
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password_hash
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: parish_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_app_user_parish_id
+                    referencedTableName: parish
+                    referencedColumnNames: id
+              - column:
+                  name: role
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+        - createIndex:
+            indexName: idx_app_user_username
+            tableName: app_user
+            columns:
+              - column:
+                  name: username
+
+  - changeSet:
+      id: 7
+      author: will_okanumeh
+      changes:
+        - insert:
+            tableName: app_user
+            columns:
+              - column:
+                  name: username
+                  value: admin
+              - column:
+                  name: password_hash
+                  value: $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG
+              - column:
+                  name: display_name
+                  value: Administrator
+              - column:
+                  name: role
+                  value: ADMIN
