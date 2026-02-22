@@ -40,7 +40,8 @@ describe('Home page', () => {
     await waitFor(() => {
       expect(screen.getByText(/welcome/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/Administrator/)).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(main).toHaveTextContent(/Administrator/);
     expect(mockPush).not.toHaveBeenCalled();
   });
 });
