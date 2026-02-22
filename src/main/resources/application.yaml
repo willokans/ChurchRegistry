@@ -12,6 +12,13 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
+# OpenAPI: Swagger UI at /swagger-ui.html, JSON at /v3/api-docs
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 app:
   jwt:
     secret: ${JWT_SECRET:change-me-in-production-use-at-least-256-bits}
