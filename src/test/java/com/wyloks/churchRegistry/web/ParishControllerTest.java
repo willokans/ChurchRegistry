@@ -6,10 +6,16 @@ import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.service.ParishService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import com.wyloks.churchRegistry.config.TestSecurityConfig;
 
 import java.util.List;
 
@@ -20,6 +26,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = ParishController.class)
+@EnableAutoConfiguration(exclude = SecurityAutoConfiguration.class)
+@Import(TestSecurityConfig.class)
+@ActiveProfiles("auth-slice")
 class ParishControllerTest {
 
     @Autowired
