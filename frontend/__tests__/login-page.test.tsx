@@ -16,12 +16,24 @@ jest.mock('next/navigation', () => ({
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
 describe('Login page', () => {
+  let locationHref: string;
   beforeEach(() => {
     mockPush.mockClear();
     localStorage.clear();
+    locationHref = '';
+    Object.defineProperty(window, 'location', {
+      value: {
+        get href() {
+          return locationHref;
+        },
+        set href(v: string) {
+          locationHref = v;
+        },
+        assign: jest.fn(),
+      },
+      writable: true,
+    });
   });
 
   it('renders login form with username, password and submit button', () => {
@@ -52,7 +64,7 @@ describe('Login page', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        `${API_URL}/api/auth/login`,
+        expect.stringMatching(/\/api\/auth\/login$/),
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -63,7 +75,7 @@ describe('Login page', () => {
     await waitFor(() => {
       expect(localStorage.getItem('church_registry_token')).toBe('jwt-123');
       expect(localStorage.getItem('church_registry_refresh_token')).toBe('refresh-456');
-      expect(mockPush).toHaveBeenCalledWith('/');
+      expect(locationHref).toBe('/');
     });
   });
 

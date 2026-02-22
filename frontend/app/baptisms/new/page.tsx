@@ -41,7 +41,7 @@ export default function BaptismCreatePage() {
     setError(null);
     setSubmitting(true);
     try {
-      await createBaptism(parishId, form);
+      await createBaptism(parishId as number, form);
       router.push('/baptisms');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create baptism');

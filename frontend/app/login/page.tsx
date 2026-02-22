@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { login, storeAuth } from '@/lib/api';
 
 function CrossIcon({ className }: { className?: string }) {
@@ -49,25 +48,32 @@ function EyeOffIcon({ className }: { className?: string }) {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
     try {
       const res = await login(username, password);
-      storeAuth(res.token, res.refreshToken, {
-        username: res.username,
-        displayName: res.displayName ?? null,
-        role: res.role ?? null,
-      });
-      router.push('/');
+      const token = res?.token;
+      const refreshToken = res?.refreshToken;
+      const user = res?.user ?? (res && 'username' in res
+        ? { username: res.username, displayName: res.displayName ?? null, role: res.role ?? null }
+        : null);
+      if (!token || !user) {
+        throw new Error('Invalid response from server');
+      }
+      storeAuth(token, refreshToken, user);
+      // Full page navigation so home loads with auth in localStorage
+      window.location.href = '/';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      setSubmitting(false);
     }
   }
 
@@ -142,9 +148,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-sancta-maroon hover:bg-sancta-maroon-dark text-white font-semibold focus:outline-none focus:ring-2 focus:ring-sancta-maroon focus:ring-offset-2 transition-colors"
+            disabled={submitting}
+            className="w-full py-3 rounded-xl bg-sancta-maroon hover:bg-sancta-maroon-dark text-white font-semibold focus:outline-none focus:ring-2 focus:ring-sancta-maroon focus:ring-offset-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Sign In
+            {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 

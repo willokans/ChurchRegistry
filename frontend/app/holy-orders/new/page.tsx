@@ -60,7 +60,7 @@ export default function HolyOrderCreatePage() {
     try {
       await createHolyOrder({
         ...form,
-        parishId: parishId > 0 ? parishId : undefined,
+        parishId: parishId != null && parishId > 0 ? parishId : undefined,
       });
       router.push('/holy-orders');
     } catch (err) {

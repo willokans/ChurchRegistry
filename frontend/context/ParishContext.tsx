@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   fetchDioceses,
   fetchParishes,
@@ -27,6 +28,7 @@ type ParishContextValue = {
 const ParishContext = createContext<ParishContextValue | null>(null);
 
 export function ParishProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [parishId, setParishIdState] = useState<number | null>(null);
   const [parishes, setParishes] = useState<ParishResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,8 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError(null);
     let cancelled = false;
     (async () => {
       try {
@@ -76,7 +80,7 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [pathname]);
 
   const value: ParishContextValue = {
     parishId,
