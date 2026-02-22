@@ -82,6 +82,14 @@ export default function AuthenticatedLayout({
                 Home
               </Link>
             </li>
+            <li>
+              <Link
+                href="/baptisms"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Baptisms
+              </Link>
+            </li>
           </ul>
         </nav>
         <button
