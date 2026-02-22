@@ -24,4 +24,7 @@ app:
     secret: ${JWT_SECRET:change-me-in-production-use-at-least-256-bits}
     expiration-ms: ${JWT_EXPIRATION_MS:3600000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+  refresh-token:
+    # Cron for expired refresh token cleanup (default: hourly at minute 0)
+    cleanup-cron: ${REFRESH_TOKEN_CLEANUP_CRON:0 0 * * * ?}
 
