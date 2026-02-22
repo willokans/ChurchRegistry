@@ -38,6 +38,14 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Logout", description = "Invalidate the given refresh token. After logout, that token cannot be used for refresh. Idempotent.")
+    @SecurityRequirements
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Void> handleBadCredentials() {
         return ResponseEntity.status(401).build();

@@ -52,6 +52,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    public void logout(String refreshTokenValue) {
+        refreshTokenRepository.deleteByTokenValue(refreshTokenValue);
+    }
+
+    @Override
+    @Transactional
     public LoginResponse refresh(String refreshTokenValue) {
         RefreshToken refreshToken = refreshTokenRepository.findByTokenValue(refreshTokenValue)
                 .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
