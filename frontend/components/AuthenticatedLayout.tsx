@@ -98,6 +98,22 @@ export default function AuthenticatedLayout({
                 Holy Communion
               </Link>
             </li>
+            <li>
+              <Link
+                href="/confirmations"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Confirmation
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/marriages"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Marriage
+              </Link>
+            </li>
           </ul>
         </nav>
         <button

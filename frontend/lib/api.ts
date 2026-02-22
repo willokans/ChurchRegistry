@@ -168,3 +168,90 @@ export async function createCommunion(body: FirstHolyCommunionRequest): Promise<
   }
   return res.json();
 }
+
+export interface ConfirmationResponse {
+  id: number;
+  baptismId: number;
+  communionId: number;
+  confirmationDate: string;
+  officiatingBishop: string;
+  parish?: string;
+}
+
+export interface ConfirmationRequest {
+  communionId: number;
+  confirmationDate: string;
+  officiatingBishop: string;
+  parish?: string;
+}
+
+export async function fetchConfirmations(parishId: number): Promise<ConfirmationResponse[]> {
+  const res = await fetch(`${getApiUrl()}/api/parishes/${parishId}/confirmations`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
+  return res.json();
+}
+
+export async function fetchConfirmation(id: number): Promise<ConfirmationResponse | null> {
+  const res = await fetch(`${getApiUrl()}/api/confirmations/${id}`, { headers: getAuthHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmation');
+  return res.json();
+}
+
+export async function createConfirmation(body: ConfirmationRequest): Promise<ConfirmationResponse> {
+  const res = await fetch(`${getApiUrl()}/api/confirmations`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create confirmation');
+  }
+  return res.json();
+}
+
+export interface MarriageResponse {
+  id: number;
+  baptismId: number;
+  communionId: number;
+  confirmationId: number;
+  partnersName: string;
+  marriageDate: string;
+  officiatingPriest: string;
+  parish: string;
+}
+
+export interface MarriageRequest {
+  confirmationId: number;
+  partnersName: string;
+  marriageDate: string;
+  officiatingPriest: string;
+  parish: string;
+}
+
+export async function fetchMarriages(parishId: number): Promise<MarriageResponse[]> {
+  const res = await fetch(`${getApiUrl()}/api/parishes/${parishId}/marriages`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriages');
+  return res.json();
+}
+
+export async function fetchMarriage(id: number): Promise<MarriageResponse | null> {
+  const res = await fetch(`${getApiUrl()}/api/marriages/${id}`, { headers: getAuthHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriage');
+  return res.json();
+}
+
+export async function createMarriage(body: MarriageRequest): Promise<MarriageResponse> {
+  const res = await fetch(`${getApiUrl()}/api/marriages`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create marriage');
+  }
+  return res.json();
+}
