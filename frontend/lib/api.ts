@@ -127,3 +127,44 @@ export async function createBaptism(parishId: number, body: BaptismRequest): Pro
   }
   return res.json();
 }
+
+export interface FirstHolyCommunionResponse {
+  id: number;
+  baptismId: number;
+  communionDate: string;
+  officiatingPriest: string;
+  parish: string;
+}
+
+export interface FirstHolyCommunionRequest {
+  baptismId: number;
+  communionDate: string;
+  officiatingPriest: string;
+  parish: string;
+}
+
+export async function fetchCommunions(parishId: number): Promise<FirstHolyCommunionResponse[]> {
+  const res = await fetch(`${getApiUrl()}/api/parishes/${parishId}/communions`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
+  return res.json();
+}
+
+export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResponse | null> {
+  const res = await fetch(`${getApiUrl()}/api/communions/${id}`, { headers: getAuthHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communion');
+  return res.json();
+}
+
+export async function createCommunion(body: FirstHolyCommunionRequest): Promise<FirstHolyCommunionResponse> {
+  const res = await fetch(`${getApiUrl()}/api/communions`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create communion');
+  }
+  return res.json();
+}

@@ -90,6 +90,14 @@ export default function AuthenticatedLayout({
                 Baptisms
               </Link>
             </li>
+            <li>
+              <Link
+                href="/communions"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Holy Communion
+              </Link>
+            </li>
           </ul>
         </nav>
         <button
