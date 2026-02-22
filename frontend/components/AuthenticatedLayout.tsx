@@ -114,6 +114,14 @@ export default function AuthenticatedLayout({
                 Marriage
               </Link>
             </li>
+            <li>
+              <Link
+                href="/holy-orders"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Holy Order
+              </Link>
+            </li>
           </ul>
         </nav>
         <button

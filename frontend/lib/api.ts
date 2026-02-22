@@ -255,3 +255,48 @@ export async function createMarriage(body: MarriageRequest): Promise<MarriageRes
   }
   return res.json();
 }
+
+export interface HolyOrderResponse {
+  id: number;
+  baptismId: number;
+  communionId: number;
+  confirmationId: number;
+  ordinationDate: string;
+  orderType: string;
+  officiatingBishop: string;
+  parishId?: number;
+}
+
+export interface HolyOrderRequest {
+  confirmationId: number;
+  ordinationDate: string;
+  orderType: string;
+  officiatingBishop: string;
+  parishId?: number;
+}
+
+export async function fetchHolyOrders(parishId: number): Promise<HolyOrderResponse[]> {
+  const res = await fetch(`${getApiUrl()}/api/parishes/${parishId}/holy-orders`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy orders');
+  return res.json();
+}
+
+export async function fetchHolyOrder(id: number): Promise<HolyOrderResponse | null> {
+  const res = await fetch(`${getApiUrl()}/api/holy-orders/${id}`, { headers: getAuthHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy order');
+  return res.json();
+}
+
+export async function createHolyOrder(body: HolyOrderRequest): Promise<HolyOrderResponse> {
+  const res = await fetch(`${getApiUrl()}/api/holy-orders`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create holy order');
+  }
+  return res.json();
+}
