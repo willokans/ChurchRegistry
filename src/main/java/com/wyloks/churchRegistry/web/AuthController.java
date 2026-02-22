@@ -2,6 +2,7 @@ package com.wyloks.churchRegistry.web;
 
 import com.wyloks.churchRegistry.dto.LoginRequest;
 import com.wyloks.churchRegistry.dto.LoginResponse;
+import com.wyloks.churchRegistry.dto.RefreshRequest;
 import com.wyloks.churchRegistry.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request.getUsername(), request.getPassword());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        LoginResponse response = authService.refresh(request.getRefreshToken());
         return ResponseEntity.ok(response);
     }
 

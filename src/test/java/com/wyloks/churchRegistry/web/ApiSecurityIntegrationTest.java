@@ -63,4 +63,44 @@ class ApiSecurityIntegrationTest {
                         .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void login_returnsRefreshToken() throws Exception {
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").exists());
+    }
+
+    @Test
+    void refresh_returnsNewAccessToken_andNewTokenWorksForApi() throws Exception {
+        String loginBody = "{\"username\":\"admin\",\"password\":\"password\"}";
+        String loginResponse = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String refreshToken = objectMapper.readTree(loginResponse).get("refreshToken").asText();
+
+        ResultActions refreshResult = mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.username").value("admin"));
+        String newAccessToken = objectMapper.readTree(refreshResult.andReturn().getResponse().getContentAsString()).get("token").asText();
+
+        mvc.perform(get("/api/dioceses")
+                        .header("Authorization", "Bearer " + newAccessToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refresh_withInvalidToken_returns401() throws Exception {
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"invalid-or-expired\"}"))
+                .andExpect(status().isUnauthorized());
+    }
 }

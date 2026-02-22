@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: refresh_token
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_refresh_token_user_id
+                    referencedTableName: app_user
+                    referencedColumnNames: id
+              - column:
+                  name: token_value
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_refresh_token_value
+            tableName: refresh_token
+            columns:
+              - column:
+                  name: token_value
+        - createIndex:
+            indexName: idx_refresh_token_user_id
+            tableName: refresh_token
+            columns:
+              - column:
+                  name: user_id

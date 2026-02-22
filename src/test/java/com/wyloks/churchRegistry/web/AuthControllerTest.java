@@ -40,6 +40,7 @@ class AuthControllerTest {
         LoginRequest request = new LoginRequest("admin", "password");
         LoginResponse response = LoginResponse.builder()
                 .token("jwt-token-here")
+                .refreshToken("refresh-token-here")
                 .username("admin")
                 .displayName("Administrator")
                 .role("ADMIN")
@@ -51,6 +52,7 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("jwt-token-here"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token-here"))
                 .andExpect(jsonPath("$.username").value("admin"))
                 .andExpect(jsonPath("$.displayName").value("Administrator"))
                 .andExpect(jsonPath("$.role").value("ADMIN"));
@@ -72,6 +74,44 @@ class AuthControllerTest {
         mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"p\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refresh_returns200AndNewToken_whenRefreshTokenValid() throws Exception {
+        LoginResponse newTokens = LoginResponse.builder()
+                .token("new-jwt-token")
+                .refreshToken("new-refresh-token")
+                .username("admin")
+                .displayName("Administrator")
+                .role("ADMIN")
+                .build();
+        when(authService.refresh("valid-refresh-token")).thenReturn(newTokens);
+
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"valid-refresh-token\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("new-jwt-token"))
+                .andExpect(jsonPath("$.refreshToken").value("new-refresh-token"))
+                .andExpect(jsonPath("$.username").value("admin"));
+    }
+
+    @Test
+    void refresh_returns401_whenRefreshTokenInvalid() throws Exception {
+        when(authService.refresh("invalid-refresh")).thenThrow(new org.springframework.security.authentication.BadCredentialsException("Invalid refresh token"));
+
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"invalid-refresh\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_returns400_whenRefreshTokenMissing() throws Exception {
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isBadRequest());
     }
 }
