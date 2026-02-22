@@ -1,10 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  --background: #fafafa;
-  --foreground: #1a1a1a;
+  --background: #f5f0e8;
+  --foreground: #3d3630;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Subtle patterned background */
+.bg-pattern {
+  background-color: #f5f0e8;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h2v2H0V0zm4 0h2v2H4V0zm4 0h2v2H8V0z' fill='%23e0d9cc' fill-opacity='0.35' fill-rule='evenodd'/%3E%3C/svg%3E");
 }
