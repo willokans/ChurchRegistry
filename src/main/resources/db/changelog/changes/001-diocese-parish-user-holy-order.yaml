@@ -213,3 +213,67 @@ databaseChangeLog:
               - column:
                   name: role
                   value: ADMIN
+
+  - changeSet:
+      id: 8
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: priest
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: priest_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parish_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_priest_parish_id
+                    referencedTableName: parish
+                    referencedColumnNames: id
+              - column:
+                  name: is_parish_priest
+                  type: boolean
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 9
+      author: will_okanumeh
+      changes:
+        - addColumn:
+            tableName: baptism
+            columns:
+              - column:
+                  name: parish_address
+                  type: varchar(500)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: parent_address
+                  type: varchar(500)
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 10
+      author: will_okanumeh
+      changes:
+        - addColumn:
+            tableName: confirmation
+            columns:
+              - column:
+                  name: parish
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
