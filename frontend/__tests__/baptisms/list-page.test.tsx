@@ -4,7 +4,7 @@
  * - Shows link to add new baptism
  * - When no parish available, shows message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import BaptismsPage from '@/app/baptisms/page';
 import { getStoredToken, getStoredUser, fetchBaptisms } from '@/lib/api';
@@ -74,9 +74,10 @@ describe('Baptisms list page', () => {
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalled();
     });
-    const addLink = screen.getByRole('link', { name: /add|new baptism/i });
-    expect(addLink).toBeInTheDocument();
-    expect(addLink.getAttribute('href')).toMatch(/baptisms\/new/);
+    const main = screen.getByRole('main');
+    const addLinks = within(main).getAllByRole('link', { name: /add baptism/i });
+    expect(addLinks.length).toBeGreaterThanOrEqual(1);
+    expect(addLinks[0].getAttribute('href')).toMatch(/baptisms\/new/);
   });
 
   it('when no parishes shows message and no fetch to baptisms', async () => {
@@ -88,9 +89,21 @@ describe('Baptisms list page', () => {
       error: null,
     });
     render(<BaptismsPage />);
+    const main = screen.getByRole('main');
     await waitFor(() => {
-      expect(screen.getByText(/no parish/i)).toBeInTheDocument();
+      expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
     });
     expect(fetchBaptisms).not.toHaveBeenCalled();
+  });
+
+  it('grid does not show Parents address column', async () => {
+    (fetchBaptisms as jest.Mock).mockResolvedValue([
+      { id: 1, baptismName: 'John', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'J', mothersName: 'M', sponsorNames: 'S' },
+    ]);
+    render(<BaptismsPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('columnheader', { name: /parents'? address/i })).not.toBeInTheDocument();
   });
 });

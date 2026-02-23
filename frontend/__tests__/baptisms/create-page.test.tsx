@@ -62,6 +62,8 @@ describe('Baptism create page', () => {
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/address line/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
     await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
     await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
@@ -73,6 +75,7 @@ describe('Baptism create page', () => {
         fathersName: 'John',
         mothersName: 'Mary',
         sponsorNames: 'Peter',
+        parentAddress: '10 Main St, Lagos',
       }));
     });
     await waitFor(() => {
@@ -85,5 +88,51 @@ describe('Baptism create page', () => {
     render(<BaptismCreatePage />);
     const main = screen.getByRole('main');
     expect(within(main).getByText(/select a parish from the baptisms list/i)).toBeInTheDocument();
+  });
+
+  it('shows Parents address section with Address line above State (Nigeria)', () => {
+    render(<BaptismCreatePage />);
+    expect(screen.getByText(/parents'? address/i)).toBeInTheDocument();
+    const addressLine = screen.getByLabelText(/address line/i);
+    const stateSelect = screen.getByLabelText(/state \(nigeria\)/i);
+    expect(addressLine).toBeInTheDocument();
+    expect(stateSelect).toBeInTheDocument();
+    const form = addressLine.closest('form');
+    const inputs = form?.querySelectorAll('input, select') ?? [];
+    const addressLineIdx = Array.from(inputs).findIndex((el) => el.id === 'parentAddressLine');
+    const stateIdx = Array.from(inputs).findIndex((el) => el.id === 'parentAddressState');
+    expect(addressLineIdx).toBeGreaterThanOrEqual(0);
+    expect(stateIdx).toBeGreaterThanOrEqual(0);
+    expect(addressLineIdx).toBeLessThan(stateIdx);
+  });
+
+  it('Address line and State are required', () => {
+    render(<BaptismCreatePage />);
+    const addressLine = screen.getByLabelText(/address line/i);
+    const stateSelect = screen.getByLabelText(/state \(nigeria\)/i);
+    expect(addressLine).toBeRequired();
+    expect(stateSelect).toBeRequired();
+  });
+
+  it('on submit saves parent address as "Address line, State" in parentAddress', async () => {
+    const user = userEvent.setup();
+    render(<BaptismCreatePage />);
+    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
+    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/father|father's name/i), 'John');
+    await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
+    await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/address line/i), '10 Main St, Ikeja');
+    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    const genderSelect = screen.getByLabelText(/gender/i);
+    await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
+    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+
+    await waitFor(() => {
+      expect(createBaptism).toHaveBeenCalledWith(10, expect.objectContaining({
+        parentAddress: '10 Main St, Ikeja, Lagos',
+      }));
+    });
   });
 });

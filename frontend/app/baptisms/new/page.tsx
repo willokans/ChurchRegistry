@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { createBaptism, type BaptismRequest } from '@/lib/api';
+import { NIGERIAN_STATES } from '@/lib/nigerian-states';
 
 export default function BaptismCreatePage() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function BaptismCreatePage() {
     mothersName: '',
     sponsorNames: '',
   });
+  const [parentAddressState, setParentAddressState] = useState<string>('');
+  const [parentAddressLine, setParentAddressLine] = useState<string>('');
 
   if (parishId === null || Number.isNaN(parishId)) {
     return (
@@ -41,7 +44,10 @@ export default function BaptismCreatePage() {
     setError(null);
     setSubmitting(true);
     try {
-      await createBaptism(parishId as number, form);
+      const line = parentAddressLine.trim();
+      const state = parentAddressState.trim();
+      const parentAddress = state ? (line ? `${line}, ${state}` : state) : undefined;
+      await createBaptism(parishId as number, { ...form, parentAddress });
       router.push('/baptisms');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create baptism');
@@ -151,6 +157,45 @@ export default function BaptismCreatePage() {
             onChange={(e) => setForm((f) => ({ ...f, sponsorNames: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
           />
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+          <h3 className="text-sm font-medium text-gray-800">Parents&apos; address</h3>
+          <p className="mt-1 text-xs text-gray-500">Address without state, then select state (Nigeria)</p>
+          <div className="mt-3 space-y-4">
+            <div>
+              <label htmlFor="parentAddressLine" className="block text-sm font-medium text-gray-700">
+                Address line
+              </label>
+              <input
+                id="parentAddressLine"
+                type="text"
+                required
+                placeholder="e.g. town, area, street (without state)"
+                value={parentAddressLine}
+                onChange={(e) => setParentAddressLine(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+              />
+            </div>
+            <div>
+              <label htmlFor="parentAddressState" className="block text-sm font-medium text-gray-700">
+                State (Nigeria)
+              </label>
+              <select
+                id="parentAddressState"
+                required
+                value={parentAddressState}
+                onChange={(e) => setParentAddressState(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+              >
+                <option value="">Select state</option>
+                {NIGERIAN_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
         {error && (
           <p role="alert" className="text-red-600 text-sm">
