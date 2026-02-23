@@ -74,23 +74,33 @@ export default function AuthenticatedLayout({
             Church Registry
           </span>
         </div>
-        {!parishLoading && parishes.length > 0 && (
+        {!parishLoading && (
           <div className="mb-4 px-2">
             <label htmlFor="parish-select" className="block text-xs font-medium text-gray-500 mb-1">
               Parish
             </label>
-            <select
-              id="parish-select"
-              value={parishId ?? ''}
-              onChange={(e) => setParishId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+            {parishes.length > 0 ? (
+              <select
+                id="parish-select"
+                value={parishId ?? ''}
+                onChange={(e) => setParishId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+              >
+                {parishes.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.parishName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-gray-500 mb-1">No parish selected</p>
+            )}
+            <Link
+              href="/parishes"
+              className="text-xs text-sancta-maroon hover:underline"
             >
-              {parishes.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.parishName}
-                </option>
-              ))}
-            </select>
+              {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
+            </Link>
           </div>
         )}
         <nav className="flex-1" aria-label="Main">
@@ -101,6 +111,14 @@ export default function AuthenticatedLayout({
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Home
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/parishes"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Dioceses & Parishes
               </Link>
             </li>
             <li>

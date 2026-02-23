@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { useParish } from '@/context/ParishContext';
 import { fetchHolyOrder, type HolyOrderResponse } from '@/lib/api';
 
 export default function HolyOrderViewPage() {
   const params = useParams();
+  const { parishId } = useParish();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const [holyOrder, setHolyOrder] = useState<HolyOrderResponse | null | undefined>(undefined);
 
@@ -55,10 +57,18 @@ export default function HolyOrderViewPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Link href="/holy-orders" className="text-sancta-maroon hover:underline">
           ← Back to holy orders
         </Link>
+        {parishId != null && (
+          <Link
+            href={`/holy-orders/new?parishId=${parishId}`}
+            className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark text-sm"
+          >
+            Add holy order
+          </Link>
+        )}
       </div>
       <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
         Holy Order — {holyOrder.orderType} ({holyOrder.ordinationDate})

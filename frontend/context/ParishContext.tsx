@@ -23,16 +23,22 @@ type ParishContextValue = {
   parishes: ParishResponse[];
   loading: boolean;
   error: string | null;
+  refetch: () => void;
 };
 
 const ParishContext = createContext<ParishContextValue | null>(null);
 
 export function ParishProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [parishId, setParishIdState] = useState<number | null>(null);
   const [parishes, setParishes] = useState<ParishResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(() => {
+    setRefreshTrigger((t) => t + 1);
+  }, []);
 
   const setParishId = useCallback((id: number | null) => {
     setParishIdState(id);
@@ -80,7 +86,7 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [pathname]);
+  }, [pathname, refreshTrigger]);
 
   const value: ParishContextValue = {
     parishId,
@@ -88,6 +94,7 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
     parishes,
     loading,
     error,
+    refetch,
   };
 
   return (

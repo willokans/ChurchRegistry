@@ -72,7 +72,15 @@ export default function HolyOrdersListPage() {
         </Link>
       </div>
       {holyOrders.length === 0 ? (
-        <p className="mt-6 text-gray-600">No holy order records yet.</p>
+        <div className="mt-6">
+          <p className="text-gray-600">No holy order records yet.</p>
+          <Link
+            href={`/holy-orders/new?parishId=${parishId}`}
+            className="mt-3 inline-block rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+          >
+            Add holy order
+          </Link>
+        </div>
       ) : (
         <ul className="mt-6 space-y-3" role="list">
           {holyOrders.map((h) => (

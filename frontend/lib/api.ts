@@ -126,6 +126,32 @@ export async function fetchParishes(dioceseId: number): Promise<ParishResponse[]
   return res.json();
 }
 
+export async function createDiocese(name: string): Promise<DioceseResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/dioceses`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create diocese');
+  }
+  return res.json();
+}
+
+export async function createParish(dioceseId: number, parishName: string): Promise<ParishResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/dioceses/${dioceseId}/parishes`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ parishName }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create parish');
+  }
+  return res.json();
+}
+
 export async function fetchBaptisms(parishId: number): Promise<BaptismResponse[]> {
   const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');

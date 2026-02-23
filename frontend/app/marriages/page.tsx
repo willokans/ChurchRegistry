@@ -72,7 +72,15 @@ export default function MarriagesListPage() {
         </Link>
       </div>
       {marriages.length === 0 ? (
-        <p className="mt-6 text-gray-600">No marriage records yet.</p>
+        <div className="mt-6">
+          <p className="text-gray-600">No marriage records yet.</p>
+          <Link
+            href={`/marriages/new?parishId=${parishId}`}
+            className="mt-3 inline-block rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+          >
+            Add marriage
+          </Link>
+        </div>
       ) : (
         <ul className="mt-6 space-y-3" role="list">
           {marriages.map((m) => (

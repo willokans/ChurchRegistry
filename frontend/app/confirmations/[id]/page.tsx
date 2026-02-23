@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { useParish } from '@/context/ParishContext';
 import { fetchConfirmation, type ConfirmationResponse } from '@/lib/api';
 
 export default function ConfirmationViewPage() {
   const params = useParams();
+  const { parishId } = useParish();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const [confirmation, setConfirmation] = useState<ConfirmationResponse | null | undefined>(undefined);
 
@@ -55,10 +57,18 @@ export default function ConfirmationViewPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Link href="/confirmations" className="text-sancta-maroon hover:underline">
           ← Back to confirmations
         </Link>
+        {parishId != null && (
+          <Link
+            href={`/confirmations/new?parishId=${parishId}`}
+            className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark text-sm"
+          >
+            Add confirmation
+          </Link>
+        )}
       </div>
       <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
         Confirmation — {confirmation.confirmationDate}

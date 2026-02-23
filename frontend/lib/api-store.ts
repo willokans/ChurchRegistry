@@ -75,7 +75,8 @@ export interface HolyOrder {
   parishId?: number;
 }
 
-// Auth: token -> user (in-memory; login required after restart)
+// Auth: token -> user. In-memory map for current sessions; mock tokens are also
+// decoded from the token payload so stored tokens survive server restarts.
 const sessions = new Map<string, User>();
 
 export function createSession(user: User): { token: string; refreshToken: string } {
@@ -85,16 +86,38 @@ export function createSession(user: User): { token: string; refreshToken: string
   return { token, refreshToken };
 }
 
+function decodeMockToken(token: string): User | null {
+  if (!token.startsWith('mock-jwt-')) return null;
+  const rest = token.slice(9); // after "mock-jwt-"
+  const lastDash = rest.lastIndexOf('-');
+  if (lastDash === -1) return null;
+  const base64Part = rest.slice(0, lastDash);
+  try {
+    const json = Buffer.from(base64Part, 'base64url').toString('utf-8');
+    const user = JSON.parse(json) as User;
+    if (typeof user.username !== 'string') return null;
+    return {
+      username: user.username,
+      displayName: user.displayName ?? null,
+      role: user.role ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function getUserFromToken(authHeader: string | null): User | null {
   if (!authHeader?.startsWith('Bearer ')) return null;
   const token = authHeader.slice(7);
-  return sessions.get(token) ?? null;
+  return sessions.get(token) ?? decodeMockToken(token);
 }
 
 // File-based data (re-export from file-store)
 export {
   getDioceses,
+  addDiocese,
   getParishes,
+  addParish,
   getBaptisms,
   getBaptismById,
   getBaptismsByParishId,

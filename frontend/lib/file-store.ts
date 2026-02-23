@@ -46,30 +46,39 @@ function nextId<T extends { id: number }>(items: T[]): number {
 }
 
 // Dioceses
-const defaultDioceses: Diocese[] = [{ id: 1, name: 'Default Diocese' }];
-
 export async function getDioceses(): Promise<Diocese[]> {
-  const list = await readJson<Diocese[]>(FILES.dioceses, defaultDioceses);
+  const list = await readJson<Diocese[]>(FILES.dioceses, []);
   if (list.length === 0) {
-    await writeJson(FILES.dioceses, defaultDioceses);
-    return defaultDioceses;
+    await writeJson(FILES.dioceses, []);
+    return [];
   }
   return list;
 }
 
-// Parishes
-const defaultParishes: Parish[] = [
-  { id: 1, parishName: 'St Mary', dioceseId: 1 },
-  { id: 2, parishName: 'St Joseph', dioceseId: 1 },
-];
+export async function addDiocese(name: string): Promise<Diocese> {
+  const list = await getDioceses();
+  const diocese: Diocese = { id: nextId(list), name };
+  list.push(diocese);
+  await writeJson(FILES.dioceses, list);
+  return diocese;
+}
 
+// Parishes
 export async function getParishes(): Promise<Parish[]> {
   const list = await readJson<Parish[]>(FILES.parishes, []);
   if (list.length === 0) {
-    await writeJson(FILES.parishes, defaultParishes);
-    return defaultParishes;
+    await writeJson(FILES.parishes, []);
+    return [];
   }
   return list;
+}
+
+export async function addParish(dioceseId: number, parishName: string): Promise<Parish> {
+  const list = await getParishes();
+  const parish: Parish = { id: nextId(list), parishName, dioceseId };
+  list.push(parish);
+  await writeJson(FILES.parishes, list);
+  return parish;
 }
 
 // Baptisms
