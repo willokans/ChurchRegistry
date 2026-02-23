@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { holyOrders } from '@/lib/api-store';
+import { getUserFromToken, getHolyOrderById } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -15,7 +14,7 @@ export async function GET(
   if (Number.isNaN(numId)) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   }
-  const record = holyOrders.find((h) => h.id === numId);
+  const record = await getHolyOrderById(numId);
   if (!record) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }

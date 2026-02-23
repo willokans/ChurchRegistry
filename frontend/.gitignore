@@ -3,6 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
+# Local file store (survives restarts)
+data/
+
 # Build
 .next/
 out/

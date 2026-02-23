@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { baptisms, nextId } from '@/lib/api-store';
+import { getUserFromToken, getBaptismsByParishId, getBaptisms, nextId, addBaptism } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -15,7 +14,7 @@ export async function GET(
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: 'Invalid parish id' }, { status: 400 });
   }
-  const list = baptisms.filter((b) => b.parishId === id);
+  const list = await getBaptismsByParishId(id);
   return NextResponse.json(list);
 }
 
@@ -33,8 +32,9 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid parish id' }, { status: 400 });
   }
   const body = await request.json();
+  const list = await getBaptisms();
   const record = {
-    id: nextId('baptism'),
+    id: nextId(list),
     parishId: parishIdNum,
     baptismName: String(body.baptismName ?? ''),
     surname: String(body.surname ?? ''),
@@ -47,6 +47,6 @@ export async function POST(
     parishAddress: body.parishAddress != null ? String(body.parishAddress) : undefined,
     parentAddress: body.parentAddress != null ? String(body.parentAddress) : undefined,
   };
-  baptisms.push(record);
+  await addBaptism(record);
   return NextResponse.json(record);
 }

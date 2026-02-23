@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { marriages, parishes } from '@/lib/api-store';
+import { getUserFromToken, getParishes, getMarriages } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -15,6 +14,7 @@ export async function GET(
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: 'Invalid parish id' }, { status: 400 });
   }
+  const [parishes, marriages] = await Promise.all([getParishes(), getMarriages()]);
   const parishName = parishes.find((p) => p.id === id)?.parishName;
   const list = marriages.filter((m) => m.parish === parishName);
   return NextResponse.json(list);

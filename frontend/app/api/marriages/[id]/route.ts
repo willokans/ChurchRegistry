@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { marriages } from '@/lib/api-store';
+import { getUserFromToken, getMarriageById } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -15,7 +14,7 @@ export async function GET(
   if (Number.isNaN(numId)) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   }
-  const record = marriages.find((m) => m.id === numId);
+  const record = await getMarriageById(numId);
   if (!record) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }

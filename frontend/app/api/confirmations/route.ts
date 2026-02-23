@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { confirmations, nextId } from '@/lib/api-store';
+import { getUserFromToken, getConfirmations, nextId, addConfirmation } from '@/lib/api-store';
 
 export async function POST(request: Request) {
   const user = getUserFromToken(request.headers.get('Authorization'));
@@ -8,14 +7,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = await request.json();
+  const list = await getConfirmations();
   const record = {
-    id: nextId('confirmation'),
+    id: nextId(list),
     baptismId: 0,
     communionId: Number(body.communionId),
     confirmationDate: String(body.confirmationDate ?? ''),
     officiatingBishop: String(body.officiatingBishop ?? ''),
     parish: body.parish != null ? String(body.parish) : undefined,
   };
-  confirmations.push(record);
+  await addConfirmation(record);
   return NextResponse.json(record);
 }

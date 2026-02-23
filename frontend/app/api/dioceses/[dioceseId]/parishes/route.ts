@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { parishes } from '@/lib/api-store';
+import { getUserFromToken, getParishes } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -15,6 +14,7 @@ export async function GET(
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: 'Invalid diocese id' }, { status: 400 });
   }
+  const parishes = await getParishes();
   const list = parishes.filter((p) => p.dioceseId === id);
   return NextResponse.json(list);
 }

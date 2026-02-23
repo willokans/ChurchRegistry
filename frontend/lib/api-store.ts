@@ -1,5 +1,6 @@
 /**
- * In-memory store for Next.js API routes. Resets on server restart.
+ * Store for Next.js API routes: types, auth (in-memory), and file-based data.
+ * Data (dioceses, parishes, sacraments) is persisted in data/*.json and survives restarts.
  */
 
 export interface User {
@@ -74,7 +75,7 @@ export interface HolyOrder {
   parishId?: number;
 }
 
-// Auth: token -> user (for mock, accept any login and issue a token)
+// Auth: token -> user (in-memory; login required after restart)
 const sessions = new Map<string, User>();
 
 export function createSession(user: User): { token: string; refreshToken: string } {
@@ -90,36 +91,25 @@ export function getUserFromToken(authHeader: string | null): User | null {
   return sessions.get(token) ?? null;
 }
 
-// Seed data
-let nextDioceseId = 1;
-let nextParishId = 1;
-let nextBaptismId = 1;
-let nextCommunionId = 1;
-let nextConfirmationId = 1;
-let nextMarriageId = 1;
-let nextHolyOrderId = 1;
-
-export const dioceses: Diocese[] = [
-  { id: nextDioceseId++, name: 'Default Diocese' },
-];
-
-export const parishes: Parish[] = [
-  { id: nextParishId++, parishName: 'St Mary', dioceseId: 1 },
-  { id: nextParishId++, parishName: 'St Joseph', dioceseId: 1 },
-];
-
-export const baptisms: Baptism[] = [];
-export const communions: FirstHolyCommunion[] = [];
-export const confirmations: Confirmation[] = [];
-export const marriages: Marriage[] = [];
-export const holyOrders: HolyOrder[] = [];
-
-export function nextId(type: 'baptism' | 'communion' | 'confirmation' | 'marriage' | 'holyOrder'): number {
-  switch (type) {
-    case 'baptism': return nextBaptismId++;
-    case 'communion': return nextCommunionId++;
-    case 'confirmation': return nextConfirmationId++;
-    case 'marriage': return nextMarriageId++;
-    case 'holyOrder': return nextHolyOrderId++;
-  }
-}
+// File-based data (re-export from file-store)
+export {
+  getDioceses,
+  getParishes,
+  getBaptisms,
+  getBaptismById,
+  getBaptismsByParishId,
+  addBaptism,
+  getCommunions,
+  getCommunionById,
+  addCommunion,
+  getConfirmations,
+  getConfirmationById,
+  addConfirmation,
+  getMarriages,
+  getMarriageById,
+  addMarriage,
+  getHolyOrders,
+  getHolyOrderById,
+  addHolyOrder,
+  nextId,
+} from './file-store';

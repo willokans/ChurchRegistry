@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/api-store';
-import { holyOrders } from '@/lib/api-store';
+import { getUserFromToken, getHolyOrders } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -15,6 +14,7 @@ export async function GET(
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: 'Invalid parish id' }, { status: 400 });
   }
+  const holyOrders = await getHolyOrders();
   const list = holyOrders.filter((h) => (h.parishId ?? 0) === id);
   return NextResponse.json(list);
 }
