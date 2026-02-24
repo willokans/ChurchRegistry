@@ -32,6 +32,19 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid parish id' }, { status: 400 });
   }
   const body = await request.json();
+  const dateOfBirth = String(body.dateOfBirth ?? '').trim();
+  if (dateOfBirth) {
+    const dob = new Date(dateOfBirth);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dob.setHours(0, 0, 0, 0);
+    if (dob > today) {
+      return NextResponse.json(
+        { error: 'Date of birth cannot be in the future' },
+        { status: 400 }
+      );
+    }
+  }
   const list = await getBaptisms();
   const record = {
     id: nextId(list),
@@ -43,6 +56,7 @@ export async function POST(
     fathersName: String(body.fathersName ?? ''),
     mothersName: String(body.mothersName ?? ''),
     sponsorNames: String(body.sponsorNames ?? ''),
+    officiatingPriest: String(body.officiatingPriest ?? '').trim(),
     address: body.address != null ? String(body.address) : undefined,
     parishAddress: body.parishAddress != null ? String(body.parishAddress) : undefined,
     parentAddress: body.parentAddress != null ? String(body.parentAddress) : undefined,

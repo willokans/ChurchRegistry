@@ -30,6 +30,7 @@ export interface Baptism {
   fathersName: string;
   mothersName: string;
   sponsorNames: string;
+  officiatingPriest: string;
   parishId: number;
   address?: string;
   parishAddress?: string;

@@ -27,6 +27,7 @@ type BaptismRow = {
   fathers_name: string;
   mothers_name: string;
   sponsor_names: string;
+  officiating_priest: string;
   address: string | null;
   parish_address: string | null;
   parent_address: string | null;
@@ -211,6 +212,7 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
     fathers_name: record.fathersName,
     mothers_name: record.mothersName,
     sponsor_names: record.sponsorNames,
+    officiating_priest: record.officiatingPriest ?? '',
     address: record.address ?? null,
     parish_address: record.parishAddress ?? null,
     parent_address: record.parentAddress ?? null,

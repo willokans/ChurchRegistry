@@ -82,6 +82,7 @@ export interface BaptismResponse {
   fathersName: string;
   mothersName: string;
   sponsorNames: string;
+  officiatingPriest: string;
   parishId: number;
   address?: string;
   parishAddress?: string;
@@ -96,6 +97,7 @@ export interface BaptismRequest {
   fathersName: string;
   mothersName: string;
   sponsorNames: string;
+  officiatingPriest: string;
   parishId?: number;
   address?: string;
   parishAddress?: string;

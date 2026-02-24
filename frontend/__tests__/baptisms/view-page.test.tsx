@@ -45,6 +45,7 @@ describe('Baptism view page', () => {
       fathersName: 'James',
       mothersName: 'Mary',
       sponsorNames: 'Peter, Anne',
+      officiatingPriest: 'Fr. Williams',
       parishId: 10,
     });
   });
@@ -66,6 +67,7 @@ describe('Baptism view page', () => {
     expect(within(main).getByText(/James/i)).toBeInTheDocument();
     expect(within(main).getByText(/^Mary$/)).toBeInTheDocument();
     expect(within(main).getByText(/Peter, Anne/i)).toBeInTheDocument();
+    expect(within(main).getByText(/Fr\. Williams/i)).toBeInTheDocument();
   });
 
   it('when baptism not found shows not-found message', async () => {

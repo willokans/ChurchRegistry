@@ -81,9 +81,13 @@ export async function addParish(dioceseId: number, parishName: string): Promise<
   return parish;
 }
 
-// Baptisms
+// Baptisms (normalize so old JSON without officiatingPriest still conforms to Baptism)
+function normalizeBaptism(b: Baptism & { officiatingPriest?: string }): Baptism {
+  return { ...b, officiatingPriest: b.officiatingPriest ?? '' };
+}
 export async function getBaptisms(): Promise<Baptism[]> {
-  return readJson<Baptism[]>(FILES.baptisms, []);
+  const list = await readJson<(Baptism & { officiatingPriest?: string })[]>(FILES.baptisms, []);
+  return list.map(normalizeBaptism);
 }
 
 export async function getBaptismById(id: number): Promise<Baptism | null> {

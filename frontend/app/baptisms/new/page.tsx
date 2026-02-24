@@ -23,6 +23,7 @@ export default function BaptismCreatePage() {
     fathersName: '',
     mothersName: '',
     sponsorNames: '',
+    officiatingPriest: '',
   });
   const [parentAddressState, setParentAddressState] = useState<string>('');
   const [parentAddressLine, setParentAddressLine] = useState<string>('');
@@ -114,10 +115,12 @@ export default function BaptismCreatePage() {
             id="dateOfBirth"
             type="date"
             required
+            max={new Date().toISOString().slice(0, 10)}
             value={form.dateOfBirth}
             onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
           />
+          <p className="mt-1 text-xs text-gray-500">Cannot be a future date</p>
         </div>
         <div>
           <label htmlFor="fathersName" className="block text-sm font-medium text-gray-700">
@@ -155,6 +158,19 @@ export default function BaptismCreatePage() {
             required
             value={form.sponsorNames}
             onChange={(e) => setForm((f) => ({ ...f, sponsorNames: e.target.value }))}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+          />
+        </div>
+        <div>
+          <label htmlFor="officiatingPriest" className="block text-sm font-medium text-gray-700">
+            Officiating priest
+          </label>
+          <input
+            id="officiatingPriest"
+            type="text"
+            required
+            value={form.officiatingPriest}
+            onChange={(e) => setForm((f) => ({ ...f, officiatingPriest: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
           />
         </div>

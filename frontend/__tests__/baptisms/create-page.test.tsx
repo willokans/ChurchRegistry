@@ -51,6 +51,7 @@ describe('Baptism create page', () => {
     expect(screen.getByLabelText(/father|father's name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/mother|mother's name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/sponsor/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/officiating priest/i)).toBeInTheDocument();
   });
 
   it('on submit creates baptism and redirects to list', async () => {
@@ -62,6 +63,7 @@ describe('Baptism create page', () => {
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
     await user.type(screen.getByLabelText(/address line/i), '10 Main St');
     await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
@@ -75,6 +77,7 @@ describe('Baptism create page', () => {
         fathersName: 'John',
         mothersName: 'Mary',
         sponsorNames: 'Peter',
+        officiatingPriest: 'Fr. Smith',
         parentAddress: '10 Main St, Lagos',
       }));
     });
@@ -114,6 +117,13 @@ describe('Baptism create page', () => {
     expect(stateSelect).toBeRequired();
   });
 
+  it('date of birth input has max set so future dates cannot be selected', () => {
+    render(<BaptismCreatePage />);
+    const dobInput = screen.getByLabelText(/date of birth/i);
+    expect(dobInput).toHaveAttribute('max');
+    expect(dobInput.getAttribute('max')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
   it('on submit saves parent address as "Address line, State" in parentAddress', async () => {
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
@@ -123,6 +133,7 @@ describe('Baptism create page', () => {
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
     await user.type(screen.getByLabelText(/address line/i), '10 Main St, Ikeja');
     await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);

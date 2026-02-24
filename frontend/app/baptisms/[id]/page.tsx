@@ -84,6 +84,8 @@ export default function BaptismViewPage() {
         <dd className="text-gray-900">{baptism.mothersName}</dd>
         <dt className="text-sm font-medium text-gray-500">Sponsors</dt>
         <dd className="text-gray-900">{baptism.sponsorNames}</dd>
+        <dt className="text-sm font-medium text-gray-500">Officiating priest</dt>
+        <dd className="text-gray-900">{baptism.officiatingPriest ?? '—'}</dd>
         {(baptism.parentAddress ?? baptism.address) && (
           <>
             <dt className="text-sm font-medium text-gray-500">Parents&apos; address</dt>
