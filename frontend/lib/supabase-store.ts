@@ -89,6 +89,7 @@ function toBaptism(r: BaptismRow): Baptism {
     fathersName: r.fathers_name,
     mothersName: r.mothers_name,
     sponsorNames: r.sponsor_names,
+    officiatingPriest: r.officiating_priest ?? '',
     parishId: r.parish_id,
     address: r.address ?? undefined,
     parishAddress: r.parish_address ?? undefined,
