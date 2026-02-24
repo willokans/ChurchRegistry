@@ -117,69 +117,69 @@ import { isSupabaseConfigured } from './supabase-server';
 import * as fileStore from './file-store';
 import * as supabaseStore from './supabase-store';
 
-function useSupabase() {
+function storeUsesSupabase(): boolean {
   return isSupabaseConfigured();
 }
 
 export async function getDioceses() {
-  return useSupabase() ? supabaseStore.getDioceses() : fileStore.getDioceses();
+  return storeUsesSupabase() ? supabaseStore.getDioceses() : fileStore.getDioceses();
 }
 export async function addDiocese(name: string) {
-  return useSupabase() ? supabaseStore.addDiocese(name) : fileStore.addDiocese(name);
+  return storeUsesSupabase() ? supabaseStore.addDiocese(name) : fileStore.addDiocese(name);
 }
 export async function getParishes() {
-  return useSupabase() ? supabaseStore.getParishes() : fileStore.getParishes();
+  return storeUsesSupabase() ? supabaseStore.getParishes() : fileStore.getParishes();
 }
 export async function addParish(dioceseId: number, parishName: string) {
-  return useSupabase() ? supabaseStore.addParish(dioceseId, parishName) : fileStore.addParish(dioceseId, parishName);
+  return storeUsesSupabase() ? supabaseStore.addParish(dioceseId, parishName) : fileStore.addParish(dioceseId, parishName);
 }
 export async function getBaptisms() {
-  return useSupabase() ? supabaseStore.getBaptisms() : fileStore.getBaptisms();
+  return storeUsesSupabase() ? supabaseStore.getBaptisms() : fileStore.getBaptisms();
 }
 export async function getBaptismById(id: number) {
-  return useSupabase() ? supabaseStore.getBaptismById(id) : fileStore.getBaptismById(id);
+  return storeUsesSupabase() ? supabaseStore.getBaptismById(id) : fileStore.getBaptismById(id);
 }
 export async function getBaptismsByParishId(parishId: number) {
-  return useSupabase() ? supabaseStore.getBaptismsByParishId(parishId) : fileStore.getBaptismsByParishId(parishId);
+  return storeUsesSupabase() ? supabaseStore.getBaptismsByParishId(parishId) : fileStore.getBaptismsByParishId(parishId);
 }
 export async function addBaptism(record: Parameters<typeof fileStore.addBaptism>[0]) {
-  return useSupabase() ? supabaseStore.addBaptism(record) : fileStore.addBaptism(record);
+  return storeUsesSupabase() ? supabaseStore.addBaptism(record) : fileStore.addBaptism(record);
 }
 export async function getCommunions() {
-  return useSupabase() ? supabaseStore.getCommunions() : fileStore.getCommunions();
+  return storeUsesSupabase() ? supabaseStore.getCommunions() : fileStore.getCommunions();
 }
 export async function getCommunionById(id: number) {
-  return useSupabase() ? supabaseStore.getCommunionById(id) : fileStore.getCommunionById(id);
+  return storeUsesSupabase() ? supabaseStore.getCommunionById(id) : fileStore.getCommunionById(id);
 }
 export async function addCommunion(record: Parameters<typeof fileStore.addCommunion>[0]) {
-  return useSupabase() ? supabaseStore.addCommunion(record) : fileStore.addCommunion(record);
+  return storeUsesSupabase() ? supabaseStore.addCommunion(record) : fileStore.addCommunion(record);
 }
 export async function getConfirmations() {
-  return useSupabase() ? supabaseStore.getConfirmations() : fileStore.getConfirmations();
+  return storeUsesSupabase() ? supabaseStore.getConfirmations() : fileStore.getConfirmations();
 }
 export async function getConfirmationById(id: number) {
-  return useSupabase() ? supabaseStore.getConfirmationById(id) : fileStore.getConfirmationById(id);
+  return storeUsesSupabase() ? supabaseStore.getConfirmationById(id) : fileStore.getConfirmationById(id);
 }
 export async function addConfirmation(record: Parameters<typeof fileStore.addConfirmation>[0]) {
-  return useSupabase() ? supabaseStore.addConfirmation(record) : fileStore.addConfirmation(record);
+  return storeUsesSupabase() ? supabaseStore.addConfirmation(record) : fileStore.addConfirmation(record);
 }
 export async function getMarriages() {
-  return useSupabase() ? supabaseStore.getMarriages() : fileStore.getMarriages();
+  return storeUsesSupabase() ? supabaseStore.getMarriages() : fileStore.getMarriages();
 }
 export async function getMarriageById(id: number) {
-  return useSupabase() ? supabaseStore.getMarriageById(id) : fileStore.getMarriageById(id);
+  return storeUsesSupabase() ? supabaseStore.getMarriageById(id) : fileStore.getMarriageById(id);
 }
 export async function addMarriage(record: Parameters<typeof fileStore.addMarriage>[0]) {
-  return useSupabase() ? supabaseStore.addMarriage(record) : fileStore.addMarriage(record);
+  return storeUsesSupabase() ? supabaseStore.addMarriage(record) : fileStore.addMarriage(record);
 }
 export async function getHolyOrders() {
-  return useSupabase() ? supabaseStore.getHolyOrders() : fileStore.getHolyOrders();
+  return storeUsesSupabase() ? supabaseStore.getHolyOrders() : fileStore.getHolyOrders();
 }
 export async function getHolyOrderById(id: number) {
-  return useSupabase() ? supabaseStore.getHolyOrderById(id) : fileStore.getHolyOrderById(id);
+  return storeUsesSupabase() ? supabaseStore.getHolyOrderById(id) : fileStore.getHolyOrderById(id);
 }
 export async function addHolyOrder(record: Parameters<typeof fileStore.addHolyOrder>[0]) {
-  return useSupabase() ? supabaseStore.addHolyOrder(record) : fileStore.addHolyOrder(record);
+  return storeUsesSupabase() ? supabaseStore.addHolyOrder(record) : fileStore.addHolyOrder(record);
 }
 export function nextId<T extends { id: number }>(items: T[]) {
   return fileStore.nextId(items);
