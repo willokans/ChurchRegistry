@@ -10,14 +10,14 @@ export async function POST(request: Request) {
   const list = await getMarriages();
   const record = {
     id: nextId(list),
-    baptismId: 0,
-    communionId: 0,
+    baptismId: Number(body.baptismId ?? 0),
+    communionId: Number(body.communionId ?? 0),
     confirmationId: Number(body.confirmationId),
     partnersName: String(body.partnersName ?? ''),
     marriageDate: String(body.marriageDate ?? ''),
     officiatingPriest: String(body.officiatingPriest ?? ''),
     parish: String(body.parish ?? ''),
   };
-  await addMarriage(record);
-  return NextResponse.json(record);
+  const created = await addMarriage(record);
+  return NextResponse.json(created);
 }

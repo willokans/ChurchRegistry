@@ -96,10 +96,11 @@ export async function getBaptismsByParishId(parishId: number): Promise<Baptism[]
   return list.filter((b) => b.parishId === parishId);
 }
 
-export async function addBaptism(record: Baptism): Promise<void> {
+export async function addBaptism(record: Baptism): Promise<Baptism> {
   const list = await getBaptisms();
   list.push(record);
   await writeJson(FILES.baptisms, list);
+  return record;
 }
 
 // Communions
@@ -112,10 +113,11 @@ export async function getCommunionById(id: number): Promise<FirstHolyCommunion |
   return list.find((c) => c.id === id) ?? null;
 }
 
-export async function addCommunion(record: FirstHolyCommunion): Promise<void> {
+export async function addCommunion(record: FirstHolyCommunion): Promise<FirstHolyCommunion> {
   const list = await getCommunions();
   list.push(record);
   await writeJson(FILES.communions, list);
+  return record;
 }
 
 // Confirmations
@@ -128,10 +130,11 @@ export async function getConfirmationById(id: number): Promise<Confirmation | nu
   return list.find((c) => c.id === id) ?? null;
 }
 
-export async function addConfirmation(record: Confirmation): Promise<void> {
+export async function addConfirmation(record: Confirmation): Promise<Confirmation> {
   const list = await getConfirmations();
   list.push(record);
   await writeJson(FILES.confirmations, list);
+  return record;
 }
 
 // Marriages
@@ -144,10 +147,11 @@ export async function getMarriageById(id: number): Promise<Marriage | null> {
   return list.find((m) => m.id === id) ?? null;
 }
 
-export async function addMarriage(record: Marriage): Promise<void> {
+export async function addMarriage(record: Marriage): Promise<Marriage> {
   const list = await getMarriages();
   list.push(record);
   await writeJson(FILES.marriages, list);
+  return record;
 }
 
 // Holy orders
@@ -160,10 +164,11 @@ export async function getHolyOrderById(id: number): Promise<HolyOrder | null> {
   return list.find((h) => h.id === id) ?? null;
 }
 
-export async function addHolyOrder(record: HolyOrder): Promise<void> {
+export async function addHolyOrder(record: HolyOrder): Promise<HolyOrder> {
   const list = await getHolyOrders();
   list.push(record);
   await writeJson(FILES.holyOrders, list);
+  return record;
 }
 
 export { nextId };

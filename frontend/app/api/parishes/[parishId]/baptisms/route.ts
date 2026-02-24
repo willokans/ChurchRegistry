@@ -47,6 +47,6 @@ export async function POST(
     parishAddress: body.parishAddress != null ? String(body.parishAddress) : undefined,
     parentAddress: body.parentAddress != null ? String(body.parentAddress) : undefined,
   };
-  await addBaptism(record);
-  return NextResponse.json(record);
+  const created = await addBaptism(record);
+  return NextResponse.json(created);
 }

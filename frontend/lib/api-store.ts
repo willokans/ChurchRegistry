@@ -112,27 +112,75 @@ export function getUserFromToken(authHeader: string | null): User | null {
   return sessions.get(token) ?? decodeMockToken(token);
 }
 
-// File-based data (re-export from file-store)
-export {
-  getDioceses,
-  addDiocese,
-  getParishes,
-  addParish,
-  getBaptisms,
-  getBaptismById,
-  getBaptismsByParishId,
-  addBaptism,
-  getCommunions,
-  getCommunionById,
-  addCommunion,
-  getConfirmations,
-  getConfirmationById,
-  addConfirmation,
-  getMarriages,
-  getMarriageById,
-  addMarriage,
-  getHolyOrders,
-  getHolyOrderById,
-  addHolyOrder,
-  nextId,
-} from './file-store';
+// Data store: Supabase when configured, otherwise file-store
+import { isSupabaseConfigured } from './supabase-server';
+import * as fileStore from './file-store';
+import * as supabaseStore from './supabase-store';
+
+function useSupabase() {
+  return isSupabaseConfigured();
+}
+
+export async function getDioceses() {
+  return useSupabase() ? supabaseStore.getDioceses() : fileStore.getDioceses();
+}
+export async function addDiocese(name: string) {
+  return useSupabase() ? supabaseStore.addDiocese(name) : fileStore.addDiocese(name);
+}
+export async function getParishes() {
+  return useSupabase() ? supabaseStore.getParishes() : fileStore.getParishes();
+}
+export async function addParish(dioceseId: number, parishName: string) {
+  return useSupabase() ? supabaseStore.addParish(dioceseId, parishName) : fileStore.addParish(dioceseId, parishName);
+}
+export async function getBaptisms() {
+  return useSupabase() ? supabaseStore.getBaptisms() : fileStore.getBaptisms();
+}
+export async function getBaptismById(id: number) {
+  return useSupabase() ? supabaseStore.getBaptismById(id) : fileStore.getBaptismById(id);
+}
+export async function getBaptismsByParishId(parishId: number) {
+  return useSupabase() ? supabaseStore.getBaptismsByParishId(parishId) : fileStore.getBaptismsByParishId(parishId);
+}
+export async function addBaptism(record: Parameters<typeof fileStore.addBaptism>[0]) {
+  return useSupabase() ? supabaseStore.addBaptism(record) : fileStore.addBaptism(record);
+}
+export async function getCommunions() {
+  return useSupabase() ? supabaseStore.getCommunions() : fileStore.getCommunions();
+}
+export async function getCommunionById(id: number) {
+  return useSupabase() ? supabaseStore.getCommunionById(id) : fileStore.getCommunionById(id);
+}
+export async function addCommunion(record: Parameters<typeof fileStore.addCommunion>[0]) {
+  return useSupabase() ? supabaseStore.addCommunion(record) : fileStore.addCommunion(record);
+}
+export async function getConfirmations() {
+  return useSupabase() ? supabaseStore.getConfirmations() : fileStore.getConfirmations();
+}
+export async function getConfirmationById(id: number) {
+  return useSupabase() ? supabaseStore.getConfirmationById(id) : fileStore.getConfirmationById(id);
+}
+export async function addConfirmation(record: Parameters<typeof fileStore.addConfirmation>[0]) {
+  return useSupabase() ? supabaseStore.addConfirmation(record) : fileStore.addConfirmation(record);
+}
+export async function getMarriages() {
+  return useSupabase() ? supabaseStore.getMarriages() : fileStore.getMarriages();
+}
+export async function getMarriageById(id: number) {
+  return useSupabase() ? supabaseStore.getMarriageById(id) : fileStore.getMarriageById(id);
+}
+export async function addMarriage(record: Parameters<typeof fileStore.addMarriage>[0]) {
+  return useSupabase() ? supabaseStore.addMarriage(record) : fileStore.addMarriage(record);
+}
+export async function getHolyOrders() {
+  return useSupabase() ? supabaseStore.getHolyOrders() : fileStore.getHolyOrders();
+}
+export async function getHolyOrderById(id: number) {
+  return useSupabase() ? supabaseStore.getHolyOrderById(id) : fileStore.getHolyOrderById(id);
+}
+export async function addHolyOrder(record: Parameters<typeof fileStore.addHolyOrder>[0]) {
+  return useSupabase() ? supabaseStore.addHolyOrder(record) : fileStore.addHolyOrder(record);
+}
+export function nextId<T extends { id: number }>(items: T[]) {
+  return fileStore.nextId(items);
+}

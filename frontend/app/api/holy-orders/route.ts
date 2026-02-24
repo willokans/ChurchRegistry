@@ -10,14 +10,14 @@ export async function POST(request: Request) {
   const list = await getHolyOrders();
   const record = {
     id: nextId(list),
-    baptismId: 0,
-    communionId: 0,
+    baptismId: Number(body.baptismId ?? 0),
+    communionId: Number(body.communionId ?? 0),
     confirmationId: Number(body.confirmationId),
     ordinationDate: String(body.ordinationDate ?? ''),
     orderType: String(body.orderType ?? ''),
     officiatingBishop: String(body.officiatingBishop ?? ''),
     parishId: body.parishId != null ? Number(body.parishId) : undefined,
   };
-  await addHolyOrder(record);
-  return NextResponse.json(record);
+  const created = await addHolyOrder(record);
+  return NextResponse.json(created);
 }

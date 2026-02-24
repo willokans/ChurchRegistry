@@ -10,12 +10,12 @@ export async function POST(request: Request) {
   const list = await getConfirmations();
   const record = {
     id: nextId(list),
-    baptismId: 0,
+    baptismId: Number(body.baptismId ?? 0),
     communionId: Number(body.communionId),
     confirmationDate: String(body.confirmationDate ?? ''),
     officiatingBishop: String(body.officiatingBishop ?? ''),
     parish: body.parish != null ? String(body.parish) : undefined,
   };
-  await addConfirmation(record);
-  return NextResponse.json(record);
+  const created = await addConfirmation(record);
+  return NextResponse.json(created);
 }

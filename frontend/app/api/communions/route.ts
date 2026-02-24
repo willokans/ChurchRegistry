@@ -15,6 +15,6 @@ export async function POST(request: Request) {
     officiatingPriest: String(body.officiatingPriest ?? ''),
     parish: String(body.parish ?? ''),
   };
-  await addCommunion(record);
-  return NextResponse.json(record);
+  const created = await addCommunion(record);
+  return NextResponse.json(created);
 }
