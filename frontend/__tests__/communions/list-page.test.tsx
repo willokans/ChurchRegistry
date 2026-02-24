@@ -4,7 +4,7 @@
  * - Shows link to add new communion
  * - When no parish available, shows message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import CommunionsPage from '@/app/communions/page';
 import { getStoredToken, getStoredUser, fetchCommunions } from '@/lib/api';
@@ -74,9 +74,10 @@ describe('Communions list page', () => {
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalled();
     });
-    const addLink = screen.getByRole('link', { name: /add|new communion/i });
-    expect(addLink).toBeInTheDocument();
-    expect(addLink.getAttribute('href')).toMatch(/communions\/new/);
+    const main = screen.getByRole('main');
+    const addLinks = within(main).getAllByRole('link', { name: /add communion/i });
+    expect(addLinks.length).toBeGreaterThanOrEqual(1);
+    expect(addLinks[0].getAttribute('href')).toMatch(/communions\/new/);
   });
 
   it('when no parishes shows message and no fetch to communions', async () => {
@@ -88,8 +89,9 @@ describe('Communions list page', () => {
       error: null,
     });
     render(<CommunionsPage />);
+    const main = screen.getByRole('main');
     await waitFor(() => {
-      expect(screen.getByText(/no parish/i)).toBeInTheDocument();
+      expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
     });
     expect(fetchCommunions).not.toHaveBeenCalled();
   });

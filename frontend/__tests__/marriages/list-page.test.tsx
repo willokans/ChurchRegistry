@@ -4,7 +4,7 @@
  * - Shows link to add new marriage
  * - When no parish available, shows message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import MarriagesPage from '@/app/marriages/page';
 import { getStoredToken, getStoredUser, fetchMarriages } from '@/lib/api';
@@ -74,9 +74,10 @@ describe('Marriages list page', () => {
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
     });
-    const addLink = screen.getByRole('link', { name: /add|new marriage/i });
-    expect(addLink).toBeInTheDocument();
-    expect(addLink.getAttribute('href')).toMatch(/marriages\/new/);
+    const main = screen.getByRole('main');
+    const addLinks = within(main).getAllByRole('link', { name: /add marriage/i });
+    expect(addLinks.length).toBeGreaterThanOrEqual(1);
+    expect(addLinks[0].getAttribute('href')).toMatch(/marriages\/new/);
   });
 
   it('when no parishes shows message and no fetch to marriages', async () => {
@@ -88,8 +89,9 @@ describe('Marriages list page', () => {
       error: null,
     });
     render(<MarriagesPage />);
+    const main = screen.getByRole('main');
     await waitFor(() => {
-      expect(screen.getByText(/no parish/i)).toBeInTheDocument();
+      expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
     });
     expect(fetchMarriages).not.toHaveBeenCalled();
   });
