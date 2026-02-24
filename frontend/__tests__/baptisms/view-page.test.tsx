@@ -39,6 +39,7 @@ describe('Baptism view page', () => {
     (fetchBaptism as jest.Mock).mockResolvedValue({
       id: 123,
       baptismName: 'John',
+      otherNames: '',
       surname: 'Doe',
       gender: 'MALE',
       dateOfBirth: '2020-01-15',
@@ -68,6 +69,30 @@ describe('Baptism view page', () => {
     expect(within(main).getByText(/^Mary$/)).toBeInTheDocument();
     expect(within(main).getByText(/Peter, Anne/i)).toBeInTheDocument();
     expect(within(main).getByText(/Fr\. Williams/i)).toBeInTheDocument();
+  });
+
+  it('shows other names when present', async () => {
+    (fetchBaptism as jest.Mock).mockResolvedValue({
+      id: 124,
+      baptismName: 'John',
+      otherNames: 'Paul',
+      surname: 'Doe',
+      gender: 'MALE',
+      dateOfBirth: '2020-01-15',
+      fathersName: 'James',
+      mothersName: 'Mary',
+      sponsorNames: 'Peter',
+      officiatingPriest: 'Fr. Williams',
+      parishId: 10,
+    });
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Paul Doe/i)).toBeInTheDocument();
+    });
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/Other names/i)).toBeInTheDocument();
+    const paulElements = within(main).getAllByText(/^Paul$/);
+    expect(paulElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('when baptism not found shows not-found message', async () => {

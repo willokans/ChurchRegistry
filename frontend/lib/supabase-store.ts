@@ -21,6 +21,7 @@ type BaptismRow = {
   id: number;
   parish_id: number;
   baptism_name: string;
+  other_names: string;
   surname: string;
   gender: string;
   date_of_birth: string;
@@ -83,6 +84,7 @@ function toBaptism(r: BaptismRow): Baptism {
   return {
     id: r.id,
     baptismName: r.baptism_name,
+    otherNames: r.other_names ?? '',
     surname: r.surname,
     gender: r.gender,
     dateOfBirth: r.date_of_birth,
@@ -207,6 +209,7 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
   const row = {
     parish_id: record.parishId,
     baptism_name: record.baptismName,
+    other_names: record.otherNames ?? '',
     surname: record.surname,
     gender: record.gender,
     date_of_birth: record.dateOfBirth,

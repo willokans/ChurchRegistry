@@ -71,9 +71,12 @@ export default function BaptismViewPage() {
         )}
       </div>
       <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
-        {baptism.baptismName} {baptism.surname}
+        {baptism.baptismName}
+        {baptism.otherNames ? ` ${baptism.otherNames}` : ''} {baptism.surname}
       </h1>
       <dl className="mt-6 grid gap-2 sm:grid-cols-2">
+        <dt className="text-sm font-medium text-gray-500">Other names</dt>
+        <dd className="text-gray-900">{baptism.otherNames ? baptism.otherNames : '—'}</dd>
         <dt className="text-sm font-medium text-gray-500">Date of birth</dt>
         <dd className="text-gray-900">{baptism.dateOfBirth}</dd>
         <dt className="text-sm font-medium text-gray-500">Gender</dt>

@@ -45,12 +45,29 @@ export async function POST(
       );
     }
   }
+  const baptismName = String(body.baptismName ?? '').trim();
+  const otherNames = String(body.otherNames ?? '').trim();
+  const surname = String(body.surname ?? '').trim();
+  const existing = await getBaptismsByParishId(parishIdNum);
+  const isDuplicate = existing.some(
+    (b) =>
+      b.baptismName.trim() === baptismName &&
+      (b.otherNames ?? '').trim() === otherNames &&
+      b.surname.trim() === surname
+  );
+  if (isDuplicate) {
+    return NextResponse.json(
+      { error: 'A baptism with this combination of baptism name, other names and surname already exists in this parish.' },
+      { status: 409 }
+    );
+  }
   const list = await getBaptisms();
   const record = {
     id: nextId(list),
     parishId: parishIdNum,
-    baptismName: String(body.baptismName ?? ''),
-    surname: String(body.surname ?? ''),
+    baptismName,
+    otherNames,
+    surname,
     gender: String(body.gender ?? 'MALE'),
     dateOfBirth: String(body.dateOfBirth ?? ''),
     fathersName: String(body.fathersName ?? ''),

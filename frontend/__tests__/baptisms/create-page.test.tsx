@@ -46,6 +46,7 @@ describe('Baptism create page', () => {
     render(<BaptismCreatePage />);
     expect(screen.getByRole('heading', { name: /new baptism|add baptism/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/baptism name|first name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/other names/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/surname|last name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/father|father's name/i)).toBeInTheDocument();
@@ -73,6 +74,7 @@ describe('Baptism create page', () => {
     await waitFor(() => {
       expect(createBaptism).toHaveBeenCalledWith(10, expect.objectContaining({
         baptismName: 'Jane',
+        otherNames: '',
         surname: 'Doe',
         fathersName: 'John',
         mothersName: 'Mary',

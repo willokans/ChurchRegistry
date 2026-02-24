@@ -17,6 +17,7 @@ export default function BaptismCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<BaptismRequest>({
     baptismName: '',
+    otherNames: '',
     surname: '',
     gender: 'MALE',
     dateOfBirth: '',
@@ -76,6 +77,19 @@ export default function BaptismCreatePage() {
             required
             value={form.baptismName}
             onChange={(e) => setForm((f) => ({ ...f, baptismName: e.target.value }))}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+          />
+        </div>
+        <div>
+          <label htmlFor="otherNames" className="block text-sm font-medium text-gray-700">
+            Other names
+          </label>
+          <input
+            id="otherNames"
+            type="text"
+            value={form.otherNames}
+            onChange={(e) => setForm((f) => ({ ...f, otherNames: e.target.value }))}
+            placeholder="Optional"
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
           />
         </div>

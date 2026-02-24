@@ -24,6 +24,7 @@ export interface Parish {
 export interface Baptism {
   id: number;
   baptismName: string;
+  otherNames: string;
   surname: string;
   gender: string;
   dateOfBirth: string;

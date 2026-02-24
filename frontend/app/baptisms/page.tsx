@@ -121,7 +121,8 @@ export default function BaptismsListPage() {
                   >
                     <td className="px-4 py-3">
                       <span className="font-medium text-sancta-maroon">
-                        {b.baptismName} {b.surname}
+                        {b.baptismName}
+                        {b.otherNames ? ` ${b.otherNames}` : ''} {b.surname}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">{b.dateOfBirth}</td>

@@ -76,6 +76,7 @@ function getAuthHeaders(): HeadersInit {
 export interface BaptismResponse {
   id: number;
   baptismName: string;
+  otherNames: string;
   surname: string;
   gender: string;
   dateOfBirth: string;
@@ -91,6 +92,7 @@ export interface BaptismResponse {
 
 export interface BaptismRequest {
   baptismName: string;
+  otherNames: string;
   surname: string;
   gender: string;
   dateOfBirth: string;
@@ -175,6 +177,12 @@ export async function createBaptism(parishId: number, body: BaptismRequest): Pro
   });
   if (!res.ok) {
     const text = await res.text();
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (json?.error && typeof json.error === 'string') throw new Error(json.error);
+    } catch (e) {
+      if (e instanceof Error && e.message !== 'Failed to create baptism') throw e;
+    }
     throw new Error(text || 'Failed to create baptism');
   }
   return res.json();
