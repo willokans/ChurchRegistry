@@ -1,0 +1,47 @@
+# Deploy frontend to Fly.io staging when pushing to the staging branch.
+# Add FLY_API_TOKEN in GitHub repo Settings → Secrets and variables → Actions.
+
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Test
+        working-directory: frontend
+        run: npm test
+        env:
+          CI: true
+
+      - name: Install Fly CLI
+        run: curl -L https://fly.io/install.sh | sh
+        env:
+          FLYCTL_INSTALL: /usr/local
+
+      - name: Deploy to Fly staging
+        working-directory: frontend
+        run: /usr/local/bin/flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

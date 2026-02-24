@@ -36,3 +36,5 @@ From the `frontend/` directory:
 4. Deploy: `fly deploy`.
 
 The app will be at `https://church-registry-staging.fly.dev` (or the URL shown after deploy).
+
+**Auto-deploy:** Pushing to the `staging` branch runs the GitHub Action that lints, tests, and deploys to Fly staging. Add `FLY_API_TOKEN` (from [Fly.io tokens](https://fly.io/user/tokens)) in the repo’s **Settings → Secrets and variables → Actions**.
