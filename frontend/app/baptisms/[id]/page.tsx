@@ -58,13 +58,13 @@ export default function BaptismViewPage() {
   return (
     <AuthenticatedLayout>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Link href="/baptisms" className="text-sancta-maroon hover:underline">
+        <Link href="/baptisms" className="py-2 min-h-[44px] inline-flex items-center text-sancta-maroon hover:underline -ml-1 pl-1">
           ← Back to baptisms
         </Link>
         {parishId != null && (
           <Link
             href={`/baptisms/new?parishId=${parishId}`}
-            className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark text-sm"
+            className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark text-sm"
           >
             Add baptism
           </Link>

@@ -235,7 +235,7 @@ export default function BaptismCreatePage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
+          className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50 w-full sm:w-auto"
         >
           {submitting ? 'Saving…' : 'Save baptism'}
         </button>

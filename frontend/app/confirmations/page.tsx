@@ -66,7 +66,7 @@ export default function ConfirmationsListPage() {
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Confirmation</h1>
         <Link
           href={`/confirmations/new?parishId=${parishId}`}
-          className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+          className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark"
         >
           Add confirmation
         </Link>
@@ -76,7 +76,7 @@ export default function ConfirmationsListPage() {
           <p className="text-gray-600">No confirmation records yet.</p>
           <Link
             href={`/confirmations/new?parishId=${parishId}`}
-            className="mt-3 inline-block rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+            className="mt-3 inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             Add confirmation
           </Link>

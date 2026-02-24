@@ -68,7 +68,7 @@ export default function BaptismsListPage() {
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Baptisms</h1>
         <Link
           href={`/baptisms/new?parishId=${parishId}`}
-          className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+          className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark"
         >
           Add baptism
         </Link>
@@ -78,64 +78,86 @@ export default function BaptismsListPage() {
           <p className="text-gray-600">No baptism records yet.</p>
           <Link
             href={`/baptisms/new?parishId=${parishId}`}
-            className="mt-3 inline-block rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+            className="mt-3 inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             Add baptism
           </Link>
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200" role="grid">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    Name
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    Date of birth
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    Gender
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    Father
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    Mother
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    Sponsors
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {baptisms.map((b) => (
-                  <tr
-                    key={b.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => router.push(`/baptisms/${b.id}`)}
-                    onKeyDown={(e) => e.key === 'Enter' && router.push(`/baptisms/${b.id}`)}
-                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-sancta-maroon">
-                        {b.baptismName}
-                        {b.otherNames ? ` ${b.otherNames}` : ''} {b.surname}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{b.dateOfBirth}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{b.gender}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{b.fathersName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{b.mothersName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px] truncate" title={b.sponsorNames}>{b.sponsorNames}</td>
+        <>
+          {/* Mobile: card list */}
+          <ul className="mt-6 space-y-3 md:hidden" role="list">
+            {baptisms.map((b) => (
+              <li key={b.id}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/baptisms/${b.id}`)}
+                  className="w-full text-left block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-sancta-maroon/30 hover:shadow active:bg-gray-50 min-h-[44px]"
+                >
+                  <span className="font-medium text-sancta-maroon">
+                    {b.baptismName}
+                    {b.otherNames ? ` ${b.otherNames}` : ''} {b.surname}
+                  </span>
+                  <span className="block text-sm text-gray-600 mt-0.5">{b.dateOfBirth}</span>
+                  <span className="block text-sm text-gray-500 mt-0.5">{b.fathersName}, {b.mothersName}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {/* Desktop: table */}
+          <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200" role="grid">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Name
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Date of birth
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Gender
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Father
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Mother
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Sponsors
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {baptisms.map((b) => (
+                    <tr
+                      key={b.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => router.push(`/baptisms/${b.id}`)}
+                      onKeyDown={(e) => e.key === 'Enter' && router.push(`/baptisms/${b.id}`)}
+                      className="cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-sancta-maroon">
+                          {b.baptismName}
+                          {b.otherNames ? ` ${b.otherNames}` : ''} {b.surname}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{b.dateOfBirth}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{b.gender}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{b.fathersName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{b.mothersName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px] truncate" title={b.sponsorNames}>{b.sponsorNames}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </AuthenticatedLayout>
   );

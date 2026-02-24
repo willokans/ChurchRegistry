@@ -65,7 +65,8 @@ describe('Baptisms list page', () => {
     ]);
     render(<BaptismsPage />);
     await waitFor(() => {
-      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+      const nameEls = screen.getAllByText(/John Doe/i);
+      expect(nameEls.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -102,7 +103,8 @@ describe('Baptisms list page', () => {
     ]);
     render(<BaptismsPage />);
     await waitFor(() => {
-      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+      const nameEls = screen.getAllByText(/John Doe/i);
+      expect(nameEls.length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.queryByRole('columnheader', { name: /parents'? address/i })).not.toBeInTheDocument();
   });

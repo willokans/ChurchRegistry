@@ -13,6 +13,15 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+/* Prevent iOS zoom on input focus; keep tap targets comfortable on mobile */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Subtle patterned background */
 .bg-pattern {
   background-color: #f5f0e8;

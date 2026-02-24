@@ -66,7 +66,7 @@ export default function HolyOrdersListPage() {
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Holy Order</h1>
         <Link
           href={`/holy-orders/new?parishId=${parishId}`}
-          className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+          className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark"
         >
           Add holy order
         </Link>
@@ -76,7 +76,7 @@ export default function HolyOrdersListPage() {
           <p className="text-gray-600">No holy order records yet.</p>
           <Link
             href={`/holy-orders/new?parishId=${parishId}`}
-            className="mt-3 inline-block rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark"
+            className="mt-3 inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             Add holy order
           </Link>
