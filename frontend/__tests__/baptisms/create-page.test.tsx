@@ -44,32 +44,35 @@ describe('Baptism create page', () => {
 
   it('shows form with heading and required fields', () => {
     render(<BaptismCreatePage />);
-    expect(screen.getByRole('heading', { name: /new baptism|add baptism/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/baptism name|first name/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /add baptism/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^baptism name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/other names/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/surname|last name/i)).toBeInTheDocument();
+    expect(document.getElementById('surname')).toBeInTheDocument();
     expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/father|father's name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/mother|mother's name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/sponsor/i)).toBeInTheDocument();
+    expect(screen.getByText((c) => c.includes('Sponsor') && !c.includes('Add'))).toBeInTheDocument();
+    expect(document.getElementById('sponsor-first-0')).toBeInTheDocument();
+    expect(document.getElementById('sponsor-last-0')).toBeInTheDocument();
     expect(screen.getByLabelText(/officiating priest/i)).toBeInTheDocument();
   });
 
   it('on submit creates baptism and redirects to list', async () => {
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
-    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
-    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
+    await user.type(document.getElementById('surname')!, 'Doe');
     await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
-    await user.type(screen.getByLabelText(/sponsor/i), 'Peter Doe');
+    await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
+    await user.type(document.getElementById('sponsor-last-0')!, 'Doe');
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
-    await user.type(screen.getByLabelText(/address line/i), '10 Main St');
-    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    await user.type(screen.getByLabelText(/address: e\.g|town, area, street/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/select state/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
     await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.click(screen.getByRole('button', { name: /save baptism/i }));
 
     await waitFor(() => {
       expect(createBaptism).toHaveBeenCalledWith(10, expect.objectContaining({
@@ -95,11 +98,11 @@ describe('Baptism create page', () => {
     expect(within(main).getByText(/select a parish from the baptisms list/i)).toBeInTheDocument();
   });
 
-  it('shows Parents address section with Address line above State (Nigeria)', () => {
+  it('shows Address section with address line above Select state', () => {
     render(<BaptismCreatePage />);
-    expect(screen.getByText(/parents'? address/i)).toBeInTheDocument();
-    const addressLine = screen.getByLabelText(/address line/i);
-    const stateSelect = screen.getByLabelText(/state \(nigeria\)/i);
+    expect(screen.getByText(/^address$/i)).toBeInTheDocument();
+    const addressLine = screen.getByLabelText(/address: e\.g|town, area, street/i);
+    const stateSelect = screen.getByLabelText(/select state/i);
     expect(addressLine).toBeInTheDocument();
     expect(stateSelect).toBeInTheDocument();
     const form = addressLine.closest('form');
@@ -113,8 +116,8 @@ describe('Baptism create page', () => {
 
   it('Address line and State are required', () => {
     render(<BaptismCreatePage />);
-    const addressLine = screen.getByLabelText(/address line/i);
-    const stateSelect = screen.getByLabelText(/state \(nigeria\)/i);
+    const addressLine = screen.getByLabelText(/address: e\.g|town, area, street/i);
+    const stateSelect = screen.getByLabelText(/select state/i);
     expect(addressLine).toBeRequired();
     expect(stateSelect).toBeRequired();
   });
@@ -129,18 +132,19 @@ describe('Baptism create page', () => {
   it('on submit saves parent address as "Address line, State" in parentAddress', async () => {
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
-    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
-    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
+    await user.type(document.getElementById('surname')!, 'Doe');
     await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
-    await user.type(screen.getByLabelText(/sponsor/i), 'Peter Doe');
+    await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
+    await user.type(document.getElementById('sponsor-last-0')!, 'Doe');
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
-    await user.type(screen.getByLabelText(/address line/i), '10 Main St, Ikeja');
-    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    await user.type(screen.getByLabelText(/address: e\.g|town, area, street/i), '10 Main St, Ikeja');
+    await user.selectOptions(screen.getByLabelText(/select state/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
     await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.click(screen.getByRole('button', { name: /save baptism/i }));
 
     await waitFor(() => {
       expect(createBaptism).toHaveBeenCalledWith(10, expect.objectContaining({
@@ -153,46 +157,52 @@ describe('Baptism create page', () => {
     (createBaptism as jest.Mock).mockClear();
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
-    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
-    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
+    await user.type(document.getElementById('surname')!, 'Doe');
     await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
-    await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
-    await user.type(screen.getByLabelText(/address line/i), '10 Main St');
-    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    await user.type(screen.getByLabelText(/address: e\.g|town, area, street/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/select state/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
     await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.click(screen.getByRole('button', { name: /save baptism/i }));
 
     await waitFor(() => {
       const alert = screen.getByRole('alert');
-      expect(alert).toHaveTextContent(/only one name|first and last name/i);
+      expect(alert).toHaveTextContent(/first and last name|both first and last/i);
     });
     expect(createBaptism).not.toHaveBeenCalled();
   });
 
-  it('rejects more than two sponsors', async () => {
+  it('allows two sponsors and submits combined sponsorNames', async () => {
     (createBaptism as jest.Mock).mockClear();
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
-    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
-    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
+    await user.type(document.getElementById('surname')!, 'Doe');
     await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
-    await user.type(screen.getByLabelText(/sponsor/i), 'John Doe, Jane Smith, Bob Lee');
+    await user.type(document.getElementById('sponsor-first-0')!, 'John');
+    await user.type(document.getElementById('sponsor-last-0')!, 'Doe');
+    await user.click(screen.getByRole('button', { name: /add sponsor/i }));
+    await user.type(document.getElementById('sponsor-first-1')!, 'Jane');
+    await user.type(document.getElementById('sponsor-last-1')!, 'Smith');
+    expect(document.getElementById('sponsor-first-2')).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
-    await user.type(screen.getByLabelText(/address line/i), '10 Main St');
-    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    await user.type(screen.getByLabelText(/address: e\.g|town, area, street/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/select state/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
     await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.click(screen.getByRole('button', { name: /save baptism/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/at most two sponsors/i);
+      expect(createBaptism).toHaveBeenCalledWith(10, expect.objectContaining({
+        sponsorNames: 'John Doe, Jane Smith',
+      }));
     });
-    expect(createBaptism).not.toHaveBeenCalled();
   });
 });
