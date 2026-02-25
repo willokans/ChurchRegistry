@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { login, storeAuth } from '@/lib/api';
 
 function CrossIcon({ className }: { className?: string }) {
@@ -94,11 +95,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username */}
+          {/* Email or Phone number */}
           <div>
             <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
               <EnvelopeIcon className="w-4 h-4 text-gray-500" />
-              Username
+              Email or Phone number
             </label>
             <input
               id="username"
@@ -107,7 +108,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              placeholder="Enter your username"
+              placeholder="e.g. 0801 234 5678 or name@parish.org"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-400"
             />
           </div>
@@ -127,15 +128,15 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="Enter your password"
-                className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-400"
+                className="w-full px-4 py-3 pr-14 sm:pr-12 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-400"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded"
-                aria-label="Toggle visibility"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-1 flex items-center justify-center text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                {showPassword ? <EyeOffIcon className="w-6 h-6 sm:w-5 sm:h-5" /> : <EyeIcon className="w-6 h-6 sm:w-5 sm:h-5" />}
               </button>
             </div>
           </div>
@@ -153,20 +154,18 @@ export default function LoginPage() {
           >
             {submitting ? 'Signing in…' : 'Sign In'}
           </button>
-        </form>
 
-        {/* Secure sign-in */}
-        <p className="flex items-center justify-center gap-2 text-xs text-gray-500 mt-4">
-          <LockIcon className="w-3.5 h-3.5 text-sancta-gold" />
-          Secure sign-in.
-          <LockIcon className="w-3.5 h-3.5 text-sancta-gold" />
-        </p>
+          <p className="flex items-center justify-center gap-2 text-xs text-gray-500 mt-3" role="status">
+            <LockIcon className="w-3.5 h-3.5 text-sancta-gold shrink-0" aria-hidden />
+            Records are securely stored and access is audited.
+          </p>
+        </form>
 
         {/* Links */}
         <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
-          <a href="#" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
+          <Link href="/login/forgot-password" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
             Forgot password?
-          </a>
+          </Link>
           <a href="#" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
             Create account
           </a>

@@ -107,26 +107,32 @@ export default function BaptismsListPage() {
           {/* Desktop: table */}
           <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm hidden md:block">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200" role="grid">
+              <table className="min-w-0 w-full table-auto divide-y divide-gray-200" role="grid">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
                       Name
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
+                      Other names
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
                       Date of birth
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
                       Gender
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
                       Father
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
                       Mother
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
                       Sponsors
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 whitespace-nowrap">
+                      Officiating priest
                     </th>
                   </tr>
                 </thead>
@@ -140,17 +146,18 @@ export default function BaptismsListPage() {
                       onKeyDown={(e) => e.key === 'Enter' && router.push(`/baptisms/${b.id}`)}
                       className="cursor-pointer hover:bg-gray-50 transition-colors"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                         <span className="font-medium text-sancta-maroon">
-                          {b.baptismName}
-                          {b.otherNames ? ` ${b.otherNames}` : ''} {b.surname}
+                          {b.baptismName} {b.surname}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{b.dateOfBirth}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{b.gender}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{b.fathersName}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{b.mothersName}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px] truncate" title={b.sponsorNames}>{b.sponsorNames}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.otherNames || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.dateOfBirth}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.gender}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.fathersName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.mothersName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px] truncate whitespace-nowrap" title={b.sponsorNames}>{b.sponsorNames}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.officiatingPriest || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

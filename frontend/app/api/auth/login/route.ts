@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
     if (!username) {
       return NextResponse.json(
-        { error: 'Username is required' },
+        { error: 'Email or phone number is required' },
         { status: 400 }
       );
     }
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     // Mock auth: accept any credentials
     const user = {
       username,
-      displayName: username === 'admin' ? 'Administrator' : username,
+      displayName: username === 'admin@church_registry.com' ? 'Administrator' : username,
       role: 'ADMIN' as string | null,
     };
     const { token, refreshToken } = createSession(user);
