@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { createSession } from '@/lib/api-store';
 import { getAppUserByEmail, isSupabaseConfigured } from '@/lib/supabase-server';
 
@@ -64,10 +64,11 @@ export async function POST(request: Request) {
       displayName: user.displayName,
       role: user.role,
     });
-  } catch {
+  } catch (err) {
+    console.error('[auth/login]', err);
     return NextResponse.json(
-      { error: 'Invalid request' },
-      { status: 400 }
+      { error: 'Something went wrong. Please try again.' },
+      { status: 500 }
     );
   }
 }
