@@ -88,6 +88,7 @@ export interface BaptismResponse {
   address?: string;
   parishAddress?: string;
   parentAddress?: string;
+  note?: string;
 }
 
 export interface BaptismRequest {
@@ -186,6 +187,53 @@ export async function createBaptism(parishId: number, body: BaptismRequest): Pro
     throw new Error(text || 'Failed to create baptism');
   }
   return res.json();
+}
+
+export async function updateBaptismNotes(id: number, note: string): Promise<BaptismResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to update notes');
+  }
+  return res.json();
+}
+
+export interface BaptismCertificateData {
+  baptism: BaptismResponse;
+  parishName: string;
+  dioceseName: string;
+}
+
+export async function fetchBaptismCertificateData(id: number): Promise<BaptismCertificateData> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/certificate-data`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) throw new Error('Baptism not found');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch certificate data');
+  return res.json();
+}
+
+export async function emailBaptismCertificate(id: number, to: string): Promise<void> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/email-certificate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ to }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = 'Failed to send certificate';
+    try {
+      const data = JSON.parse(text) as { error?: string };
+      if (typeof data?.error === 'string') msg = data.error;
+    } catch {
+      if (text && text.length < 200) msg = text;
+    }
+    throw new Error(msg);
+  }
 }
 
 export interface FirstHolyCommunionResponse {

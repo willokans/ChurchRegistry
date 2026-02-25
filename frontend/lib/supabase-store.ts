@@ -32,6 +32,7 @@ type BaptismRow = {
   address: string | null;
   parish_address: string | null;
   parent_address: string | null;
+  note: string | null;
 };
 type CommunionRow = {
   id: number;
@@ -96,6 +97,7 @@ function toBaptism(r: BaptismRow): Baptism {
     address: r.address ?? undefined,
     parishAddress: r.parish_address ?? undefined,
     parentAddress: r.parent_address ?? undefined,
+    note: r.note ?? undefined,
   };
 }
 function toCommunion(r: CommunionRow): FirstHolyCommunion {
@@ -220,10 +222,20 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
     address: record.address ?? null,
     parish_address: record.parishAddress ?? null,
     parent_address: record.parentAddress ?? null,
+    note: record.note ?? null,
   };
   const { data, error } = await getDb().from('baptisms').insert(row).select('*').single();
   if (error) throw error;
   return toBaptism(data as BaptismRow);
+}
+
+export async function updateBaptism(id: number, patch: { note?: string }): Promise<Baptism | null> {
+  const updates: Record<string, unknown> = {};
+  if (patch.note !== undefined) updates.note = patch.note;
+  if (Object.keys(updates).length === 0) return getBaptismById(id);
+  const { data, error } = await getDb().from('baptisms').update(updates).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data ? toBaptism(data as BaptismRow) : null;
 }
 
 // Communions

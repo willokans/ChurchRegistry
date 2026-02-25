@@ -36,6 +36,7 @@ export interface Baptism {
   address?: string;
   parishAddress?: string;
   parentAddress?: string;
+  note?: string;
 }
 
 export interface FirstHolyCommunion {
@@ -146,6 +147,9 @@ export async function getBaptismsByParishId(parishId: number) {
 }
 export async function addBaptism(record: Parameters<typeof fileStore.addBaptism>[0]) {
   return storeUsesSupabase() ? supabaseStore.addBaptism(record) : fileStore.addBaptism(record);
+}
+export async function updateBaptism(id: number, patch: { note?: string }) {
+  return storeUsesSupabase() ? supabaseStore.updateBaptism(id, patch) : fileStore.updateBaptism(id, patch);
 }
 export async function getCommunions() {
   return storeUsesSupabase() ? supabaseStore.getCommunions() : fileStore.getCommunions();

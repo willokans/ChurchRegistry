@@ -17,6 +17,7 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchBaptism: jest.fn(),
+  updateBaptismNotes: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -101,5 +102,25 @@ describe('Baptism view page', () => {
     await waitFor(() => {
       expect(screen.getByText(/not found/i)).toBeInTheDocument();
     });
+  });
+
+  it('shows Notes section with textarea and Save Notes button', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: /notes/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/add any additional notes/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save notes/i })).toBeInTheDocument();
+  });
+
+  it('shows Print Certificate link', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    const printLink = screen.getByRole('link', { name: /print certificate/i });
+    expect(printLink).toBeInTheDocument();
+    expect(printLink).toHaveAttribute('href', '/baptisms/123/certificate');
   });
 });

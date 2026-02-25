@@ -4,14 +4,27 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { useParish } from '@/context/ParishContext';
-import { fetchBaptism, type BaptismResponse } from '@/lib/api';
+import { fetchBaptism, updateBaptismNotes, emailBaptismCertificate, type BaptismResponse } from '@/lib/api';
+
+function formatDisplayDate(isoDate: string): string {
+  if (!isoDate) return '—';
+  const d = new Date(isoDate + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
 
 export default function BaptismViewPage() {
   const params = useParams();
-  const { parishId } = useParish();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const [baptism, setBaptism] = useState<BaptismResponse | null | undefined>(undefined);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
 
   useEffect(() => {
     if (Number.isNaN(id)) {
@@ -20,12 +33,58 @@ export default function BaptismViewPage() {
     }
     let cancelled = false;
     fetchBaptism(id).then((b) => {
-      if (!cancelled) setBaptism(b ?? null);
+      if (!cancelled) {
+        setBaptism(b ?? null);
+        if (b?.note != null) setNotes(b.note);
+      }
     }).catch(() => {
       if (!cancelled) setBaptism(null);
     });
     return () => { cancelled = true; };
   }, [id]);
+
+  async function handleSaveNotes() {
+    if (baptism == null) return;
+    setNotesError(null);
+    setSavingNotes(true);
+    try {
+      const updated = await updateBaptismNotes(baptism.id, notes);
+      setBaptism(updated);
+    } catch (e) {
+      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
+    } finally {
+      setSavingNotes(false);
+    }
+  }
+
+  function openEmailModal() {
+    setEmailModalOpen(true);
+    setEmailTo('');
+    setEmailError(null);
+    setEmailSuccess(false);
+  }
+
+  function closeEmailModal() {
+    setEmailModalOpen(false);
+    setEmailTo('');
+    setEmailError(null);
+    setEmailSuccess(false);
+  }
+
+  async function handleEmailCertificate() {
+    if (baptism == null || !emailTo.trim()) return;
+    setEmailError(null);
+    setEmailSending(true);
+    try {
+      await emailBaptismCertificate(baptism.id, emailTo.trim());
+      setEmailSuccess(true);
+      setTimeout(closeEmailModal, 2000);
+    } catch (e) {
+      setEmailError(e instanceof Error ? e.message : 'Failed to send certificate');
+    } finally {
+      setEmailSending(false);
+    }
+  }
 
   if (Number.isNaN(id)) {
     return (
@@ -55,47 +114,197 @@ export default function BaptismViewPage() {
     );
   }
 
+  const displayName = `${baptism.baptismName}${baptism.otherNames ? ` ${baptism.otherNames}` : ''} ${baptism.surname}`.trim();
+  const parentAddress = baptism.parentAddress ?? baptism.address ?? '';
+
   return (
     <AuthenticatedLayout>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Link href="/baptisms" className="py-2 min-h-[44px] inline-flex items-center text-sancta-maroon hover:underline -ml-1 pl-1">
-          ← Back to baptisms
+      <div className="mb-4">
+        <Link href="/baptisms" className="text-gray-500 hover:text-gray-700 hover:underline">
+          ← Back to Baptisms
         </Link>
-        {parishId != null && (
-          <Link
-            href={`/baptisms/new?parishId=${parishId}`}
-            className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark text-sm"
-          >
-            Add baptism
-          </Link>
-        )}
       </div>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
-        {baptism.baptismName}
-        {baptism.otherNames ? ` ${baptism.otherNames}` : ''} {baptism.surname}
-      </h1>
-      <dl className="mt-6 grid gap-2 sm:grid-cols-2">
-        <dt className="text-sm font-medium text-gray-500">Other names</dt>
-        <dd className="text-gray-900">{baptism.otherNames ? baptism.otherNames : '—'}</dd>
-        <dt className="text-sm font-medium text-gray-500">Date of birth</dt>
-        <dd className="text-gray-900">{baptism.dateOfBirth}</dd>
-        <dt className="text-sm font-medium text-gray-500">Gender</dt>
-        <dd className="text-gray-900">{baptism.gender}</dd>
-        <dt className="text-sm font-medium text-gray-500">Father</dt>
-        <dd className="text-gray-900">{baptism.fathersName}</dd>
-        <dt className="text-sm font-medium text-gray-500">Mother</dt>
-        <dd className="text-gray-900">{baptism.mothersName}</dd>
-        <dt className="text-sm font-medium text-gray-500">Sponsors</dt>
-        <dd className="text-gray-900">{baptism.sponsorNames}</dd>
-        <dt className="text-sm font-medium text-gray-500">Officiating priest</dt>
-        <dd className="text-gray-900">{baptism.officiatingPriest ?? '—'}</dd>
-        {(baptism.parentAddress ?? baptism.address) && (
-          <>
-            <dt className="text-sm font-medium text-gray-500">Parents&apos; address</dt>
-            <dd className="text-gray-900">{baptism.parentAddress ?? baptism.address}</dd>
-          </>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
+          {displayName}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/baptisms/${id}/certificate`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border border-sancta-maroon bg-white px-3 py-2 text-sm font-medium text-sancta-maroon hover:bg-sancta-maroon/5"
+          >
+            <PrinterIcon className="h-4 w-4" />
+            Print Certificate
+          </Link>
+          <button
+            type="button"
+            onClick={openEmailModal}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <EmailIcon className="h-4 w-4" />
+            Email Baptism Certificate
+          </button>
+        </div>
+      </div>
+
+      {emailModalOpen && (
+        <EmailCertificateModal
+          emailTo={emailTo}
+          setEmailTo={setEmailTo}
+          sending={emailSending}
+          error={emailError}
+          success={emailSuccess}
+          onSend={handleEmailCertificate}
+          onClose={closeEmailModal}
+        />
+      )}
+
+      <section className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="sr-only">Baptism details</h2>
+        <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-[auto_1fr]">
+          <DetailRow label="Baptism Name" value={baptism.baptismName || '—'} />
+          <DetailRow label="Other Names" value={baptism.otherNames || '—'} />
+          <DetailRow label="Date of Birth" value={formatDisplayDate(baptism.dateOfBirth)} />
+          <DetailRow label="Gender" value={baptism.gender} />
+          <DetailRow label="Father" value={baptism.fathersName} />
+          <DetailRow label="Mother" value={baptism.mothersName} />
+          <DetailRow label="Sponsors" value={baptism.sponsorNames} />
+          <DetailRow label="Officiating Priest" value={baptism.officiatingPriest || '—'} />
+          <DetailRow label="Parents' Address" value={parentAddress || '—'} />
+        </dl>
+      </section>
+
+      <section className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Notes</h2>
+        <p className="mt-1 text-sm text-gray-500">Add any additional notes for this record.</p>
+        <textarea
+          id="baptism-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Add any additional notes here..."
+          rows={4}
+          className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+        />
+        {notesError && (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            {notesError}
+          </p>
         )}
-      </dl>
+        <button
+          type="button"
+          onClick={handleSaveNotes}
+          disabled={savingNotes}
+          className="mt-3 rounded-lg bg-sancta-maroon px-4 py-2 font-medium text-white hover:bg-sancta-maroon-dark disabled:opacity-50"
+        >
+          {savingNotes ? 'Saving…' : 'Save Notes'}
+        </button>
+      </section>
     </AuthenticatedLayout>
   );
 }
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <dt className="text-sm font-medium text-gray-700">{label}</dt>
+      <dd className="text-gray-900">{value}</dd>
+    </>
+  );
+}
+
+function PrinterIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+    </svg>
+  );
+}
+
+function EmailIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function EmailCertificateModal({
+  emailTo,
+  setEmailTo,
+  sending,
+  error,
+  success,
+  onSend,
+  onClose,
+}: {
+  emailTo: string;
+  setEmailTo: (v: string) => void;
+  sending: boolean;
+  error: string | null;
+  success: boolean;
+  onSend: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="email-certificate-title"
+        className="relative w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-lg"
+      >
+        <h2 id="email-certificate-title" className="text-lg font-semibold text-gray-900">
+          Email Baptism Certificate
+        </h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Enter the recipient&apos;s email address. A PDF certificate will be sent as an attachment.
+        </p>
+        <label htmlFor="email-certificate-to" className="mt-4 block text-sm font-medium text-gray-700">
+          Recipient email
+        </label>
+        <input
+          id="email-certificate-to"
+          type="email"
+          value={emailTo}
+          onChange={(e) => setEmailTo(e.target.value)}
+          placeholder="e.g. recipient@example.com"
+          disabled={sending || success}
+          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon disabled:opacity-60"
+        />
+        {error && (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="mt-2 text-sm text-green-600">
+            Certificate sent successfully. This dialog will close shortly.
+          </p>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={sending || success || !emailTo.trim()}
+            className="rounded-lg bg-sancta-maroon px-4 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark disabled:opacity-50"
+          >
+            {sending ? 'Sending…' : success ? 'Sent' : 'Send'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

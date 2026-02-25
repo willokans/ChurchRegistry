@@ -81,9 +81,9 @@ export async function addParish(dioceseId: number, parishName: string): Promise<
   return parish;
 }
 
-// Baptisms (normalize so old JSON without officiatingPriest/otherNames still conforms to Baptism)
-function normalizeBaptism(b: Baptism & { officiatingPriest?: string; otherNames?: string }): Baptism {
-  return { ...b, officiatingPriest: b.officiatingPriest ?? '', otherNames: b.otherNames ?? '' };
+// Baptisms (normalize so old JSON without officiatingPriest/otherNames/note still conforms to Baptism)
+function normalizeBaptism(b: Baptism & { officiatingPriest?: string; otherNames?: string; note?: string }): Baptism {
+  return { ...b, officiatingPriest: b.officiatingPriest ?? '', otherNames: b.otherNames ?? '', note: b.note ?? undefined };
 }
 export async function getBaptisms(): Promise<Baptism[]> {
   const list = await readJson<(Baptism & { officiatingPriest?: string; otherNames?: string })[]>(FILES.baptisms, []);
@@ -105,6 +105,15 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
   list.push(record);
   await writeJson(FILES.baptisms, list);
   return record;
+}
+
+export async function updateBaptism(id: number, patch: { note?: string }): Promise<Baptism | null> {
+  const list = await getBaptisms();
+  const idx = list.findIndex((b) => b.id === id);
+  if (idx === -1) return null;
+  if (patch.note !== undefined) list[idx] = { ...list[idx], note: patch.note };
+  await writeJson(FILES.baptisms, list);
+  return normalizeBaptism(list[idx]);
 }
 
 // Communions

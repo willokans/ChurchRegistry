@@ -53,6 +53,12 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setError('Request timed out. Check the console and ensure the dev server is running.');
+      }
+    }, 15000);
     (async () => {
       try {
         const dioceses = await fetchDioceses();
@@ -82,10 +88,16 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load parishes');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          window.clearTimeout(timeoutId);
+          setLoading(false);
+        }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [pathname, refreshTrigger]);
 
   const value: ParishContextValue = {
