@@ -13,6 +13,12 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+/* Slightly higher-contrast placeholders for readability (e.g. older phones) */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280; /* gray-500 */
+}
+
 /* Prevent iOS zoom on input focus; keep tap targets comfortable on mobile */
 @media (max-width: 768px) {
   input,

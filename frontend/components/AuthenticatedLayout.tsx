@@ -88,6 +88,7 @@ export default function AuthenticatedLayout({
   }
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+  const isAdmin = user.role === 'ADMIN';
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-sancta-beige">
@@ -159,20 +160,22 @@ export default function AuthenticatedLayout({
                 ) : (
                   <p className="text-sm text-gray-500 mb-1">No parish selected</p>
                 )}
-                <Link
-                  href="/parishes"
-                  onClick={closeMobileMenu}
-                  className="text-xs text-sancta-maroon hover:underline mt-1 inline-block"
-                >
-                  {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
-                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/parishes"
+                    onClick={closeMobileMenu}
+                    className="text-xs text-sancta-maroon hover:underline mt-1 inline-block"
+                  >
+                    {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
+                  </Link>
+                )}
               </div>
             )}
             <nav className="flex-1 p-4">
               <ul className="space-y-1">
                 {[
                   { href: '/', label: 'Home' },
-                  { href: '/parishes', label: 'Dioceses & Parishes' },
+                  ...(isAdmin ? [{ href: '/parishes', label: 'Dioceses & Parishes' }] : []),
                   { href: '/baptisms', label: 'Baptisms' },
                   { href: '/communions', label: 'Holy Communion' },
                   { href: '/confirmations', label: 'Confirmation' },
@@ -236,12 +239,14 @@ export default function AuthenticatedLayout({
             ) : (
               <p className="text-sm text-gray-500 mb-1">No parish selected</p>
             )}
-            <Link
-              href="/parishes"
-              className="text-xs text-sancta-maroon hover:underline"
-            >
-              {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/parishes"
+                className="text-xs text-sancta-maroon hover:underline"
+              >
+                {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
+              </Link>
+            )}
           </div>
         )}
         <nav className="flex-1" aria-label="Main">
@@ -254,14 +259,16 @@ export default function AuthenticatedLayout({
                 Home
               </Link>
             </li>
-            <li>
-              <Link
-                href="/parishes"
-                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
-              >
-                Dioceses & Parishes
-              </Link>
-            </li>
+            {isAdmin && (
+              <li>
+                <Link
+                  href="/parishes"
+                  className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                >
+                  Dioceses & Parishes
+                </Link>
+              </li>
+            )}
             <li>
               <Link
                 href="/baptisms"

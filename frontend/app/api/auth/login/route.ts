@@ -1,24 +1,54 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcrypt';
 import { createSession } from '@/lib/api-store';
+import { getAppUserByEmail, isSupabaseConfigured } from '@/lib/supabase-server';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const username = typeof body.username === 'string' ? body.username.trim() : '';
+    const email = typeof body.username === 'string' ? body.username.trim() : '';
     const password = typeof body.password === 'string' ? body.password : '';
 
-    if (!username) {
+    if (!email) {
       return NextResponse.json(
         { error: 'Email or phone number is required' },
         { status: 400 }
       );
     }
+    if (!password) {
+      return NextResponse.json(
+        { error: 'Password is required' },
+        { status: 400 }
+      );
+    }
 
-    // Mock auth: accept any credentials
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: 'Authentication is not configured' },
+        { status: 503 }
+      );
+    }
+
+    const row = await getAppUserByEmail(email);
+    if (!row) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    const valid = await bcrypt.compare(password, row.password_hash);
+    if (!valid) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
     const user = {
-      username,
-      displayName: username === 'admin@church_registry.com' ? 'Administrator' : username,
-      role: 'ADMIN' as string | null,
+      username: row.email,
+      displayName: row.display_name ?? row.email,
+      role: row.role,
     };
     const { token, refreshToken } = createSession(user);
 
