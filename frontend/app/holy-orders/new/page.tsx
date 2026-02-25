@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { fetchConfirmations, createHolyOrder, type ConfirmationResponse, type HolyOrderRequest } from '@/lib/api';
 
 export default function HolyOrderCreatePage() {
@@ -80,12 +81,19 @@ export default function HolyOrderCreatePage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
-        <Link href="/holy-orders" className="text-sancta-maroon hover:underline">
-          ← Back to holy orders
+      <div className="md:hidden space-y-4">
+        <AddRecordDesktopOnlyMessage />
+        <Link href="/holy-orders" className="inline-block text-sancta-maroon hover:underline">
+          Back to holy orders
         </Link>
       </div>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New holy order</h1>
+      <div className="hidden md:block">
+        <div className="mb-4">
+          <Link href="/holy-orders" className="text-sancta-maroon hover:underline">
+            ← Back to holy orders
+          </Link>
+        </div>
+        <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New holy order</h1>
       {confirmations.length === 0 ? (
         <p className="mt-4 text-gray-600">No confirmations in this parish. Record a Confirmation first.</p>
       ) : (
@@ -164,6 +172,7 @@ export default function HolyOrderCreatePage() {
           </button>
         </form>
       )}
+      </div>
     </AuthenticatedLayout>
   );
 }

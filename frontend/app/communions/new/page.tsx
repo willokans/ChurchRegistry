@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { fetchBaptisms, createCommunion, type BaptismResponse, type FirstHolyCommunionRequest } from '@/lib/api';
 
 export default function CommunionCreatePage() {
@@ -76,12 +77,19 @@ export default function CommunionCreatePage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
-        <Link href="/communions" className="text-sancta-maroon hover:underline">
-          ← Back to communions
+      <div className="md:hidden space-y-4">
+        <AddRecordDesktopOnlyMessage />
+        <Link href="/communions" className="inline-block text-sancta-maroon hover:underline">
+          Back to communions
         </Link>
       </div>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New communion</h1>
+      <div className="hidden md:block">
+        <div className="mb-4">
+          <Link href="/communions" className="text-sancta-maroon hover:underline">
+            ← Back to communions
+          </Link>
+        </div>
+        <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New communion</h1>
       {baptisms.length === 0 ? (
         <p className="mt-4 text-gray-600">No baptisms in this parish. Record a baptism first.</p>
       ) : (
@@ -158,6 +166,7 @@ export default function CommunionCreatePage() {
           </button>
         </form>
       )}
+      </div>
     </AuthenticatedLayout>
   );
 }

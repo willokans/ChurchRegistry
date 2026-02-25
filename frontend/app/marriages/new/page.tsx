@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { fetchConfirmations, createMarriage, type ConfirmationResponse, type MarriageRequest } from '@/lib/api';
 
 export default function MarriageCreatePage() {
@@ -77,12 +78,19 @@ export default function MarriageCreatePage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
-        <Link href="/marriages" className="text-sancta-maroon hover:underline">
-          ← Back to marriages
+      <div className="md:hidden space-y-4">
+        <AddRecordDesktopOnlyMessage />
+        <Link href="/marriages" className="inline-block text-sancta-maroon hover:underline">
+          Back to marriages
         </Link>
       </div>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New marriage</h1>
+      <div className="hidden md:block">
+        <div className="mb-4">
+          <Link href="/marriages" className="text-sancta-maroon hover:underline">
+            ← Back to marriages
+          </Link>
+        </div>
+        <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New marriage</h1>
       {confirmations.length === 0 ? (
         <p className="mt-4 text-gray-600">No confirmations in this parish. Record a Confirmation first.</p>
       ) : (
@@ -173,6 +181,7 @@ export default function MarriageCreatePage() {
           </button>
         </form>
       )}
+      </div>
     </AuthenticatedLayout>
   );
 }

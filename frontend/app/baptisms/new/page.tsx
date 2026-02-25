@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { createBaptism, type BaptismRequest } from '@/lib/api';
 import { NIGERIAN_STATES } from '@/lib/nigerian-states';
 
@@ -60,13 +61,20 @@ export default function BaptismCreatePage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
-        <Link href="/baptisms" className="text-sancta-maroon hover:underline">
-          ← Back to baptisms
+      <div className="md:hidden space-y-4">
+        <AddRecordDesktopOnlyMessage />
+        <Link href="/baptisms" className="inline-block text-sancta-maroon hover:underline">
+          Back to baptisms
         </Link>
       </div>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New baptism</h1>
-      <form onSubmit={handleSubmit} className="mt-6 max-w-xl space-y-4">
+      <div className="hidden md:block">
+        <div className="mb-4">
+          <Link href="/baptisms" className="text-sancta-maroon hover:underline">
+            ← Back to baptisms
+          </Link>
+        </div>
+        <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New baptism</h1>
+        <form onSubmit={handleSubmit} className="mt-6 max-w-xl space-y-4">
         <div>
           <label htmlFor="baptismName" className="block text-sm font-medium text-gray-700">
             Baptism name
@@ -240,6 +248,7 @@ export default function BaptismCreatePage() {
           {submitting ? 'Saving…' : 'Save baptism'}
         </button>
       </form>
+      </div>
     </AuthenticatedLayout>
   );
 }

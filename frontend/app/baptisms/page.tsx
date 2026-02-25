@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
 import { fetchBaptisms, type BaptismResponse } from '@/lib/api';
 
@@ -193,14 +194,8 @@ export default function BaptismsListPage() {
               )}
             </div>
             {baptisms.length === 0 && (
-              <div className="md:hidden">
-                <Link
-                  href={`/baptisms/new?parishId=${parishId}`}
-                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-sancta-maroon px-4 py-4 min-h-[52px] text-white font-semibold hover:bg-sancta-maroon-dark"
-                >
-                  <span aria-hidden className="text-xl leading-none">+</span>
-                  Add Baptism
-                </Link>
+              <div className="md:hidden pt-2">
+                <AddRecordDesktopOnlyMessage />
               </div>
             )}
           </>
@@ -248,15 +243,9 @@ export default function BaptismsListPage() {
               ))}
             </ul>
 
-            {/* Mobile: Add Baptism button at bottom */}
-            <div className="md:hidden">
-              <Link
-                href={`/baptisms/new?parishId=${parishId}`}
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-sancta-maroon px-4 py-4 min-h-[52px] text-white font-semibold hover:bg-sancta-maroon-dark"
-              >
-                <span aria-hidden className="text-xl leading-none">+</span>
-                Add Baptism
-              </Link>
+            {/* Mobile: message that add is desktop/tablet only */}
+            <div className="md:hidden pt-2">
+              <AddRecordDesktopOnlyMessage />
             </div>
 
             {/* Desktop: table (reference: NAME, DATE OF BIRTH, GENDER, FATHER, MOTHER) */}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { fetchCommunions, createConfirmation, type FirstHolyCommunionResponse, type ConfirmationRequest } from '@/lib/api';
 
 export default function ConfirmationCreatePage() {
@@ -81,12 +82,19 @@ export default function ConfirmationCreatePage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-4">
-        <Link href="/confirmations" className="text-sancta-maroon hover:underline">
-          ← Back to confirmations
+      <div className="md:hidden space-y-4">
+        <AddRecordDesktopOnlyMessage />
+        <Link href="/confirmations" className="inline-block text-sancta-maroon hover:underline">
+          Back to confirmations
         </Link>
       </div>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New confirmation</h1>
+      <div className="hidden md:block">
+        <div className="mb-4">
+          <Link href="/confirmations" className="text-sancta-maroon hover:underline">
+            ← Back to confirmations
+          </Link>
+        </div>
+        <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">New confirmation</h1>
       {communions.length === 0 ? (
         <p className="mt-4 text-gray-600">No communions in this parish. Record a First Holy Communion first.</p>
       ) : (
@@ -162,6 +170,7 @@ export default function ConfirmationCreatePage() {
           </button>
         </form>
       )}
+      </div>
     </AuthenticatedLayout>
   );
 }

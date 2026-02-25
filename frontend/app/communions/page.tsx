@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
 import { fetchCommunions, type FirstHolyCommunionResponse } from '@/lib/api';
 
@@ -64,22 +65,29 @@ export default function CommunionsListPage() {
     <AuthenticatedLayout>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">First Holy Communion</h1>
-        <Link
-          href={`/communions/new?parishId=${parishId}`}
-          className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark"
-        >
-          Add communion
-        </Link>
+        <div className="hidden md:block">
+          <Link
+            href={`/communions/new?parishId=${parishId}`}
+            className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] inline-flex items-center justify-center text-white font-medium hover:bg-sancta-maroon-dark"
+          >
+            Add communion
+          </Link>
+        </div>
+      </div>
+      <div className="md:hidden mt-2">
+        <AddRecordDesktopOnlyMessage />
       </div>
       {communions.length === 0 ? (
         <div className="mt-6">
           <p className="text-gray-600">No communion records yet.</p>
-          <Link
-            href={`/communions/new?parishId=${parishId}`}
-            className="mt-3 inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
-          >
-            Add communion
-          </Link>
+          <div className="hidden md:block mt-3">
+            <Link
+              href={`/communions/new?parishId=${parishId}`}
+              className="inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
+            >
+              Add communion
+            </Link>
+          </div>
         </div>
       ) : (
         <ul className="mt-6 space-y-3" role="list">
