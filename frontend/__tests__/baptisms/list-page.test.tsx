@@ -1,7 +1,7 @@
 /**
  * TDD: Baptism list page.
  * - When authenticated, fetches baptisms for parish and shows list or empty state
- * - Shows filters (All Years, All Genders, Search) and table with NAME, DATE OF BIRTH, GENDER, FATHER, MOTHER, SPONSOR, OFFICIATING PRIEST
+ * - Shows filters (All Years, All Genders, Search) and table with BAPTISM NAME, OTHER NAMES, SURNAME, DATE OF BIRTH, GENDER, FATHER, MOTHER, SPONSOR, OFFICIATING PRIEST
  * - Shows link to add new baptism
  * - When no parish available, shows message
  */
@@ -63,12 +63,12 @@ describe('Baptisms list page', () => {
 
   it('shows list of baptisms when data returned', async () => {
     (fetchBaptisms as jest.Mock).mockResolvedValue([
-      { id: 1, baptismName: 'John', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'James', mothersName: 'Mary', sponsorNames: '', officiatingPriest: '' },
+      { id: 1, baptismName: 'John', otherNames: '', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'James', mothersName: 'Mary', sponsorNames: '', officiatingPriest: '' },
     ]);
     render(<BaptismsPage />);
     await waitFor(() => {
-      const nameEls = screen.getAllByText(/John Doe/i);
-      expect(nameEls.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('John').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Doe').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -112,7 +112,7 @@ describe('Baptisms list page', () => {
     expect(within(yearSelect).getByRole('option', { name: /all years/i })).toBeInTheDocument();
   });
 
-  it('grid shows SPONSOR and OFFICIATING PRIEST column headers when baptisms exist', async () => {
+  it('grid shows BAPTISM NAME, OTHER NAMES, SURNAME and SPONSOR, OFFICIATING PRIEST column headers when baptisms exist', async () => {
     (fetchBaptisms as jest.Mock).mockResolvedValue([
       {
         id: 1,
@@ -130,7 +130,9 @@ describe('Baptisms list page', () => {
     ]);
     render(<BaptismsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('columnheader', { name: /^name$/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /baptism name/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /other names/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /surname/i })).toBeInTheDocument();
     });
     expect(screen.getByRole('columnheader', { name: /sponsor/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /officiating priest/i })).toBeInTheDocument();
@@ -166,13 +168,13 @@ describe('Baptisms list page', () => {
     ]);
     render(<BaptismsPage />);
     await waitFor(() => {
-      expect(screen.getAllByText('Alice A').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('Bob B').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Bob').length).toBeGreaterThanOrEqual(1);
     });
     const yearSelect = screen.getByRole('combobox', { name: /filter by year/i });
     await userEvent.selectOptions(yearSelect, '2024');
-    expect(screen.getAllByText('Alice A').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText('Bob B')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument();
   });
 
   it('search filters baptisms by name', async () => {
@@ -182,11 +184,11 @@ describe('Baptisms list page', () => {
     ]);
     render(<BaptismsPage />);
     await waitFor(() => {
-      expect(screen.getAllByText('Alice A').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
     });
     const search = screen.getByRole('searchbox', { name: /search baptisms/i });
     await userEvent.type(search, 'Alice');
-    expect(screen.getAllByText('Alice A').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText('Bob B')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument();
   });
 });

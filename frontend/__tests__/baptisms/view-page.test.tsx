@@ -4,9 +4,10 @@
  * - When not found, shows not-found message
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useRouter, useParams } from 'next/navigation';
 import BaptismViewPage from '@/app/baptisms/[id]/page';
-import { getStoredToken, getStoredUser, fetchBaptism } from '@/lib/api';
+import { getStoredToken, getStoredUser, fetchBaptism, fetchBaptismNoteHistory, updateBaptismNotes } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -18,6 +19,8 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchBaptism: jest.fn(),
   updateBaptismNotes: jest.fn(),
+  fetchBaptismNoteHistory: jest.fn(),
+  emailBaptismCertificate: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -50,6 +53,7 @@ describe('Baptism view page', () => {
       officiatingPriest: 'Fr. Williams',
       parishId: 10,
     });
+    (fetchBaptismNoteHistory as jest.Mock).mockResolvedValue([]);
   });
 
   it('fetches baptism by id and shows name', async () => {
@@ -122,5 +126,70 @@ describe('Baptism view page', () => {
     const printLink = screen.getByRole('link', { name: /print certificate/i });
     expect(printLink).toBeInTheDocument();
     expect(printLink).toHaveAttribute('href', '/baptisms/123/certificate');
+  });
+
+  it('fetches note history when baptism is loaded', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(fetchBaptismNoteHistory).toHaveBeenCalledWith(123);
+    });
+  });
+
+  it('shows Note history section with empty state when no notes', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /note history/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/all saved notes for this record, newest first/i)).toBeInTheDocument();
+    expect(screen.getByText(/no notes saved yet/i)).toBeInTheDocument();
+  });
+
+  it('shows note history entries when API returns notes', async () => {
+    (fetchBaptismNoteHistory as jest.Mock).mockResolvedValue([
+      { id: 1, baptismId: 123, content: 'First note', createdAt: '2026-02-20T10:00:00Z' },
+      { id: 2, baptismId: 123, content: 'Second note', createdAt: '2026-02-22T14:30:00Z' },
+    ]);
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('First note')).toBeInTheDocument();
+      expect(screen.getByText('Second note')).toBeInTheDocument();
+    });
+  });
+
+  it('saving notes calls updateBaptismNotes and then refreshes note history', async () => {
+    const user = userEvent.setup();
+    (updateBaptismNotes as jest.Mock).mockResolvedValue({
+      id: 123,
+      baptismName: 'John',
+      surname: 'Doe',
+      note: 'New note text',
+    });
+    (fetchBaptismNoteHistory as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ id: 1, baptismId: 123, content: 'New note text', createdAt: '2026-02-22T15:00:00Z' }]);
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    await user.type(screen.getByPlaceholderText(/add any additional notes/i), 'New note text');
+    await user.click(screen.getByRole('button', { name: /save notes/i }));
+    await waitFor(() => {
+      expect(updateBaptismNotes).toHaveBeenCalledWith(123, 'New note text');
+    });
+    const historyHeading = screen.getByRole('heading', { name: /note history/i });
+    const historySection = historyHeading.closest('section');
+    await waitFor(() => {
+      expect(within(historySection!).getByText('New note text')).toBeInTheDocument();
+    });
+    expect(fetchBaptismNoteHistory).toHaveBeenCalledWith(123);
   });
 });

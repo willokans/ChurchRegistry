@@ -211,8 +211,13 @@ export default function BaptismsListPage() {
                       onClick={() => router.push(`/baptisms/${b.id}`)}
                       className="flex-1 min-w-0 text-left"
                     >
-                      <span className="font-semibold text-sancta-maroon block">{fullName(b)}</span>
-                      <span className="block text-sm text-gray-600 mt-0.5">{b.dateOfBirth}</span>
+                      <span className="text-xs font-medium text-gray-500 block">Baptism name</span>
+                      <span className="font-semibold text-sancta-maroon block">{b.baptismName}</span>
+                      <span className="text-xs font-medium text-gray-500 block mt-1">Other names</span>
+                      <span className="block text-sm text-gray-700">{b.otherNames || '—'}</span>
+                      <span className="text-xs font-medium text-gray-500 block mt-1">Surname</span>
+                      <span className="block text-sm text-gray-700">{b.surname}</span>
+                      <span className="block text-sm text-gray-600 mt-1">{b.dateOfBirth}</span>
                       <span className="block text-sm text-gray-600 mt-0.5">
                         {b.fathersName}, {b.mothersName}
                       </span>
@@ -255,7 +260,13 @@ export default function BaptismsListPage() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
                       <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        NAME
+                        BAPTISM NAME
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                        OTHER NAMES
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                        SURNAME
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
                         DATE OF BIRTH
@@ -287,9 +298,9 @@ export default function BaptismsListPage() {
                         onKeyDown={(e) => e.key === 'Enter' && router.push(`/baptisms/${b.id}`)}
                         className="cursor-pointer hover:bg-gray-50/80 transition-colors"
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                          {fullName(b)}
-                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{b.baptismName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.otherNames || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.surname}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.dateOfBirth}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.gender}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.fathersName}</td>
