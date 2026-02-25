@@ -258,6 +258,14 @@ export interface FirstHolyCommunionResponse {
   communionDate: string;
   officiatingPriest: string;
   parish: string;
+  /** Present when listed by parish (joined with baptism) */
+  baptismName?: string;
+  otherNames?: string;
+  surname?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  fathersName?: string;
+  mothersName?: string;
 }
 
 export interface FirstHolyCommunionRequest {

@@ -59,14 +59,57 @@ describe('Communions list page', () => {
 
   it('shows list of communions when data returned', async () => {
     (fetchCommunions as jest.Mock).mockResolvedValue([
-      { id: 1, baptismId: 5, communionDate: '2024-05-01', officiatingPriest: 'Fr. Smith', parish: 'St Mary' },
+      {
+        id: 1,
+        baptismId: 5,
+        communionDate: '2024-05-01',
+        officiatingPriest: 'Fr. Smith',
+        parish: 'St Mary',
+        baptismName: 'John',
+        otherNames: 'Paul',
+        surname: 'Doe',
+      },
     ]);
+    render(<CommunionsPage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('John').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Doe').length).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByRole('main')).toHaveTextContent('2024-05-01');
+    expect(screen.getByRole('main')).toHaveTextContent('Fr. Smith');
+  });
+
+  it('shows filters: All Years, All Genders, and Search communions', async () => {
     render(<CommunionsPage />);
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalled();
     });
-    expect(screen.getByRole('main')).toHaveTextContent('2024-05-01');
-    expect(screen.getByRole('main')).toHaveTextContent('Fr. Smith');
+    expect(screen.getByRole('combobox', { name: /filter by year/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by gender/i })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: /search communions/i })).toBeInTheDocument();
+  });
+
+  it('grid shows BAPTISM NAME, OTHER NAMES, SURNAME and COMMUNION DATE column headers when communions exist', async () => {
+    (fetchCommunions as jest.Mock).mockResolvedValue([
+      {
+        id: 1,
+        baptismId: 5,
+        communionDate: '2024-05-01',
+        officiatingPriest: 'Fr. Smith',
+        parish: 'St Mary',
+        baptismName: 'Jane',
+        otherNames: '',
+        surname: 'Smith',
+      },
+    ]);
+    render(<CommunionsPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('columnheader', { name: /baptism name/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /other names/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /surname/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /communion date/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('columnheader', { name: /officiating priest/i })).toBeInTheDocument();
   });
 
   it('shows link to add new communion', async () => {
