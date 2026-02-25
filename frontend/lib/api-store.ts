@@ -39,6 +39,13 @@ export interface Baptism {
   note?: string;
 }
 
+export interface BaptismNote {
+  id: number;
+  baptismId: number;
+  content: string;
+  createdAt: string;
+}
+
 export interface FirstHolyCommunion {
   id: number;
   baptismId: number;
@@ -150,6 +157,9 @@ export async function addBaptism(record: Parameters<typeof fileStore.addBaptism>
 }
 export async function updateBaptism(id: number, patch: { note?: string }) {
   return storeUsesSupabase() ? supabaseStore.updateBaptism(id, patch) : fileStore.updateBaptism(id, patch);
+}
+export async function getBaptismNoteHistory(baptismId: number) {
+  return storeUsesSupabase() ? supabaseStore.getBaptismNoteHistory(baptismId) : fileStore.getBaptismNoteHistory(baptismId);
 }
 export async function getCommunions() {
   return storeUsesSupabase() ? supabaseStore.getCommunions() : fileStore.getCommunions();

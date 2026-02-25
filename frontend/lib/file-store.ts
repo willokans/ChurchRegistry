@@ -5,7 +5,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import type { Diocese, Parish, Baptism, FirstHolyCommunion, Confirmation, Marriage, HolyOrder } from './api-store';
+import type { Diocese, Parish, Baptism, BaptismNote, FirstHolyCommunion, Confirmation, Marriage, HolyOrder } from './api-store';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
@@ -13,6 +13,7 @@ const FILES = {
   dioceses: 'dioceses.json',
   parishes: 'parishes.json',
   baptisms: 'baptisms.json',
+  baptismNotes: 'baptism-notes.json',
   communions: 'communions.json',
   confirmations: 'confirmations.json',
   marriages: 'marriages.json',
@@ -107,11 +108,22 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
   return record;
 }
 
+export async function getBaptismNoteHistory(baptismId: number): Promise<BaptismNote[]> {
+  const list = await readJson<BaptismNote[]>(FILES.baptismNotes, []);
+  return list.filter((n) => n.baptismId === baptismId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export async function updateBaptism(id: number, patch: { note?: string }): Promise<Baptism | null> {
   const list = await getBaptisms();
   const idx = list.findIndex((b) => b.id === id);
   if (idx === -1) return null;
-  if (patch.note !== undefined) list[idx] = { ...list[idx], note: patch.note };
+  if (patch.note !== undefined) {
+    list[idx] = { ...list[idx], note: patch.note };
+    const notes = await readJson<BaptismNote[]>(FILES.baptismNotes, []);
+    const nextId = notes.length === 0 ? 1 : Math.max(...notes.map((n) => n.id)) + 1;
+    notes.push({ id: nextId, baptismId: id, content: patch.note, createdAt: new Date().toISOString() });
+    await writeJson(FILES.baptismNotes, notes);
+  }
   await writeJson(FILES.baptisms, list);
   return normalizeBaptism(list[idx]);
 }

@@ -4,13 +4,20 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { fetchBaptism, updateBaptismNotes, emailBaptismCertificate, type BaptismResponse } from '@/lib/api';
+import { fetchBaptism, updateBaptismNotes, emailBaptismCertificate, fetchBaptismNoteHistory, type BaptismResponse, type BaptismNoteResponse } from '@/lib/api';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
   const d = new Date(isoDate + 'T00:00:00');
   if (Number.isNaN(d.getTime())) return isoDate;
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export default function BaptismViewPage() {
@@ -25,6 +32,8 @@ export default function BaptismViewPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
+  const [noteHistory, setNoteHistory] = useState<BaptismNoteResponse[]>([]);
+  const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (Number.isNaN(id)) {
@@ -43,6 +52,23 @@ export default function BaptismViewPage() {
     return () => { cancelled = true; };
   }, [id]);
 
+  useEffect(() => {
+    if (baptism == null || Number.isNaN(id)) {
+      setNoteHistory([]);
+      return;
+    }
+    let cancelled = false;
+    setNoteHistoryLoading(true);
+    fetchBaptismNoteHistory(id).then((list) => {
+      if (!cancelled) setNoteHistory(list);
+    }).catch(() => {
+      if (!cancelled) setNoteHistory([]);
+    }).finally(() => {
+      if (!cancelled) setNoteHistoryLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [id, baptism?.id]);
+
   async function handleSaveNotes() {
     if (baptism == null) return;
     setNotesError(null);
@@ -50,6 +76,8 @@ export default function BaptismViewPage() {
     try {
       const updated = await updateBaptismNotes(baptism.id, notes);
       setBaptism(updated);
+      const list = await fetchBaptismNoteHistory(baptism.id);
+      setNoteHistory(list);
     } catch (e) {
       setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
     } finally {
@@ -201,6 +229,25 @@ export default function BaptismViewPage() {
         >
           {savingNotes ? 'Saving…' : 'Save Notes'}
         </button>
+      </section>
+
+      <section className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Note history</h2>
+        <p className="mt-1 text-sm text-gray-500">All saved notes for this record, newest first.</p>
+        {noteHistoryLoading ? (
+          <p className="mt-3 text-sm text-gray-500">Loading…</p>
+        ) : noteHistory.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-500">No notes saved yet.</p>
+        ) : (
+          <ul className="mt-3 space-y-4" role="list">
+            {noteHistory.map((entry) => (
+              <li key={entry.id} className="border-l-2 border-gray-200 pl-4">
+                <p className="text-xs font-medium text-gray-500">{formatDateTime(entry.createdAt)}</p>
+                <p className="mt-0.5 text-sm text-gray-900 whitespace-pre-wrap">{entry.content}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </AuthenticatedLayout>
   );

@@ -8,6 +8,7 @@ import type {
   Diocese,
   Parish,
   Baptism,
+  BaptismNote,
   FirstHolyCommunion,
   Confirmation,
   Marriage,
@@ -68,6 +69,12 @@ type HolyOrderRow = {
   order_type: string;
   officiating_bishop: string;
   parish_id: number | null;
+};
+type BaptismNoteRow = {
+  id: number;
+  baptism_id: number;
+  content: string;
+  created_at: string;
 };
 
 function toDiocese(r: DioceseRow): Diocese {
@@ -229,10 +236,40 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
   return toBaptism(data as BaptismRow);
 }
 
+function toBaptismNote(r: BaptismNoteRow): BaptismNote {
+  return {
+    id: r.id,
+    baptismId: r.baptism_id,
+    content: r.content,
+    createdAt: r.created_at,
+  };
+}
+
+export async function getBaptismNoteHistory(baptismId: number): Promise<BaptismNote[]> {
+  try {
+    const { data, error } = await getDb()
+      .from('baptism_notes')
+      .select('*')
+      .eq('baptism_id', baptismId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return (data ?? []).map((r) => toBaptismNote(r as BaptismNoteRow));
+  } catch {
+    return [];
+  }
+}
+
 export async function updateBaptism(id: number, patch: { note?: string }): Promise<Baptism | null> {
   const updates: Record<string, unknown> = {};
   if (patch.note !== undefined) updates.note = patch.note;
   if (Object.keys(updates).length === 0) return getBaptismById(id);
+  if (patch.note !== undefined) {
+    try {
+      await getDb().from('baptism_notes').insert({ baptism_id: id, content: patch.note });
+    } catch {
+      // Table may not exist yet; run migration 008_baptism_notes_history.sql. Note still saved on baptisms.note.
+    }
+  }
   const { data, error } = await getDb().from('baptisms').update(updates).eq('id', id).select('*').single();
   if (error) throw error;
   return data ? toBaptism(data as BaptismRow) : null;

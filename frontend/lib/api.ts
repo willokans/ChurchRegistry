@@ -217,6 +217,22 @@ export async function fetchBaptismCertificateData(id: number): Promise<BaptismCe
   return res.json();
 }
 
+export interface BaptismNoteResponse {
+  id: number;
+  baptismId: number;
+  content: string;
+  createdAt: string;
+}
+
+export async function fetchBaptismNoteHistory(baptismId: number): Promise<BaptismNoteResponse[]> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${baptismId}/notes`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch note history');
+  return res.json();
+}
+
 export async function emailBaptismCertificate(id: number, to: string): Promise<void> {
   const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/email-certificate`, {
     method: 'POST',
