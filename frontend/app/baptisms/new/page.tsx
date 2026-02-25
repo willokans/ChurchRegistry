@@ -42,9 +42,26 @@ export default function BaptismCreatePage() {
     );
   }
 
+  /** Validate sponsor names: 1 or 2 sponsors, each with at least first and last name. */
+  function validateSponsorNames(value: string): string | null {
+    const entries = value.split(',').map((s) => s.trim()).filter(Boolean);
+    if (entries.length < 1) return 'Enter at least one sponsor with first and last name.';
+    if (entries.length > 2) return 'Enter at most two sponsors (e.g. "John Doe, Jane Smith").';
+    for (const entry of entries) {
+      const words = entry.split(/\s+/).filter(Boolean);
+      if (words.length < 2) return `Each sponsor must have first and last name (e.g. "John Doe"). "${entry}" has only one name.`;
+    }
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const sponsorError = validateSponsorNames(form.sponsorNames.trim());
+    if (sponsorError) {
+      setError(sponsorError);
+      return;
+    }
     setSubmitting(true);
     try {
       const line = parentAddressLine.trim();
@@ -180,8 +197,12 @@ export default function BaptismCreatePage() {
             required
             value={form.sponsorNames}
             onChange={(e) => setForm((f) => ({ ...f, sponsorNames: e.target.value }))}
+            placeholder="e.g. John Doe or John Doe, Jane Smith"
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            One or two sponsors; each must have first and last name.
+          </p>
         </div>
         <div>
           <label htmlFor="officiatingPriest" className="block text-sm font-medium text-gray-700">

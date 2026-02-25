@@ -63,7 +63,7 @@ describe('Baptism create page', () => {
     await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
-    await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/sponsor/i), 'Peter Doe');
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
     await user.type(screen.getByLabelText(/address line/i), '10 Main St');
     await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
@@ -78,7 +78,7 @@ describe('Baptism create page', () => {
         surname: 'Doe',
         fathersName: 'John',
         mothersName: 'Mary',
-        sponsorNames: 'Peter',
+        sponsorNames: 'Peter Doe',
         officiatingPriest: 'Fr. Smith',
         parentAddress: '10 Main St, Lagos',
       }));
@@ -134,7 +134,7 @@ describe('Baptism create page', () => {
     await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
-    await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/sponsor/i), 'Peter Doe');
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
     await user.type(screen.getByLabelText(/address line/i), '10 Main St, Ikeja');
     await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
@@ -147,5 +147,52 @@ describe('Baptism create page', () => {
         parentAddress: '10 Main St, Ikeja, Lagos',
       }));
     });
+  });
+
+  it('rejects sponsor with only one name and shows validation error', async () => {
+    (createBaptism as jest.Mock).mockClear();
+    const user = userEvent.setup();
+    render(<BaptismCreatePage />);
+    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
+    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/father|father's name/i), 'John');
+    await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
+    await user.type(screen.getByLabelText(/sponsor/i), 'Peter');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
+    await user.type(screen.getByLabelText(/address line/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    const genderSelect = screen.getByLabelText(/gender/i);
+    await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
+    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent(/only one name|first and last name/i);
+    });
+    expect(createBaptism).not.toHaveBeenCalled();
+  });
+
+  it('rejects more than two sponsors', async () => {
+    (createBaptism as jest.Mock).mockClear();
+    const user = userEvent.setup();
+    render(<BaptismCreatePage />);
+    await user.type(screen.getByLabelText(/baptism name|first name/i), 'Jane');
+    await user.type(screen.getByLabelText(/surname|last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/father|father's name/i), 'John');
+    await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
+    await user.type(screen.getByLabelText(/sponsor/i), 'John Doe, Jane Smith, Bob Lee');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
+    await user.type(screen.getByLabelText(/address line/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/state \(nigeria\)/i), 'Lagos');
+    const genderSelect = screen.getByLabelText(/gender/i);
+    await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
+    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/at most two sponsors/i);
+    });
+    expect(createBaptism).not.toHaveBeenCalled();
   });
 });
