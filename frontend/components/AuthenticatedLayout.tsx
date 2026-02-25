@@ -102,11 +102,18 @@ export default function AuthenticatedLayout({
         >
           <MenuIcon className="w-6 h-6" />
         </button>
-        <div className="flex items-center gap-2">
-          <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
-          <span className="font-serif font-semibold text-sancta-maroon text-xl">
-            Church Registry
-          </span>
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
+            <span className="font-serif font-semibold text-sancta-maroon text-xl">
+              Church Registry
+            </span>
+          </div>
+          {parishes.length > 0 && parishId != null && (
+            <span className="text-sm text-gray-500 mt-0.5 truncate">
+              {parishes.find((p) => p.id === parishId)?.parishName ?? 'Select parish'}
+            </span>
+          )}
         </div>
         <div className="w-12" aria-hidden />
       </header>
