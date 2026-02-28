@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -38,6 +38,8 @@ export default function CommunionCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<FirstHolyCommunionRequest & { remarks?: string }>({
     baptismId: 0,
     communionDate: '',
@@ -81,6 +83,15 @@ export default function CommunionCreatePage() {
       return name.includes(q) || dob.includes(q) || father.includes(q) || mother.includes(q);
     });
   }, [baptisms, searchQuery]);
+
+  // When search filters out the currently selected baptism, clear selection
+  useEffect(() => {
+    if (form.baptismId <= 0 || !searchQuery.trim()) return;
+    const selected = baptisms.find((b) => b.id === form.baptismId);
+    if (!selected) return;
+    const inFiltered = filteredBaptisms.some((b) => b.id === form.baptismId);
+    if (!inFiltered) setForm((f) => ({ ...f, baptismId: 0 }));
+  }, [searchQuery, filteredBaptisms, form.baptismId, baptisms]);
 
   const selectedBaptism = form.baptismId
     ? baptisms.find((b) => b.id === form.baptismId)
@@ -192,51 +203,8 @@ export default function CommunionCreatePage() {
                 </div>
 
                 {baptismSource === 'this_parish' && (
-                  <>
-                    <div className="mt-4 flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </span>
-                        <input
-                          type="search"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Search by name, date of birth, or parents' names"
-                          className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2 text-sm focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
-                          aria-label="Search for parishioner"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="rounded-lg bg-sancta-maroon px-4 py-2 text-white text-sm font-medium hover:bg-sancta-maroon-dark"
-                      >
-                        Search
-                      </button>
-                    </div>
-                    <div className="mt-3">
-                      <label htmlFor="baptismId" className="block text-sm font-medium text-gray-700">
-                        Select baptism record
-                      </label>
-                      <select
-                        id="baptismId"
-                        value={form.baptismId || ''}
-                        onChange={(e) => setForm((f) => ({ ...f, baptismId: parseInt(e.target.value, 10) || 0 }))}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
-                        aria-label="Select baptism"
-                      >
-                        <option value="">Choose a parishioner</option>
-                        {filteredBaptisms.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {fullName(b)} · {b.dateOfBirth}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {selectedBaptism && (
-                      <div className="mt-4 flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  selectedBaptism ? (
+                    <div className="mt-4 flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
                         <div className="flex gap-3 min-w-0">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600" aria-hidden>
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -255,15 +223,85 @@ export default function CommunionCreatePage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setForm((f) => ({ ...f, baptismId: 0 }))}
+                          onClick={() => {
+                            setForm((f) => ({ ...f, baptismId: 0 }));
+                            setSearchQuery('');
+                            setTimeout(() => searchInputRef.current?.focus(), 0);
+                          }}
                           className="shrink-0 text-sm font-medium text-sancta-maroon hover:underline"
                         >
                           Change
                         </button>
                       </div>
-                    )}
-                  </>
-                )}
+                    ) : (
+                      <div className="mt-4">
+                        <label htmlFor="baptism-search" className="block text-sm font-medium text-gray-700">
+                          Search baptism record
+                        </label>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          Search by name, date of birth, or parents&apos; names. Click a result to select.
+                        </p>
+                        <div className="relative mt-2">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </span>
+                          <input
+                            ref={searchInputRef}
+                            id="baptism-search"
+                            type="search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => setSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                            placeholder="Search by name, date of birth, or parents' names"
+                            className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                            aria-label="Search baptism records by name, date of birth, or parents' names"
+                            aria-expanded={searchFocused && (filteredBaptisms.length > 0 || searchQuery.trim().length > 0)}
+                            aria-autocomplete="list"
+                            role="combobox"
+                            aria-controls="baptism-results-list"
+                          />
+                          {(searchFocused || searchQuery.trim()) && (
+                            <ul
+                              id="baptism-results-list"
+                              role="listbox"
+                              className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                            >
+                              {filteredBaptisms.length === 0 ? (
+                                <li className="px-3 py-3 text-sm text-gray-500" role="option">
+                                  No baptism records match your search.
+                                </li>
+                              ) : (
+                                filteredBaptisms.map((b) => (
+                                  <li
+                                    key={b.id}
+                                    role="option"
+                                    className="cursor-pointer px-3 py-2.5 text-sm text-gray-900 hover:bg-sancta-maroon/10 focus:bg-sancta-maroon/10 focus:outline-none"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setForm((f) => ({ ...f, baptismId: b.id }));
+                                      setSearchQuery('');
+                                      setSearchFocused(false);
+                                    }}
+                                  >
+                                    <span className="font-medium">{fullName(b)}</span>
+                                    <span className="text-gray-600">
+                                      {' '}
+                                      · {formatBaptismDate(b.dateOfBirth)}
+                                      {(b.fathersName || b.mothersName) &&
+                                        ` · ${b.fathersName ?? '—'} / ${b.mothersName ?? '—'}`}
+                                    </span>
+                                  </li>
+                                ))
+                              )}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )}
 
                 {baptismSource === 'external' && (
                   <div className="mt-4">
