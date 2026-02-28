@@ -9,6 +9,7 @@ import { useParish } from '@/context/ParishContext';
 import {
   fetchBaptisms,
   createCommunion,
+  createCommunionWithCertificate,
   type BaptismResponse,
   type FirstHolyCommunionRequest,
 } from '@/lib/api';
@@ -37,6 +38,7 @@ export default function CommunionCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -116,15 +118,37 @@ export default function CommunionCreatePage() {
       setError('Select a baptism record.');
       return;
     }
+    if (baptismSource === 'external') {
+      if (!certificateFile || certificateFile.size === 0) {
+        setError('Upload a baptism certificate when selecting Baptism from another Parish.');
+        return;
+      }
+      if (effectiveParishId === null || Number.isNaN(effectiveParishId)) {
+        setError('Parish is required.');
+        return;
+      }
+    }
     setError(null);
     setSubmitting(true);
     try {
-      await createCommunion({
-        baptismId: form.baptismId,
-        communionDate: form.communionDate,
-        officiatingPriest: form.officiatingPriest,
-        parish: form.parish,
-      });
+      if (baptismSource === 'external' && certificateFile) {
+        await createCommunionWithCertificate(
+          effectiveParishId!,
+          {
+            communionDate: form.communionDate,
+            officiatingPriest: form.officiatingPriest,
+            parish: form.parish,
+          },
+          certificateFile
+        );
+      } else {
+        await createCommunion({
+          baptismId: form.baptismId,
+          communionDate: form.communionDate,
+          officiatingPriest: form.officiatingPriest,
+          parish: form.parish,
+        });
+      }
       router.push('/communions');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create communion');
@@ -179,7 +203,10 @@ export default function CommunionCreatePage() {
                       type="radio"
                       name="baptismSource"
                       checked={baptismSource === 'this_parish'}
-                      onChange={() => setBaptismSource('this_parish')}
+                      onChange={() => {
+                        setBaptismSource('this_parish');
+                        setCertificateFile(null);
+                      }}
                       className="mt-1 text-sancta-maroon focus:ring-sancta-maroon"
                     />
                     <span>
@@ -315,10 +342,17 @@ export default function CommunionCreatePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </span>
-                      <span className="text-sm text-gray-500">No file chosen</span>
+                      <span className="text-sm text-gray-500">
+                        {certificateFile ? certificateFile.name : 'No file chosen'}
+                      </span>
                       <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        Browse Files
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="sr-only" />
+                        {certificateFile ? 'Change file' : 'Browse Files'}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="sr-only"
+                          onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
+                        />
                       </label>
                     </div>
                   </div>
@@ -478,8 +512,11 @@ export default function CommunionCreatePage() {
                   type="submit"
                   disabled={
                     submitting ||
+                    !form.communionDate.trim() ||
+                    !form.officiatingPriest.trim() ||
+                    !form.parish.trim() ||
                     (baptismSource === 'this_parish' && form.baptismId <= 0) ||
-                    baptismSource === 'external'
+                    (baptismSource === 'external' && (!certificateFile || certificateFile.size === 0))
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
                 >
