@@ -39,6 +39,15 @@ export default function CommunionCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [externalBaptism, setExternalBaptism] = useState({
+    baptismName: '',
+    surname: '',
+    otherNames: '',
+    gender: 'MALE',
+    fathersName: '',
+    mothersName: '',
+    baptisedChurchAddress: '',
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +132,22 @@ export default function CommunionCreatePage() {
         setError('Upload a baptism certificate when selecting Baptism from another Parish.');
         return;
       }
+      if (!externalBaptism.baptismName.trim()) {
+        setError('Baptism name is required for Baptism from another Parish.');
+        return;
+      }
+      if (!externalBaptism.surname.trim()) {
+        setError('Surname is required for Baptism from another Parish.');
+        return;
+      }
+      if (!externalBaptism.fathersName.trim()) {
+        setError("Father's name is required.");
+        return;
+      }
+      if (!externalBaptism.mothersName.trim()) {
+        setError("Mother's name is required.");
+        return;
+      }
       if (effectiveParishId === null || Number.isNaN(effectiveParishId)) {
         setError('Parish is required.');
         return;
@@ -139,7 +164,16 @@ export default function CommunionCreatePage() {
             officiatingPriest: form.officiatingPriest,
             parish: form.parish,
           },
-          certificateFile
+          certificateFile,
+          {
+            baptismName: externalBaptism.baptismName.trim(),
+            surname: externalBaptism.surname.trim(),
+            otherNames: externalBaptism.otherNames.trim(),
+            gender: externalBaptism.gender,
+            fathersName: externalBaptism.fathersName.trim(),
+            mothersName: externalBaptism.mothersName.trim(),
+            baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+          }
         );
       } else {
         await createCommunion({
@@ -206,6 +240,7 @@ export default function CommunionCreatePage() {
                       onChange={() => {
                         setBaptismSource('this_parish');
                         setCertificateFile(null);
+                        setExternalBaptism({ baptismName: '', surname: '', otherNames: '', gender: 'MALE', fathersName: '', mothersName: '', baptisedChurchAddress: '' });
                       }}
                       className="mt-1 text-sancta-maroon focus:ring-sancta-maroon"
                     />
@@ -331,31 +366,135 @@ export default function CommunionCreatePage() {
                   )}
 
                 {baptismSource === 'external' && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Upload Baptism Certificate <span className="text-red-500">(Required)</span>
-                    </label>
-                    <p className="mt-1 text-xs text-gray-500">Select if baptized in another parish</p>
-                    <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-4 py-3">
-                      <span className="text-gray-400" aria-hidden>
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {certificateFile ? certificateFile.name : 'No file chosen'}
-                      </span>
-                      <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        {certificateFile ? 'Change file' : 'Browse Files'}
+                  <>
+                    <div className="mt-4 space-y-4">
+                      <p className="text-sm text-gray-600">Enter details from the baptism certificate (from the other parish).</p>
+                      <div>
+                        <label htmlFor="external-baptismName" className="block text-sm font-medium text-gray-700">
+                          Baptism Name <span className="text-red-500">*</span>
+                        </label>
                         <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="sr-only"
-                          onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
+                          id="external-baptismName"
+                          type="text"
+                          value={externalBaptism.baptismName}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, baptismName: e.target.value }))}
+                          placeholder="First name as on certificate"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                          aria-label="Baptism name"
                         />
-                      </label>
+                      </div>
+                      <div>
+                        <label htmlFor="external-surname" className="block text-sm font-medium text-gray-700">
+                          Surname <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="external-surname"
+                          type="text"
+                          value={externalBaptism.surname}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, surname: e.target.value }))}
+                          placeholder="Surname as on certificate"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                          aria-label="Surname"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="external-otherNames" className="block text-sm font-medium text-gray-700">
+                          Other Names <span className="text-gray-500">(Optional)</span>
+                        </label>
+                        <input
+                          id="external-otherNames"
+                          type="text"
+                          value={externalBaptism.otherNames}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, otherNames: e.target.value }))}
+                          placeholder="Middle names if any"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                          aria-label="Other names"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="external-gender" className="block text-sm font-medium text-gray-700">
+                          Gender <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="external-gender"
+                          value={externalBaptism.gender}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, gender: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                          aria-label="Gender"
+                        >
+                          <option value="MALE">Male</option>
+                          <option value="FEMALE">Female</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="external-fathersName" className="block text-sm font-medium text-gray-700">
+                          Father&apos;s Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="external-fathersName"
+                          type="text"
+                          value={externalBaptism.fathersName}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, fathersName: e.target.value }))}
+                          placeholder="As on certificate"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                          aria-label="Father's name"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="external-mothersName" className="block text-sm font-medium text-gray-700">
+                          Mother&apos;s Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="external-mothersName"
+                          type="text"
+                          value={externalBaptism.mothersName}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, mothersName: e.target.value }))}
+                          placeholder="As on certificate"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                          aria-label="Mother's name"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="external-baptisedChurchAddress" className="block text-sm font-medium text-gray-700">
+                          Baptised Church Address <span className="text-gray-500">(Optional)</span>
+                        </label>
+                        <textarea
+                          id="external-baptisedChurchAddress"
+                          rows={2}
+                          value={externalBaptism.baptisedChurchAddress}
+                          onChange={(e) => setExternalBaptism((p) => ({ ...p, baptisedChurchAddress: e.target.value }))}
+                          placeholder="Address of the church where baptism took place"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon resize-y"
+                          aria-label="Baptised church address"
+                        />
+                      </div>
                     </div>
-                  </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Upload Baptism Certificate <span className="text-red-500">(Required)</span>
+                      </label>
+                      <p className="mt-1 text-xs text-gray-500">Select if baptized in another parish</p>
+                      <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-4 py-3">
+                        <span className="text-gray-400" aria-hidden>
+                          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {certificateFile ? certificateFile.name : 'No file chosen'}
+                        </span>
+                        <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                          {certificateFile ? 'Change file' : 'Browse Files'}
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="sr-only"
+                            onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -516,7 +655,14 @@ export default function CommunionCreatePage() {
                     !form.officiatingPriest.trim() ||
                     !form.parish.trim() ||
                     (baptismSource === 'this_parish' && form.baptismId <= 0) ||
-                    (baptismSource === 'external' && (!certificateFile || certificateFile.size === 0))
+                    (baptismSource === 'external' && (
+                      !certificateFile ||
+                      certificateFile.size === 0 ||
+                      !externalBaptism.baptismName.trim() ||
+                      !externalBaptism.surname.trim() ||
+                      !externalBaptism.fathersName.trim() ||
+                      !externalBaptism.mothersName.trim()
+                    ))
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
                 >

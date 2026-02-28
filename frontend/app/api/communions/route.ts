@@ -16,21 +16,35 @@ const DATA_CERTIFICATES_DIR = path.join(process.cwd(), 'data', 'baptism-certific
 /** Max size for certificate uploads (2 MB). Must match storage bucket limit. */
 const MAX_CERTIFICATE_SIZE_BYTES = 2 * 1024 * 1024;
 
-/** Create placeholder baptism for "baptism from another parish" (links to uploaded certificate). */
-function buildPlaceholderBaptism(parishId: number, nextBaptismId: number) {
+/** Create baptism record for "baptism from another parish" (links to uploaded certificate). */
+function buildPlaceholderBaptism(
+  parishId: number,
+  nextBaptismId: number,
+  external: {
+    baptismName: string;
+    surname: string;
+    otherNames: string;
+    gender: string;
+    fathersName: string;
+    mothersName: string;
+    parishAddress: string;
+  }
+) {
   const today = new Date().toISOString().slice(0, 10);
+  const surname = (external.surname && external.surname.trim()) ? external.surname.trim() : 'See Certificate';
   return {
     id: nextBaptismId,
     parishId,
-    baptismName: 'External',
-    otherNames: '',
-    surname: 'See certificate',
-    gender: 'MALE',
+    baptismName: external.baptismName || 'External',
+    otherNames: (external.otherNames && external.otherNames.trim()) ? external.otherNames.trim() : 'See Certificate',
+    surname,
+    gender: external.gender || 'MALE',
     dateOfBirth: today,
-    fathersName: '—',
-    mothersName: '—',
-    sponsorNames: '—',
-    officiatingPriest: '—',
+    fathersName: external.fathersName || '—',
+    mothersName: external.mothersName || '—',
+    sponsorNames: 'See Certificate', // Must satisfy chk_baptisms_sponsor_names
+    officiatingPriest: 'See Certificate',
+    parishAddress: external.parishAddress || undefined,
   };
 }
 
@@ -112,7 +126,34 @@ export async function POST(request: Request) {
 
         const baptisms = await getBaptisms();
         const placeholderId = nextId(baptisms);
-        const placeholder = buildPlaceholderBaptism(parishId, placeholderId);
+        const externalBaptismName = String(formData.get('externalBaptismName') ?? '').trim();
+        const externalSurname = String(formData.get('externalSurname') ?? '').trim();
+        const externalOtherNames = String(formData.get('externalOtherNames') ?? '').trim();
+        const externalGender = String(formData.get('externalGender') ?? 'MALE').trim() || 'MALE';
+        const externalFathersName = String(formData.get('externalFathersName') ?? '').trim();
+        const externalMothersName = String(formData.get('externalMothersName') ?? '').trim();
+        const externalBaptisedChurchAddress = String(formData.get('externalBaptisedChurchAddress') ?? '').trim();
+        if (!externalBaptismName || !externalFathersName || !externalMothersName) {
+          return NextResponse.json(
+            { error: 'Baptism name, father\'s name, and mother\'s name are required for external baptism.' },
+            { status: 400 }
+          );
+        }
+        if (!externalSurname) {
+          return NextResponse.json(
+            { error: 'Surname is required for external baptism.' },
+            { status: 400 }
+          );
+        }
+        const placeholder = buildPlaceholderBaptism(parishId, placeholderId, {
+          baptismName: externalBaptismName,
+          surname: externalSurname,
+          otherNames: externalOtherNames,
+          gender: externalGender,
+          fathersName: externalFathersName,
+          mothersName: externalMothersName,
+          parishAddress: externalBaptisedChurchAddress,
+        });
         const createdBaptism = await addBaptism(placeholder);
 
         const list = await getCommunions();

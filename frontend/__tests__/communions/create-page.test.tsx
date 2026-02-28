@@ -3,11 +3,11 @@
  * - When authenticated and parishId in query, shows form (baptism picker, date, priest, parish) and creates on submit
  * - Redirects to list after successful create
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CommunionCreatePage from '@/app/communions/new/page';
-import { getStoredToken, getStoredUser, fetchBaptisms, createCommunion } from '@/lib/api';
+import { getStoredToken, getStoredUser, fetchBaptisms, createCommunion, createCommunionWithCertificate } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 
 jest.mock('next/navigation', () => ({
@@ -20,6 +20,7 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchBaptisms: jest.fn(),
   createCommunion: jest.fn(),
+  createCommunionWithCertificate: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -46,6 +47,9 @@ describe('Communion create page', () => {
       { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
     ]);
     (createCommunion as jest.Mock).mockResolvedValue({ id: 99, baptismId: 5, communionDate: '2024-05-01' });
+    (createCommunionWithCertificate as jest.Mock).mockResolvedValue({ id: 100, baptismId: 50, communionDate: '2024-05-01' });
+    (createCommunion as jest.Mock).mockClear();
+    (createCommunionWithCertificate as jest.Mock).mockClear();
   });
 
   it('shows form with heading and required fields', async () => {
@@ -227,6 +231,126 @@ describe('Communion create page', () => {
         expect(screen.getByRole('heading', { name: /parents & sponsors/i })).toBeInTheDocument();
       });
       expect(screen.getByText('T. Walsh')).toBeInTheDocument();
+    });
+  });
+
+  describe('Baptism from another Parish', () => {
+    it('shows external baptism form when Baptism from another Parish is selected', async () => {
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('radio', { name: /baptism from another parish/i }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/baptism name/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^surname$/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/other names/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/gender/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/father's name/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/mother's name/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/baptised church address/i)).toBeInTheDocument();
+        expect(screen.getByText(/upload baptism certificate/i)).toBeInTheDocument();
+      });
+    });
+
+    it('Save button is disabled when external selected but required fields or certificate missing', async () => {
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('radio', { name: /baptism from another parish/i }));
+
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      expect(saveBtn).toBeDisabled();
+    });
+
+    it('on submit with external baptism and certificate calls createCommunionWithCertificate and redirects', async () => {
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('radio', { name: /baptism from another parish/i }));
+      await waitFor(() => {
+        expect(screen.getByLabelText(/baptism name/i)).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText(/baptism name/i), 'John');
+      await user.type(screen.getByLabelText(/^surname$/i), 'Smith');
+      await user.type(screen.getByLabelText(/other names/i), 'Paul');
+      await user.selectOptions(screen.getByLabelText(/gender/i), 'MALE');
+      await user.type(screen.getByLabelText(/father's name/i), 'James Smith');
+      await user.type(screen.getByLabelText(/mother's name/i), 'Mary Smith');
+      await user.type(screen.getByLabelText(/baptised church address/i), '123 Church St');
+
+      const file = new File(['cert content'], 'cert.pdf', { type: 'application/pdf' });
+      const fileInput = document.querySelector('input[type="file"]');
+      expect(fileInput).toBeInTheDocument();
+      fireEvent.change(fileInput!, { target: { files: [file] } });
+
+      await waitFor(() => {
+        expect(screen.getByText('cert.pdf')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+      await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
+      await user.selectOptions(screen.getByRole('combobox', { name: /mass venue/i }), 'St Mary');
+
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      await waitFor(() => {
+        expect(saveBtn).not.toBeDisabled();
+      });
+      await user.click(saveBtn);
+
+      await waitFor(() => {
+        expect(createCommunionWithCertificate).toHaveBeenCalledWith(
+          10,
+          expect.objectContaining({
+            communionDate: '2024-05-01',
+            officiatingPriest: 'Fr. Jones',
+            parish: 'St Mary',
+          }),
+          expect.any(File),
+          expect.objectContaining({
+            baptismName: 'John',
+            surname: 'Smith',
+            otherNames: 'Paul',
+            gender: 'MALE',
+            fathersName: 'James Smith',
+            mothersName: 'Mary Smith',
+            baptisedChurchAddress: '123 Church St',
+          })
+        );
+      });
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/communions');
+      });
+      expect(createCommunion).not.toHaveBeenCalled();
+    });
+
+    it('switching back to Baptism in this Parish clears external fields and certificate', async () => {
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('radio', { name: /baptism from another parish/i }));
+      await user.type(screen.getByLabelText(/baptism name/i), 'John');
+      const fileInput = document.querySelector('input[type="file"]');
+      await user.upload(fileInput!, new File(['x'], 'x.pdf', { type: 'application/pdf' }));
+
+      await user.click(screen.getByRole('radio', { name: /baptism in this parish/i }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/search baptism records/i)).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('radio', { name: /baptism from another parish/i }));
+      expect(screen.getByLabelText(/baptism name/i)).toHaveValue('');
+      expect(screen.getByText(/no file chosen/i)).toBeInTheDocument();
     });
   });
 });

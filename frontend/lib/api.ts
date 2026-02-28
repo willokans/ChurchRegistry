@@ -301,11 +301,23 @@ export async function createCommunion(body: FirstHolyCommunionRequest): Promise<
   return res.json();
 }
 
-/** Create communion with "Baptism from another Parish": uploads certificate and creates placeholder baptism. */
+/** Payload for "Baptism from another Parish": saved into the created baptism record. */
+export interface ExternalBaptismPayload {
+  baptismName: string;
+  surname: string;
+  otherNames: string;
+  gender: string;
+  fathersName: string;
+  mothersName: string;
+  baptisedChurchAddress: string;
+}
+
+/** Create communion with "Baptism from another Parish": uploads certificate and creates baptism with given details. */
 export async function createCommunionWithCertificate(
   parishId: number,
   data: { communionDate: string; officiatingPriest: string; parish: string },
-  certificate: File
+  certificate: File,
+  externalBaptism: ExternalBaptismPayload
 ): Promise<FirstHolyCommunionResponse> {
   const formData = new FormData();
   formData.set('baptismSource', 'external');
@@ -314,6 +326,13 @@ export async function createCommunionWithCertificate(
   formData.set('officiatingPriest', data.officiatingPriest);
   formData.set('parish', data.parish);
   formData.set('certificate', certificate);
+  formData.set('externalBaptismName', externalBaptism.baptismName);
+  formData.set('externalSurname', externalBaptism.surname);
+  formData.set('externalOtherNames', externalBaptism.otherNames);
+  formData.set('externalGender', externalBaptism.gender);
+  formData.set('externalFathersName', externalBaptism.fathersName);
+  formData.set('externalMothersName', externalBaptism.mothersName);
+  formData.set('externalBaptisedChurchAddress', externalBaptism.baptisedChurchAddress);
 
   const token = getStoredToken();
   const headers: HeadersInit = {};
