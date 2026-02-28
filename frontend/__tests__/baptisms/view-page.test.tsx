@@ -7,7 +7,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useParams } from 'next/navigation';
 import BaptismViewPage from '@/app/baptisms/[id]/page';
-import { getStoredToken, getStoredUser, fetchBaptism, fetchBaptismNoteHistory, updateBaptismNotes } from '@/lib/api';
+import { getStoredToken, getStoredUser, fetchBaptism, fetchBaptismNoteHistory, updateBaptismNotes, fetchBaptismExternalCertificate } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -21,6 +21,7 @@ jest.mock('@/lib/api', () => ({
   updateBaptismNotes: jest.fn(),
   fetchBaptismNoteHistory: jest.fn(),
   emailBaptismCertificate: jest.fn(),
+  fetchBaptismExternalCertificate: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -54,6 +55,7 @@ describe('Baptism view page', () => {
       parishId: 10,
     });
     (fetchBaptismNoteHistory as jest.Mock).mockResolvedValue([]);
+    (fetchBaptismExternalCertificate as jest.Mock).mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
   });
 
   it('fetches baptism by id and shows name', async () => {
@@ -114,7 +116,7 @@ describe('Baptism view page', () => {
       expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
     });
     expect(screen.getByRole('heading', { name: /notes/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/add any additional notes/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/follow-up actions|observations/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save notes/i })).toBeInTheDocument();
   });
 
@@ -180,7 +182,7 @@ describe('Baptism view page', () => {
     await waitFor(() => {
       expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
     });
-    await user.type(screen.getByPlaceholderText(/add any additional notes/i), 'New note text');
+    await user.type(screen.getByPlaceholderText(/follow-up actions|observations/i), 'New note text');
     await user.click(screen.getByRole('button', { name: /save notes/i }));
     await waitFor(() => {
       expect(updateBaptismNotes).toHaveBeenCalledWith(123, 'New note text');
@@ -191,5 +193,94 @@ describe('Baptism view page', () => {
       expect(within(historySection!).getByText('New note text')).toBeInTheDocument();
     });
     expect(fetchBaptismNoteHistory).toHaveBeenCalledWith(123);
+  });
+});
+
+describe('Baptism view page when baptized in another parish (external certificate)', () => {
+  beforeEach(() => {
+    (getStoredToken as jest.Mock).mockReturnValue('token');
+    (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
+    (useParams as jest.Mock).mockReturnValue({ id: '123' });
+    (fetchBaptism as jest.Mock).mockResolvedValue({
+      id: 123,
+      baptismName: 'Jacob',
+      otherNames: 'See Certificate',
+      surname: 'Lamin',
+      gender: 'MALE',
+      dateOfBirth: '2026-02-28',
+      fathersName: 'Trita Tochukwu',
+      mothersName: 'Joy Bello',
+      sponsorNames: 'See Certificate',
+      officiatingPriest: 'See Certificate',
+      parishId: 10,
+      parishAddress: 'Holy Family Catholic Church, Gwarinpa, Abuja',
+      externalCertificatePath: 'path/to/cert.pdf',
+      externalCertificateIssuingParish: 'Holy Family Catholic Church, Abuja',
+    });
+    (fetchBaptismNoteHistory as jest.Mock).mockResolvedValue([]);
+    (fetchBaptismExternalCertificate as jest.Mock).mockResolvedValue(new Blob(['cert content'], { type: 'application/pdf' }));
+  });
+
+  it('shows Baptized in Another Parish badge and does not show Print or Email certificate', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Jacob.*Lamin/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText('• Baptized in Another Parish')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /print certificate/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /email baptism certificate/i })).not.toBeInTheDocument();
+  });
+
+  it('shows External Baptism Certificate section and warning', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /external baptism certificate/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/this child was baptized in another parish/i)).toBeInTheDocument();
+    const refOnly = screen.getAllByText(/for reference only/i);
+    expect(refOnly.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('fetches external certificate when external cert path is present', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(fetchBaptism).toHaveBeenCalledWith(123);
+    });
+    await waitFor(() => {
+      expect(fetchBaptismExternalCertificate).toHaveBeenCalledWith(123);
+    });
+  });
+
+  it('See Certificate opens certificate popup modal', async () => {
+    const user = userEvent.setup();
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Jacob.*Lamin/i)).toBeInTheDocument();
+    });
+    const seeCertButtons = screen.getAllByRole('button', { name: /see certificate/i });
+    expect(seeCertButtons.length).toBeGreaterThanOrEqual(1);
+    await user.click(seeCertButtons[0]);
+    await waitFor(() => {
+      const dialog = screen.getByRole('dialog', { name: /external baptism certificate/i });
+      expect(dialog).toBeInTheDocument();
+      expect(within(dialog).getByLabelText(/close/i)).toBeInTheDocument();
+    });
+  });
+
+  it('closing certificate popup hides modal', async () => {
+    const user = userEvent.setup();
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Jacob.*Lamin/i)).toBeInTheDocument();
+    });
+    const seeCertButtons = screen.getAllByRole('button', { name: /see certificate/i });
+    await user.click(seeCertButtons[0]);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /external baptism certificate/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByLabelText(/close/i));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /external baptism certificate/i })).not.toBeInTheDocument();
+    });
   });
 });
