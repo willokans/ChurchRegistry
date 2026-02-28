@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Use standalone only when deploying (e.g. Docker). For local dev and normal `next start`,
-  // omitting this avoids 404s for _next/static assets that can leave the app stuck on "Loading…".
-  // output: 'standalone',
+  // Standalone output is required for the Docker/Fly.io image. Only enable when building for deploy
+  // so local dev and CI (npm run build) are unchanged. Dockerfile sets BUILD_STANDALONE=1.
+  ...(process.env.BUILD_STANDALONE === '1' ? { output: 'standalone' } : {}),
 };
 
 module.exports = nextConfig;
