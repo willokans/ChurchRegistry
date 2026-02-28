@@ -32,7 +32,7 @@ function sanitizeFilenamePart(value: string | null | undefined): string {
   if (value == null || String(value).trim() === '') return '';
   return String(value)
     .trim()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/[^a-zA-Z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || '';
@@ -55,6 +55,7 @@ export default function BaptismViewPage() {
   const [noteHistory, setNoteHistory] = useState<BaptismNoteResponse[]>([]);
   const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
   const [certificateObjectUrl, setCertificateObjectUrl] = useState<string | null>(null);
+  const [certificateIsPdf, setCertificateIsPdf] = useState<boolean>(true);
   const certificateUrlRef = useRef<string | null>(null);
   const [certificateError, setCertificateError] = useState<string | null>(null);
   const [certificateLoading, setCertificateLoading] = useState(false);
@@ -112,6 +113,7 @@ export default function BaptismViewPage() {
         const url = URL.createObjectURL(blob);
         certificateUrlRef.current = url;
         setCertificateObjectUrl(url);
+        setCertificateIsPdf(blob.type === 'application/pdf');
       })
       .catch((e) => {
         if (!cancelled) setCertificateError(e instanceof Error ? e.message : 'Failed to load certificate');
@@ -293,6 +295,7 @@ export default function BaptismViewPage() {
       {certificateModalOpen && isExternalBaptism && (
         <CertificatePopupModal
           certificateObjectUrl={certificateObjectUrl}
+          certificateIsPdf={certificateIsPdf}
           certificateLoading={certificateLoading}
           certificateError={certificateError}
           onClose={() => setCertificateModalOpen(false)}
@@ -427,7 +430,7 @@ export default function BaptismViewPage() {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={handleDownloadCertificate}
+                  onClick={() => handleDownloadCertificate()}
                   className="inline-flex items-center gap-2 rounded-lg bg-sancta-maroon px-4 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
                 >
                   <DownloadIcon className="h-4 w-4" />
@@ -452,11 +455,19 @@ export default function BaptismViewPage() {
                   <p className="text-red-600 text-sm p-4">{certificateError}</p>
                 )}
                 {!certificateLoading && !certificateError && certificateObjectUrl && (
-                  <iframe
-                    src={certificateObjectUrl}
-                    title="External baptism certificate"
-                    className="w-full h-full border-0 rounded shrink-0"
-                  />
+                  certificateIsPdf ? (
+                    <iframe
+                      src={`${certificateObjectUrl}#view=FitH`}
+                      title="External baptism certificate"
+                      className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                    />
+                  ) : (
+                    <img
+                      src={certificateObjectUrl}
+                      alt="External baptism certificate"
+                      className="w-full h-full object-contain border-0 rounded"
+                    />
+                  )
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -516,11 +527,13 @@ export default function BaptismViewPage() {
 
 function CertificatePopupModal({
   certificateObjectUrl,
+  certificateIsPdf,
   certificateLoading,
   certificateError,
   onClose,
 }: {
   certificateObjectUrl: string | null;
+  certificateIsPdf: boolean;
   certificateLoading: boolean;
   certificateError: string | null;
   onClose: () => void;
@@ -544,15 +557,23 @@ function CertificatePopupModal({
             <CloseIcon className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 min-h-0 flex items-center justify-center p-4 bg-gray-50">
+        <div className="flex-1 min-h-0 flex items-center justify-center p-4 bg-gray-50 overflow-auto">
           {certificateLoading && <p className="text-gray-500">Loading certificate…</p>}
           {certificateError && <p className="text-red-600 text-sm">{certificateError}</p>}
           {!certificateLoading && !certificateError && certificateObjectUrl && (
-            <iframe
-              src={certificateObjectUrl}
-              title="External baptism certificate"
-              className="w-full h-full min-h-[60vh] rounded border border-gray-200 bg-white"
-            />
+            certificateIsPdf ? (
+              <iframe
+                src={`${certificateObjectUrl}#view=FitH`}
+                title="External baptism certificate"
+                className="w-full h-full min-h-[60vh] rounded border border-gray-200 bg-white"
+              />
+            ) : (
+              <img
+                src={certificateObjectUrl}
+                alt="External baptism certificate"
+                className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded border border-gray-200 bg-white"
+              />
+            )
           )}
         </div>
       </div>
