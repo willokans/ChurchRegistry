@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CommunionCreatePage from '@/app/communions/new/page';
 import { getStoredToken, getStoredUser, fetchBaptisms, createCommunion } from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -22,13 +23,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('@/context/ParishContext', () => ({
-  useParish: () => ({
-    parishId: 10,
-    setParishId: jest.fn(),
-    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-    loading: false,
-    error: null,
-  }),
+  useParish: jest.fn(),
 }));
 
 const mockPush = jest.fn();
@@ -40,6 +35,13 @@ describe('Communion create page', () => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('parishId=10'));
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: 10,
+      setParishId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      loading: false,
+      error: null,
+    });
     (fetchBaptisms as jest.Mock).mockResolvedValue([
       { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
     ]);
@@ -51,26 +53,29 @@ describe('Communion create page', () => {
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalledWith(10);
     });
-    expect(screen.getByRole('heading', { name: /new communion|add communion/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/baptism|select baptism/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/communion date|date/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/officiating priest|priest/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: /new holy communion/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/select baptism|baptism record/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/communion date/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/officiating priest/i)).toBeInTheDocument();
     const main = screen.getByRole('main');
-    expect(within(main).getByLabelText(/parish/i)).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /mass venue/i })).toBeInTheDocument();
   });
 
   it('on submit creates communion and redirects to list', async () => {
     const user = userEvent.setup();
     render(<CommunionCreatePage />);
     await waitFor(() => {
-      expect(fetchBaptisms).toHaveBeenCalled();
+      expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
     });
     const main = screen.getByRole('main');
-    await user.selectOptions(within(main).getByLabelText(/baptism|select baptism/i), '5');
-    await user.type(within(main).getByLabelText(/communion date|date/i), '2024-05-01');
-    await user.type(within(main).getByLabelText(/officiating priest|priest/i), 'Fr. Smith');
-    await user.type(within(main).getByLabelText(/parish/i), 'St Mary');
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.selectOptions(within(main).getByLabelText(/select baptism|baptism record/i), '5');
+    await user.type(within(main).getByLabelText(/communion date/i), '2024-05-01');
+    await user.type(within(main).getByLabelText(/officiating priest/i), 'Fr. Smith');
+    await user.selectOptions(screen.getByRole('combobox', { name: /mass venue/i }), 'St Mary');
+    await user.click(screen.getByRole('button', { name: /save.*communion|register communion/i }));
 
     await waitFor(() => {
       expect(createCommunion).toHaveBeenCalledWith(
@@ -87,10 +92,18 @@ describe('Communion create page', () => {
     });
   });
 
-  it('when no parishId shows message', () => {
+  it('when no parishId shows message', async () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: null,
+      setParishId: jest.fn(),
+      parishes: [],
+      loading: false,
+      error: null,
+    });
     render(<CommunionCreatePage />);
-    const main = screen.getByRole('main');
-    expect(within(main).getByText(/select a parish from the communions list/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/select a parish from the communions list/i)).toBeInTheDocument();
+    });
   });
 });
