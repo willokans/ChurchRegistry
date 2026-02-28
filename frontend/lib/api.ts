@@ -274,11 +274,13 @@ export interface FirstHolyCommunionResponse {
   communionDate: string;
   officiatingPriest: string;
   parish: string;
-  /** Present when listed by parish (joined with baptism) */
+  baptismCertificatePath?: string | null;
+  /** From baptism (when loaded with communion). */
   baptismName?: string;
   otherNames?: string;
   surname?: string;
   dateOfBirth?: string;
+  baptismParishName?: string;
   gender?: string;
   fathersName?: string;
   mothersName?: string;
