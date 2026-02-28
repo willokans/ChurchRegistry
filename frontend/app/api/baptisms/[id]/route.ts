@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken, getBaptismById, updateBaptism, getCommunionByBaptismId } from '@/lib/api-store';
+import { getUserFromToken, getBaptismById, updateBaptism, getCommunionByBaptismId, getParishes } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -19,8 +19,11 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   const communionWithCert = await getCommunionByBaptismId(numId);
+  const parishes = await getParishes();
+  const parish = parishes.find((p) => p.id === record.parishId);
   const payload = {
     ...record,
+    parishName: parish?.parishName ?? undefined,
     ...(communionWithCert?.baptismCertificatePath
       ? {
           externalCertificatePath: communionWithCert.baptismCertificatePath,

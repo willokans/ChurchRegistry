@@ -256,28 +256,12 @@ export default function BaptismViewPage() {
               • Baptized in Another Parish
             </span>
           )}
+          {!isExternalBaptism && baptism.parishName && (
+            <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+              • Baptized in {baptism.parishName}
+            </span>
+          )}
         </div>
-        {!isExternalBaptism && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/baptisms/${id}/certificate`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-sancta-maroon bg-white px-3 py-2 text-sm font-medium text-sancta-maroon hover:bg-sancta-maroon/5"
-            >
-              <PrinterIcon className="h-4 w-4" />
-              Print Certificate
-            </Link>
-            <button
-              type="button"
-              onClick={openEmailModal}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <EmailIcon className="h-4 w-4" />
-              Email Baptism Certificate
-            </button>
-          </div>
-        )}
       </div>
 
       {emailModalOpen && (
@@ -503,6 +487,88 @@ export default function BaptismViewPage() {
                 <p className="text-sm text-amber-900">
                   This certificate is not editable and is stored for reference only.
                 </p>
+              </div>
+            </section>
+
+            <section className={cardClass}>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FolderIcon className="h-5 w-5 text-gray-500" />
+                Record Summary
+              </h2>
+              <dl className="mt-4 space-y-2 text-sm">
+                <div>
+                  <dt className="text-gray-500">Record ID</dt>
+                  <dd className="font-medium text-gray-900">BAP/{baptism.id}</dd>
+                </div>
+              </dl>
+            </section>
+          </div>
+        )}
+
+        {!isExternalBaptism && (
+          <div className="space-y-6">
+            <section className={cardClass}>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Link
+                  href={`/baptisms/${id}/certificate`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-sancta-maroon bg-white px-4 py-2 text-sm font-medium text-sancta-maroon hover:bg-sancta-maroon/5"
+                >
+                  <PrinterIcon className="h-4 w-4" />
+                  Print Certificate
+                </Link>
+                <button
+                  type="button"
+                  onClick={openEmailModal}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <EmailIcon className="h-4 w-4" />
+                  Email Baptism Certificate
+                </button>
+              </div>
+            </section>
+
+            <section className={cardClass} id="baptism-certificate">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <CrossIcon className="h-5 w-5 text-gray-500" />
+                Baptism Certificate
+              </h2>
+              <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                <iframe
+                  src={`/baptisms/${id}/certificate?embed=1`}
+                  title="Baptism certificate"
+                  className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href={`/baptisms/${id}/certificate`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <ExpandIcon className="h-4 w-4" />
+                  View Fullscreen
+                </Link>
+                <Link
+                  href={`/baptisms/${id}/certificate`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <DownloadIcon className="h-4 w-4" />
+                  Download PDF
+                </Link>
+                <Link
+                  href={`/baptisms/${id}/certificate`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <DownloadIcon className="h-4 w-4" />
+                  Download Image
+                </Link>
               </div>
             </section>
 

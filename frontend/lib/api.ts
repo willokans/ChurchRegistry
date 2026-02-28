@@ -85,6 +85,8 @@ export interface BaptismResponse {
   sponsorNames: string;
   officiatingPriest: string;
   parishId: number;
+  /** Parish name (for display when baptized in same church). */
+  parishName?: string;
   address?: string;
   parishAddress?: string;
   parentAddress?: string;
