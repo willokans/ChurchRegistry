@@ -290,6 +290,18 @@ export async function getCommunionById(id: number): Promise<FirstHolyCommunion |
   return data ? toCommunion(data as CommunionRow) : null;
 }
 
+export async function getCommunionByBaptismId(baptismId: number): Promise<FirstHolyCommunion | null> {
+  const { data, error } = await getDb()
+    .from('communions')
+    .select('*')
+    .eq('baptism_id', baptismId)
+    .not('baptism_certificate_path', 'is', null)
+    .limit(1);
+  if (error) throw error;
+  const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+  return row ? toCommunion(row as CommunionRow) : null;
+}
+
 export async function addCommunion(record: FirstHolyCommunion): Promise<FirstHolyCommunion> {
   const row = {
     baptism_id: record.baptismId,

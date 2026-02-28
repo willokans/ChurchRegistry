@@ -138,6 +138,11 @@ export async function getCommunionById(id: number): Promise<FirstHolyCommunion |
   return list.find((c) => c.id === id) ?? null;
 }
 
+export async function getCommunionByBaptismId(baptismId: number): Promise<FirstHolyCommunion | null> {
+  const list = await getCommunions();
+  return list.find((c) => c.baptismId === baptismId && c.baptismCertificatePath) ?? null;
+}
+
 export async function addCommunion(record: FirstHolyCommunion): Promise<FirstHolyCommunion> {
   const list = await getCommunions();
   list.push(record);

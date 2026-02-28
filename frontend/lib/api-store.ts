@@ -169,6 +169,9 @@ export async function getCommunions() {
 export async function getCommunionById(id: number) {
   return storeUsesSupabase() ? supabaseStore.getCommunionById(id) : fileStore.getCommunionById(id);
 }
+export async function getCommunionByBaptismId(baptismId: number) {
+  return storeUsesSupabase() ? supabaseStore.getCommunionByBaptismId(baptismId) : fileStore.getCommunionByBaptismId(baptismId);
+}
 export async function addCommunion(record: Parameters<typeof fileStore.addCommunion>[0]) {
   return storeUsesSupabase() ? supabaseStore.addCommunion(record) : fileStore.addCommunion(record);
 }

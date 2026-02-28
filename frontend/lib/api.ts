@@ -89,6 +89,10 @@ export interface BaptismResponse {
   parishAddress?: string;
   parentAddress?: string;
   note?: string;
+  /** Set when this baptism has an external certificate (baptized in another parish). */
+  externalCertificatePath?: string | null;
+  /** Issuing parish name for the external certificate. */
+  externalCertificateIssuingParish?: string | null;
 }
 
 export interface BaptismRequest {
@@ -168,6 +172,16 @@ export async function fetchBaptism(id: number): Promise<BaptismResponse | null> 
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptism');
   return res.json();
+}
+
+/** Fetch external baptism certificate file (when baptized in another parish). Returns blob for view/download. */
+export async function fetchBaptismExternalCertificate(baptismId: number): Promise<Blob> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${baptismId}/external-certificate`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) throw new Error('No external certificate for this baptism');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load certificate');
+  return res.blob();
 }
 
 export async function createBaptism(parishId: number, body: BaptismRequest): Promise<BaptismResponse> {

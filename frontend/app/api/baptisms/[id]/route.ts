@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken, getBaptismById, updateBaptism } from '@/lib/api-store';
+import { getUserFromToken, getBaptismById, updateBaptism, getCommunionByBaptismId } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -18,7 +18,17 @@ export async function GET(
   if (!record) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  return NextResponse.json(record);
+  const communionWithCert = await getCommunionByBaptismId(numId);
+  const payload = {
+    ...record,
+    ...(communionWithCert?.baptismCertificatePath
+      ? {
+          externalCertificatePath: communionWithCert.baptismCertificatePath,
+          externalCertificateIssuingParish: communionWithCert.parish ?? undefined,
+        }
+      : {}),
+  };
+  return NextResponse.json(payload);
 }
 
 export async function PATCH(
