@@ -28,6 +28,16 @@ function formatDateTime(iso: string): string {
   return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function sanitizeFilenamePart(value: string | null | undefined): string {
+  if (value == null || String(value).trim() === '') return '';
+  return String(value)
+    .trim()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || '';
+}
+
 const cardClass = 'rounded-xl border border-gray-200 bg-white p-5 shadow-sm';
 
 export default function BaptismViewPage() {
@@ -119,20 +129,24 @@ export default function BaptismViewPage() {
     };
   }, [id, isExternalBaptism]);
 
-  const handleDownloadCertificate = useCallback(async () => {
-    if (!id || !isExternalBaptism) return;
+  const handleDownloadCertificate = useCallback(async (format: 'pdf' | 'image' = 'pdf') => {
+    if (!id || !isExternalBaptism || !baptism) return;
     try {
       const blob = await fetchBaptismExternalCertificate(id);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `baptism-certificate-${id}.pdf`;
+      const baptismName = sanitizeFilenamePart(baptism.baptismName);
+      const surname = sanitizeFilenamePart(baptism.surname);
+      const baseName = [baptismName, surname].filter(Boolean).join('-') || `baptism-${id}`;
+      const ext = format === 'image' ? 'png' : 'pdf';
+      a.download = `baptism-certificate-${baseName}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
       setCertificateError('Download failed');
     }
-  }, [id, isExternalBaptism]);
+  }, [id, isExternalBaptism, baptism]);
 
   const handleViewFullscreen = useCallback(async () => {
     if (!id || !isExternalBaptism) return;
@@ -427,11 +441,9 @@ export default function BaptismViewPage() {
                 <CrossIcon className="h-5 w-5 text-gray-500" />
                 External Baptism Certificate
               </h2>
-              {baptism.externalCertificateIssuingParish && (
-                <p className="mt-1 text-sm text-gray-600">
-                  Issued by: {baptism.externalCertificateIssuingParish}
-                </p>
-              )}
+              <p className="mt-1 text-sm text-gray-600">
+                Issued by: {baptism.parishAddress?.trim() || 'Unknown'}
+              </p>
               <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
                 {certificateLoading && (
                   <p className="text-gray-500 p-4">Loading certificate…</p>
@@ -458,7 +470,7 @@ export default function BaptismViewPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleDownloadCertificate}
+                  onClick={() => handleDownloadCertificate('pdf')}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   <DownloadIcon className="h-4 w-4" />
@@ -466,7 +478,7 @@ export default function BaptismViewPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleDownloadCertificate}
+                  onClick={() => handleDownloadCertificate('image')}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   <DownloadIcon className="h-4 w-4" />
