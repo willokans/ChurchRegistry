@@ -46,7 +46,9 @@ describe('Communions list page', () => {
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalledWith(10);
     });
-    expect(screen.getByRole('heading', { name: /holy communion|first holy communion|communions/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /first holy communion|holy communion|communions/i })).toBeInTheDocument();
+    });
   });
 
   it('shows empty state when no communions', async () => {

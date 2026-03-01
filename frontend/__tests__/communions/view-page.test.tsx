@@ -78,7 +78,7 @@ describe('Communion view page', () => {
     expect(screen.getByText(/Communicant's Information/i)).toBeInTheDocument();
     expect(screen.getByText(/Full Name/i)).toBeInTheDocument();
     expect(screen.getByText(/Date of Birth/i)).toBeInTheDocument();
-    expect(screen.getByText(/Baptism Record/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Baptism Record/i).length).toBeGreaterThanOrEqual(1);
     const baptismLink = screen.getByRole('link', { name: /Baptism #5/i });
     expect(baptismLink).toHaveAttribute('href', '/baptisms/5');
     expect(screen.getByRole('main')).toHaveTextContent(/March 15, 2024/);

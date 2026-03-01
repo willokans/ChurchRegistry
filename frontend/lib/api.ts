@@ -476,6 +476,14 @@ export interface ConfirmationResponse {
   confirmationDate: string;
   officiatingBishop: string;
   parish?: string;
+  /** Enriched from baptism when listing by parish */
+  baptismName?: string;
+  otherNames?: string;
+  surname?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  fathersName?: string;
+  mothersName?: string;
 }
 
 export interface ConfirmationRequest {

@@ -18,8 +18,21 @@ export async function GET(
     getConfirmations(),
     getBaptisms(),
   ]);
-  // Show confirmations whose baptism belongs to this parish (so records created here appear in the list)
   const baptismIdsInParish = new Set(baptisms.filter((b) => b.parishId === id).map((b) => b.id));
-  const list = confirmations.filter((c) => baptismIdsInParish.has(c.baptismId));
+  const filtered = confirmations.filter((c) => baptismIdsInParish.has(c.baptismId));
+  const baptismMap = new Map(baptisms.map((b) => [b.id, b]));
+  const list = filtered.map((c) => {
+    const b = baptismMap.get(c.baptismId);
+    return {
+      ...c,
+      baptismName: b?.baptismName ?? '',
+      otherNames: b?.otherNames ?? '',
+      surname: b?.surname ?? '',
+      dateOfBirth: b?.dateOfBirth ?? '',
+      gender: b?.gender ?? '',
+      fathersName: b?.fathersName ?? '',
+      mothersName: b?.mothersName ?? '',
+    };
+  });
   return NextResponse.json(list);
 }
