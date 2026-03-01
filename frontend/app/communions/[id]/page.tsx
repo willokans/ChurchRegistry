@@ -263,52 +263,67 @@ export default function CommunionViewPage() {
             </dl>
           </section>
 
-          {hasBaptismCert && (
-            <section className={cardClass}>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <CrossIcon className="h-5 w-5 text-gray-500" />
-                Communicant&apos;s Baptism Certificate
-              </h2>
-              <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-                {baptismCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
-                {baptismCertError && <p className="text-red-600 text-sm p-4">{baptismCertError}</p>}
-                {!baptismCertLoading && !baptismCertError && baptismCertUrl && (
-                  baptismCertIsPdf ? (
-                    <iframe
-                      src={`${baptismCertUrl}#view=FitH`}
-                      title="Baptism certificate"
-                      className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-                    />
-                  ) : (
-                    <img
-                      src={baptismCertUrl}
-                      alt="Baptism certificate"
-                      className="w-full h-full object-contain border-0 rounded"
-                    />
-                  )
-                )}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  href={`/baptisms/${communion.baptismId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <ExpandIcon className="h-4 w-4" />
-                  View Fullscreen
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleDownloadBaptismCert}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  Download PDF
-                </button>
-              </div>
+          <section className={cardClass}>
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <CrossIcon className="h-5 w-5 text-gray-500" />
+              Communicant&apos;s Baptism Certificate
+            </h2>
+            {hasBaptismCert ? (
+                <>
+                  <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                    {baptismCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
+                    {baptismCertError && <p className="text-red-600 text-sm p-4">{baptismCertError}</p>}
+                    {!baptismCertLoading && !baptismCertError && baptismCertUrl && (
+                      baptismCertIsPdf ? (
+                        <iframe
+                          src={`${baptismCertUrl}#view=FitH`}
+                          title="Baptism certificate"
+                          className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                        />
+                      ) : (
+                        <img
+                          src={baptismCertUrl}
+                          alt="Baptism certificate"
+                          className="w-full h-full object-contain border-0 rounded"
+                        />
+                      )
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/baptisms/${communion.baptismId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ExpandIcon className="h-4 w-4" />
+                      View Fullscreen
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleDownloadBaptismCert}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                      Download PDF
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm text-gray-700">
+                    Baptism was recorded in this parish. No certificate file is on file for this communion record.
+                  </p>
+                  <Link
+                    href={`/baptisms/${communion.baptismId}`}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <ExpandIcon className="h-4 w-4" />
+                    View Baptism Record
+                  </Link>
+                </div>
+              )}
             </section>
-          )}
 
           <section className={cardClass}>
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">

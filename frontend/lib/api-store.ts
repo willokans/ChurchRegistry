@@ -54,6 +54,8 @@ export interface FirstHolyCommunion {
   parish: string;
   /** Path or URL of uploaded baptism certificate (when baptism from another parish). */
   baptismCertificatePath?: string | null;
+  /** Path or URL of uploaded communion certificate (when communion from another church). */
+  communionCertificatePath?: string | null;
 }
 
 export interface Confirmation {

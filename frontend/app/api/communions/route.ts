@@ -12,7 +12,9 @@ import {
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase-server';
 
 const BAPTISM_CERTIFICATES_BUCKET = 'baptism-certificates';
+const COMMUNION_CERTIFICATES_BUCKET = 'communion-certificates';
 const DATA_CERTIFICATES_DIR = path.join(process.cwd(), 'data', 'baptism-certificates');
+const DATA_COMMUNION_CERTIFICATES_DIR = path.join(process.cwd(), 'data', 'communion-certificates');
 /** Max size for certificate uploads (2 MB). Must match storage bucket limit. */
 const MAX_CERTIFICATE_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       const baptismSource = formData.get('baptismSource') === 'external';
+      const communionSource = formData.get('communionSource') === 'external';
       const parishId = parseInt(String(formData.get('parishId') ?? ''), 10);
       const communionDate = String(formData.get('communionDate') ?? '').trim();
       const officiatingPriest = String(formData.get('officiatingPriest') ?? '').trim();
@@ -70,6 +73,69 @@ export async function POST(request: Request) {
           { error: 'Communion date, officiating priest, and parish are required.' },
           { status: 400 }
         );
+      }
+
+      // Communion from another church: existing baptismId + communion certificate upload
+      if (communionSource) {
+        const baptismId = parseInt(String(formData.get('baptismId') ?? ''), 10);
+        if (Number.isNaN(baptismId) || baptismId <= 0) {
+          return NextResponse.json(
+            { error: 'Baptism is required for Communion from another church.' },
+            { status: 400 }
+          );
+        }
+        const file = formData.get('communionCertificate') as File | null;
+        if (!file || !(file instanceof File) || file.size === 0) {
+          return NextResponse.json(
+            { error: 'Upload a Holy Communion certificate when Communion was in another church.' },
+            { status: 400 }
+          );
+        }
+        if (file.size > MAX_CERTIFICATE_SIZE_BYTES) {
+          return NextResponse.json(
+            { error: 'Certificate file is too large. Maximum size is 2 MB.' },
+            { status: 400 }
+          );
+        }
+        let certificatePath: string;
+        if (isSupabaseConfigured()) {
+          const supabase = getSupabase();
+          if (!supabase) {
+            return NextResponse.json({ error: 'Storage not configured' }, { status: 503 });
+          }
+          const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const { data, error } = await supabase.storage
+            .from(COMMUNION_CERTIFICATES_BUCKET)
+            .upload(safeName, buffer, { contentType: file.type || 'application/octet-stream' });
+          if (error) {
+            console.error('[communions] Supabase communion certificate upload:', error);
+            return NextResponse.json(
+              { error: 'Failed to upload certificate. Ensure the bucket "' + COMMUNION_CERTIFICATES_BUCKET + '" exists.' },
+              { status: 500 }
+            );
+          }
+          certificatePath = data.path;
+        } else {
+          await fs.mkdir(DATA_COMMUNION_CERTIFICATES_DIR, { recursive: true });
+          const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+          const filePath = path.join(DATA_COMMUNION_CERTIFICATES_DIR, safeName);
+          const arrayBuffer = await file.arrayBuffer();
+          await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+          certificatePath = `communion-certificates/${safeName}`;
+        }
+        const list = await getCommunions();
+        const record = {
+          id: nextId(list),
+          baptismId,
+          communionDate,
+          officiatingPriest,
+          parish,
+          communionCertificatePath: certificatePath,
+        };
+        const created = await addCommunion(record);
+        return NextResponse.json(created);
       }
 
       if (baptismSource) {

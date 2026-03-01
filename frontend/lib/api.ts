@@ -275,6 +275,7 @@ export interface FirstHolyCommunionResponse {
   officiatingPriest: string;
   parish: string;
   baptismCertificatePath?: string | null;
+  communionCertificatePath?: string | null;
   /** From baptism (when loaded with communion). */
   baptismName?: string;
   otherNames?: string;
@@ -330,6 +331,46 @@ export interface ExternalBaptismPayload {
   baptisedChurchAddress: string;
 }
 
+/** Create only external baptism (with certificate). Returns the created baptism id. Use when communion will be added separately (this church or another church). */
+export async function createBaptismWithCertificate(
+  parishId: number,
+  certificate: File,
+  externalBaptism: ExternalBaptismPayload
+): Promise<{ id: number }> {
+  const formData = new FormData();
+  formData.set('parishId', String(parishId));
+  formData.set('certificate', certificate);
+  formData.set('externalBaptismName', externalBaptism.baptismName);
+  formData.set('externalSurname', externalBaptism.surname);
+  formData.set('externalOtherNames', externalBaptism.otherNames);
+  formData.set('externalGender', externalBaptism.gender);
+  formData.set('externalFathersName', externalBaptism.fathersName);
+  formData.set('externalMothersName', externalBaptism.mothersName);
+  formData.set('externalBaptisedChurchAddress', externalBaptism.baptisedChurchAddress);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${getBaseUrl()}/api/baptisms`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create baptism';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 /** Create communion with "Baptism from another Parish": uploads certificate and creates baptism with given details. */
 export async function createCommunionWithCertificate(
   parishId: number,
@@ -376,6 +417,42 @@ export async function createCommunionWithCertificate(
   return res.json();
 }
 
+/** Create communion when Holy Communion was in another church: upload communion certificate, link to existing baptism. */
+export async function createCommunionWithCommunionCertificate(
+  data: { baptismId: number; communionDate: string; officiatingPriest: string; parish: string },
+  certificate: File
+): Promise<FirstHolyCommunionResponse> {
+  const formData = new FormData();
+  formData.set('communionSource', 'external');
+  formData.set('baptismId', String(data.baptismId));
+  formData.set('communionDate', data.communionDate);
+  formData.set('officiatingPriest', data.officiatingPriest);
+  formData.set('parish', data.parish);
+  formData.set('communionCertificate', certificate);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${getBaseUrl()}/api/communions`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create communion';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 export interface ConfirmationResponse {
   id: number;
   baptismId: number;
@@ -386,6 +463,7 @@ export interface ConfirmationResponse {
 }
 
 export interface ConfirmationRequest {
+  baptismId: number;
   communionId: number;
   confirmationDate: string;
   officiatingBishop: string;

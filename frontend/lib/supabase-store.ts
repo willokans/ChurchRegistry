@@ -42,6 +42,7 @@ type CommunionRow = {
   officiating_priest: string;
   parish: string;
   baptism_certificate_path?: string | null;
+  communion_certificate_path?: string | null;
 };
 type ConfirmationRow = {
   id: number;
@@ -116,6 +117,7 @@ function toCommunion(r: CommunionRow): FirstHolyCommunion {
     officiatingPriest: r.officiating_priest,
     parish: r.parish,
     baptismCertificatePath: r.baptism_certificate_path ?? undefined,
+    communionCertificatePath: r.communion_certificate_path ?? undefined,
   };
 }
 function toConfirmation(r: ConfirmationRow): Confirmation {
@@ -309,6 +311,7 @@ export async function addCommunion(record: FirstHolyCommunion): Promise<FirstHol
     officiating_priest: record.officiatingPriest,
     parish: record.parish,
     baptism_certificate_path: record.baptismCertificatePath ?? null,
+    communion_certificate_path: record.communionCertificatePath ?? null,
   };
   const { data, error } = await getDb().from('communions').insert(row).select('*').single();
   if (error) throw error;
