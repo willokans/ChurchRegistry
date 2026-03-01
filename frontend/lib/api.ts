@@ -522,11 +522,18 @@ export async function createConfirmation(body: ConfirmationRequest): Promise<Con
 
 export interface MarriageResponse {
   id: number;
-  baptismId: number;
-  communionId: number;
-  confirmationId: number;
+  baptismId?: number;
+  communionId?: number;
+  confirmationId?: number;
   partnersName: string;
   marriageDate: string;
+  marriageTime?: string;
+  churchName?: string;
+  marriageRegister?: string;
+  diocese?: string;
+  civilRegistryNumber?: string;
+  dispensationGranted?: boolean;
+  canonicalNotes?: string;
   officiatingPriest: string;
   parish: string;
 }
@@ -537,6 +544,47 @@ export interface MarriageRequest {
   marriageDate: string;
   officiatingPriest: string;
   parish: string;
+}
+
+/** New create marriage payload: groom, bride, marriage details, witnesses */
+export interface MarriagePartyPayload {
+  fullName: string;
+  dateOfBirth?: string;
+  placeOfBirth?: string;
+  nationality?: string;
+  residentialAddress?: string;
+  phone?: string;
+  email?: string;
+  occupation?: string;
+  maritalStatus?: string;
+  baptismId?: number;
+  communionId?: number;
+  confirmationId?: number;
+  baptismCertificatePath?: string;
+  communionCertificatePath?: string;
+  confirmationCertificatePath?: string;
+  baptismChurch?: string;
+  communionChurch?: string;
+  confirmationChurch?: string;
+}
+
+export interface CreateMarriageWithPartiesRequest {
+  marriage: {
+    partnersName?: string;
+    marriageDate: string;
+    marriageTime?: string;
+    churchName?: string;
+    marriageRegister?: string;
+    diocese?: string;
+    civilRegistryNumber?: string;
+    dispensationGranted?: boolean;
+    canonicalNotes?: string;
+    officiatingPriest: string;
+    parish: string;
+  };
+  groom: MarriagePartyPayload;
+  bride: MarriagePartyPayload;
+  witnesses: Array<{ fullName: string; phone?: string; address?: string; sortOrder?: number }>;
 }
 
 export async function fetchMarriages(parishId: number): Promise<MarriageResponse[]> {
@@ -561,6 +609,60 @@ export async function createMarriage(body: MarriageRequest): Promise<MarriageRes
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || 'Failed to create marriage');
+  }
+  return res.json();
+}
+
+export async function createMarriageWithParties(body: CreateMarriageWithPartiesRequest): Promise<MarriageResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/marriages`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create marriage';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/** Upload a marriage certificate (baptism, communion, or confirmation for groom/bride). Returns path to store in form. */
+export async function uploadMarriageCertificate(
+  parishId: number,
+  file: File,
+  certificateType: 'baptism' | 'communion' | 'confirmation',
+  role: 'groom' | 'bride'
+): Promise<{ path: string }> {
+  const formData = new FormData();
+  formData.set('file', file);
+  formData.set('certificateType', certificateType);
+  formData.set('role', role);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(
+    `${getBaseUrl()}/api/parishes/${parishId}/marriages/upload-certificate`,
+    { method: 'POST', headers, body: formData }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to upload certificate';
+    }
+    throw new Error(msg);
   }
   return res.json();
 }

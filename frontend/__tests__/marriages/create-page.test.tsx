@@ -1,13 +1,21 @@
 /**
- * TDD: Marriage create page.
- * - When authenticated and parishId in query, shows form (confirmation picker, partners, date, priest, parish) and creates on submit
+ * TDD: Marriage create page (full form: groom, bride, marriage details, witnesses).
+ * - When authenticated and parishId in context/query, shows form and creates via createMarriageWithParties
  * - Redirects to list after successful create
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MarriageCreatePage from '@/app/marriages/new/page';
-import { getStoredToken, getStoredUser, fetchConfirmations, createMarriage } from '@/lib/api';
+import {
+  getStoredToken,
+  getStoredUser,
+  fetchBaptisms,
+  fetchCommunions,
+  fetchConfirmations,
+  createMarriageWithParties,
+} from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -17,18 +25,15 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
+  fetchBaptisms: jest.fn(),
+  fetchCommunions: jest.fn(),
   fetchConfirmations: jest.fn(),
-  createMarriage: jest.fn(),
+  createMarriageWithParties: jest.fn(),
+  uploadMarriageCertificate: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
-  useParish: () => ({
-    parishId: 10,
-    setParishId: jest.fn(),
-    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-    loading: false,
-    error: null,
-  }),
+  useParish: jest.fn(),
 }));
 
 const mockPush = jest.fn();
@@ -40,48 +45,74 @@ describe('Marriage create page', () => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('parishId=10'));
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      { id: 7, baptismId: 5, communionId: 2, confirmationDate: '2025-04-01', officiatingBishop: 'Bishop Jones', parish: 'St Mary' },
-    ]);
-    (createMarriage as jest.Mock).mockResolvedValue({ id: 99, confirmationId: 7, partnersName: 'John & Jane' });
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: 10,
+      setParishId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      loading: false,
+      error: null,
+    });
+    (fetchBaptisms as jest.Mock).mockResolvedValue([]);
+    (fetchCommunions as jest.Mock).mockResolvedValue([]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue([]);
+    (createMarriageWithParties as jest.Mock).mockResolvedValue({ id: 99 });
   });
 
-  it('shows form with heading and required fields', async () => {
+  it('shows form with heading and groom/bride sections', async () => {
     render(<MarriageCreatePage />);
     await waitFor(() => {
+      expect(fetchBaptisms).toHaveBeenCalledWith(10);
+      expect(fetchCommunions).toHaveBeenCalledWith(10);
       expect(fetchConfirmations).toHaveBeenCalledWith(10);
     });
-    expect(screen.getByRole('heading', { name: /new marriage|add marriage|holy matrimony/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/confirmation|select confirmation/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/partners|spouse/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/marriage date|date/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/officiating priest|priest/i)).toBeInTheDocument();
-    const main = screen.getByRole('main');
-    expect(within(main).getByLabelText(/parish/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /create marriage record/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/groom information/i)).toBeInTheDocument();
+    expect(screen.getByText(/bride information/i)).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/full name/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByLabelText(/marriage date/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/officiating priest/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /witnesses/i })).toBeInTheDocument();
   });
 
-  it('on submit creates marriage and redirects to list', async () => {
+  it('on submit creates marriage with parties and redirects to list', async () => {
     const user = userEvent.setup();
     render(<MarriageCreatePage />);
     await waitFor(() => {
-      expect(fetchConfirmations).toHaveBeenCalled();
+      expect(screen.getByRole('heading', { name: /create marriage record/i })).toBeInTheDocument();
     });
+    const fullNameInputs = screen.getAllByLabelText(/full name/i);
+    await user.type(fullNameInputs[0], 'John Doe');
+    await user.type(fullNameInputs[1], 'Jane Smith');
+    await user.type(screen.getByLabelText(/marriage date/i), '2025-06-15');
+    await user.type(screen.getByLabelText(/church name/i), 'St Mary');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
+    // Parish is pre-filled from context
     const main = screen.getByRole('main');
-    await user.selectOptions(within(main).getByLabelText(/confirmation|select confirmation/i), '7');
-    await user.type(within(main).getByLabelText(/partners|spouse/i), 'John & Jane Doe');
-    await user.type(within(main).getByLabelText(/marriage date|date/i), '2025-06-15');
-    await user.type(within(main).getByLabelText(/officiating priest|priest/i), 'Fr. Smith');
-    await user.type(within(main).getByLabelText(/parish/i), 'St Mary');
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    const parishInput = within(main).getByLabelText(/parish \*/i);
+    expect(parishInput).toHaveValue('St Mary');
+    // Witness inputs: in the section that has "Minimum of 2 witnesses" (groom/bride also have placeholder "Full Name")
+    const witnessesSection = screen.getByText(/minimum of 2 witnesses required/i).closest('div');
+    const witnessNameInputs = witnessesSection ? within(witnessesSection as HTMLElement).getAllByPlaceholderText(/full name/i) : screen.getAllByPlaceholderText(/full name/i).slice(-2);
+    await user.type(witnessNameInputs[0], 'Witness One');
+    await user.type(witnessNameInputs[1], 'Witness Two');
+    await user.click(screen.getByRole('button', { name: /save marriage/i }));
 
     await waitFor(() => {
-      expect(createMarriage).toHaveBeenCalledWith(
+      expect(createMarriageWithParties).toHaveBeenCalledWith(
         expect.objectContaining({
-          confirmationId: 7,
-          partnersName: 'John & Jane Doe',
-          marriageDate: '2025-06-15',
-          officiatingPriest: 'Fr. Smith',
-          parish: 'St Mary',
+          marriage: expect.objectContaining({
+            marriageDate: '2025-06-15',
+            officiatingPriest: 'Fr. Smith',
+            parish: 'St Mary',
+          }),
+          groom: expect.objectContaining({ fullName: 'John Doe' }),
+          bride: expect.objectContaining({ fullName: 'Jane Smith' }),
+          witnesses: expect.arrayContaining([
+            expect.objectContaining({ fullName: 'Witness One' }),
+            expect.objectContaining({ fullName: 'Witness Two' }),
+          ]),
         })
       );
     });
@@ -92,6 +123,13 @@ describe('Marriage create page', () => {
 
   it('when no parishId shows message', () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
+    (useParish as jest.Mock).mockReturnValue({
+      parishId: null,
+      setParishId: jest.fn(),
+      parishes: [],
+      loading: false,
+      error: null,
+    });
     render(<MarriageCreatePage />);
     const main = screen.getByRole('main');
     expect(within(main).getByText(/select a parish from the marriages list/i)).toBeInTheDocument();

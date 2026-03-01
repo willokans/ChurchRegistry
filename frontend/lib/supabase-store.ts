@@ -12,6 +12,8 @@ import type {
   FirstHolyCommunion,
   Confirmation,
   Marriage,
+  MarriageParty,
+  MarriageWitness,
   HolyOrder,
 } from './api-store';
 
@@ -54,13 +56,52 @@ type ConfirmationRow = {
 };
 type MarriageRow = {
   id: number;
-  baptism_id: number;
-  communion_id: number;
-  confirmation_id: number;
+  baptism_id: number | null;
+  communion_id: number | null;
+  confirmation_id: number | null;
   partners_name: string;
   marriage_date: string;
+  marriage_time: string | null;
+  church_name: string | null;
+  marriage_register: string | null;
+  diocese: string | null;
+  civil_registry_number: string | null;
+  dispensation_granted: boolean | null;
+  canonical_notes: string | null;
   officiating_priest: string;
   parish: string;
+};
+type MarriagePartyRow = {
+  id: number;
+  marriage_id: number;
+  role: string;
+  full_name: string;
+  date_of_birth: string | null;
+  place_of_birth: string | null;
+  nationality: string | null;
+  residential_address: string | null;
+  phone: string | null;
+  email: string | null;
+  occupation: string | null;
+  marital_status: string | null;
+  baptism_id: number | null;
+  communion_id: number | null;
+  confirmation_id: number | null;
+  baptism_certificate_path: string | null;
+  communion_certificate_path: string | null;
+  confirmation_certificate_path: string | null;
+  baptism_church: string | null;
+  communion_church: string | null;
+  confirmation_church: string | null;
+};
+type MarriageWitnessRow = {
+  id: number;
+  marriage_id: number;
+  full_name: string;
+  phone: string | null;
+  address: string | null;
+  signature_path: string | null;
+  sort_order: number;
 };
 type HolyOrderRow = {
   id: number;
@@ -133,11 +174,18 @@ function toConfirmation(r: ConfirmationRow): Confirmation {
 function toMarriage(r: MarriageRow): Marriage {
   return {
     id: r.id,
-    baptismId: r.baptism_id,
-    communionId: r.communion_id,
-    confirmationId: r.confirmation_id,
+    baptismId: r.baptism_id ?? undefined,
+    communionId: r.communion_id ?? undefined,
+    confirmationId: r.confirmation_id ?? undefined,
     partnersName: r.partners_name,
     marriageDate: r.marriage_date,
+    marriageTime: r.marriage_time ?? undefined,
+    churchName: r.church_name ?? undefined,
+    marriageRegister: r.marriage_register ?? undefined,
+    diocese: r.diocese ?? undefined,
+    civilRegistryNumber: r.civil_registry_number ?? undefined,
+    dispensationGranted: r.dispensation_granted ?? undefined,
+    canonicalNotes: r.canonical_notes ?? undefined,
     officiatingPriest: r.officiating_priest,
     parish: r.parish,
   };
@@ -359,17 +407,107 @@ export async function getMarriageById(id: number): Promise<Marriage | null> {
 
 export async function addMarriage(record: Marriage): Promise<Marriage> {
   const row = {
-    baptism_id: record.baptismId,
-    communion_id: record.communionId,
-    confirmation_id: record.confirmationId,
+    baptism_id: record.baptismId ?? null,
+    communion_id: record.communionId ?? null,
+    confirmation_id: record.confirmationId ?? null,
     partners_name: record.partnersName,
     marriage_date: record.marriageDate,
+    marriage_time: record.marriageTime ?? null,
+    church_name: record.churchName ?? null,
+    marriage_register: record.marriageRegister ?? null,
+    diocese: record.diocese ?? null,
+    civil_registry_number: record.civilRegistryNumber ?? null,
+    dispensation_granted: record.dispensationGranted ?? null,
+    canonical_notes: record.canonicalNotes ?? null,
     officiating_priest: record.officiatingPriest,
     parish: record.parish,
   };
   const { data, error } = await getDb().from('marriages').insert(row).select('*').single();
   if (error) throw error;
   return toMarriage(data as MarriageRow);
+}
+
+/** Create marriage with groom/bride parties and witnesses (new form flow). */
+export interface CreateMarriageWithPartiesPayload {
+  marriage: Omit<Marriage, 'id'>;
+  groom: Omit<MarriageParty, 'id' | 'marriageId'>;
+  bride: Omit<MarriageParty, 'id' | 'marriageId'>;
+  witnesses: Array<Omit<MarriageWitness, 'id' | 'marriageId'>>;
+}
+
+export async function addMarriageWithParties(payload: CreateMarriageWithPartiesPayload): Promise<Marriage> {
+  const { marriage, groom, bride, witnesses } = payload;
+  const marriageRow = {
+    baptism_id: null,
+    communion_id: null,
+    confirmation_id: null,
+    partners_name: marriage.partnersName,
+    marriage_date: marriage.marriageDate,
+    marriage_time: marriage.marriageTime ?? null,
+    church_name: marriage.churchName ?? null,
+    marriage_register: marriage.marriageRegister ?? null,
+    diocese: marriage.diocese ?? null,
+    civil_registry_number: marriage.civilRegistryNumber ?? null,
+    dispensation_granted: marriage.dispensationGranted ?? null,
+    canonical_notes: marriage.canonicalNotes ?? null,
+    officiating_priest: marriage.officiatingPriest,
+    parish: marriage.parish,
+  };
+  const { data: marriageData, error: marriageError } = await getDb()
+    .from('marriages')
+    .insert(marriageRow)
+    .select('*')
+    .single();
+  if (marriageError) throw marriageError;
+  const marriageId = (marriageData as MarriageRow).id;
+
+  const partyRow = (p: Omit<MarriageParty, 'id' | 'marriageId'>, role: 'GROOM' | 'BRIDE') => ({
+    marriage_id: marriageId,
+    role,
+    full_name: p.fullName,
+    date_of_birth: p.dateOfBirth ?? null,
+    place_of_birth: p.placeOfBirth ?? null,
+    nationality: p.nationality ?? null,
+    residential_address: p.residentialAddress ?? null,
+    phone: p.phone ?? null,
+    email: p.email ?? null,
+    occupation: p.occupation ?? null,
+    marital_status: p.maritalStatus ?? null,
+    baptism_id: p.baptismId ?? null,
+    communion_id: p.communionId ?? null,
+    confirmation_id: p.confirmationId ?? null,
+    baptism_certificate_path: p.baptismCertificatePath ?? null,
+    communion_certificate_path: p.communionCertificatePath ?? null,
+    confirmation_certificate_path: p.confirmationCertificatePath ?? null,
+    baptism_church: p.baptismChurch ?? null,
+    communion_church: p.communionChurch ?? null,
+    confirmation_church: p.confirmationChurch ?? null,
+  });
+
+  const { error: groomError } = await getDb()
+    .from('marriage_parties')
+    .insert(partyRow(groom, 'GROOM'));
+  if (groomError) throw groomError;
+
+  const { error: brideError } = await getDb()
+    .from('marriage_parties')
+    .insert(partyRow(bride, 'BRIDE'));
+  if (brideError) throw brideError;
+
+  if (witnesses.length > 0) {
+    const witnessRows = witnesses.map((w, i) => ({
+      marriage_id: marriageId,
+      full_name: w.fullName,
+      phone: w.phone ?? null,
+      address: w.address ?? null,
+      signature_path: w.signaturePath ?? null,
+      sort_order: w.sortOrder ?? i,
+    }));
+    const { error: witError } = await getDb().from('marriage_witnesses').insert(witnessRows);
+    if (witError) throw witError;
+  }
+
+  return toMarriage(marriageData as MarriageRow);
 }
 
 // Holy orders

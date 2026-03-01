@@ -69,13 +69,55 @@ export interface Confirmation {
 
 export interface Marriage {
   id: number;
-  baptismId: number;
-  communionId: number;
-  confirmationId: number;
+  baptismId?: number | null;
+  communionId?: number | null;
+  confirmationId?: number | null;
   partnersName: string;
   marriageDate: string;
+  marriageTime?: string | null;
+  churchName?: string | null;
+  marriageRegister?: string | null;
+  diocese?: string | null;
+  civilRegistryNumber?: string | null;
+  dispensationGranted?: boolean | null;
+  canonicalNotes?: string | null;
   officiatingPriest: string;
   parish: string;
+}
+
+/** Groom or bride: personal details + sacrament link or certificate path */
+export interface MarriageParty {
+  id?: number;
+  marriageId: number;
+  role: 'GROOM' | 'BRIDE';
+  fullName: string;
+  dateOfBirth?: string | null;
+  placeOfBirth?: string | null;
+  nationality?: string | null;
+  residentialAddress?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  occupation?: string | null;
+  maritalStatus?: string | null;
+  baptismId?: number | null;
+  communionId?: number | null;
+  confirmationId?: number | null;
+  baptismCertificatePath?: string | null;
+  communionCertificatePath?: string | null;
+  confirmationCertificatePath?: string | null;
+  baptismChurch?: string | null;
+  communionChurch?: string | null;
+  confirmationChurch?: string | null;
+}
+
+export interface MarriageWitness {
+  id?: number;
+  marriageId: number;
+  fullName: string;
+  phone?: string | null;
+  address?: string | null;
+  signaturePath?: string | null;
+  sortOrder: number;
 }
 
 export interface HolyOrder {
@@ -194,6 +236,12 @@ export async function getMarriageById(id: number) {
 }
 export async function addMarriage(record: Parameters<typeof fileStore.addMarriage>[0]) {
   return storeUsesSupabase() ? supabaseStore.addMarriage(record) : fileStore.addMarriage(record);
+}
+export async function addMarriageWithParties(
+  payload: Parameters<typeof supabaseStore.addMarriageWithParties>[0]
+): Promise<Marriage> {
+  if (!storeUsesSupabase()) throw new Error('Full marriage form (groom/bride) requires database configuration.');
+  return supabaseStore.addMarriageWithParties(payload);
 }
 export async function getHolyOrders() {
   return storeUsesSupabase() ? supabaseStore.getHolyOrders() : fileStore.getHolyOrders();
