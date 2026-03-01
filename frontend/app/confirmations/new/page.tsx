@@ -155,8 +155,8 @@ export default function ConfirmationCreatePage() {
     if (!inFiltered) setSelectedCommunionId(0);
   }, [communionSearchQuery, filteredCommunions, selectedCommunionId]);
 
-  const selectedBaptism = selectedBaptismId ? baptisms.find((b) => b.id === selectedBaptismId) : null;
-  const selectedCommunion = selectedCommunionId ? communions.find((c) => c.id === selectedCommunionId) : null;
+  const selectedBaptism = selectedBaptismId ? baptisms.find((b) => b.id === selectedBaptismId) ?? null : null;
+  const selectedCommunion = selectedCommunionId ? communions.find((c) => c.id === selectedCommunionId) ?? null : null;
 
   // Pre-fill Baptism Name and Surname when user selects "Holy Communion in another church" and has a baptism selected (this parish) or external baptism (another parish)
   useEffect(() => {
