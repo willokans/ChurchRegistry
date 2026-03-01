@@ -26,6 +26,7 @@ export async function POST(request: Request) {
         parish: String(body.marriage.parish ?? '').trim(),
       };
       const groom = {
+        role: 'GROOM' as const,
         fullName: String(body.groom.fullName ?? '').trim(),
         dateOfBirth: body.groom.dateOfBirth != null ? String(body.groom.dateOfBirth).trim() : undefined,
         placeOfBirth: body.groom.placeOfBirth != null ? String(body.groom.placeOfBirth).trim() : undefined,
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
         confirmationChurch: body.groom.confirmationChurch != null ? String(body.groom.confirmationChurch).trim() : undefined,
       };
       const bride = {
+        role: 'BRIDE' as const,
         fullName: String(body.bride.fullName ?? '').trim(),
         dateOfBirth: body.bride.dateOfBirth != null ? String(body.bride.dateOfBirth).trim() : undefined,
         placeOfBirth: body.bride.placeOfBirth != null ? String(body.bride.placeOfBirth).trim() : undefined,
