@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { useParish } from '@/context/ParishContext';
-import { fetchCommunion, fetchBaptismExternalCertificate, type FirstHolyCommunionResponse } from '@/lib/api';
+import { fetchCommunion, fetchBaptismExternalCertificate, fetchCommunionCertificate, type FirstHolyCommunionResponse } from '@/lib/api';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -90,6 +90,11 @@ export default function CommunionViewPage() {
   const baptismCertUrlRef = useRef<string | null>(null);
   const [baptismCertLoading, setBaptismCertLoading] = useState(false);
   const [baptismCertError, setBaptismCertError] = useState<string | null>(null);
+  const [communionCertUrl, setCommunionCertUrl] = useState<string | null>(null);
+  const [communionCertIsPdf, setCommunionCertIsPdf] = useState(true);
+  const communionCertUrlRef = useRef<string | null>(null);
+  const [communionCertLoading, setCommunionCertLoading] = useState(false);
+  const [communionCertError, setCommunionCertError] = useState<string | null>(null);
 
   useEffect(() => {
     if (Number.isNaN(id)) {
@@ -136,6 +141,53 @@ export default function CommunionViewPage() {
   }, [communion?.baptismId, communion?.baptismCertificatePath]);
 
   const hasBaptismCert = Boolean(communion?.baptismCertificatePath);
+
+  useEffect(() => {
+    if (!communion?.communionCertificatePath || Number.isNaN(id)) return;
+    let cancelled = false;
+    setCommunionCertLoading(true);
+    setCommunionCertError(null);
+    fetchCommunionCertificate(id)
+      .then((blob) => {
+        if (cancelled) return;
+        if (communionCertUrlRef.current) URL.revokeObjectURL(communionCertUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        communionCertUrlRef.current = url;
+        setCommunionCertUrl(url);
+        setCommunionCertIsPdf(blob.type === 'application/pdf');
+      })
+      .catch((e) => {
+        if (!cancelled) setCommunionCertError(e instanceof Error ? e.message : 'Failed to load certificate');
+      })
+      .finally(() => {
+        if (!cancelled) setCommunionCertLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      if (communionCertUrlRef.current) {
+        URL.revokeObjectURL(communionCertUrlRef.current);
+        communionCertUrlRef.current = null;
+      }
+      setCommunionCertUrl(null);
+    };
+  }, [id, communion?.communionCertificatePath]);
+
+  const hasCommunionCert = Boolean(communion?.communionCertificatePath);
+
+  const handleDownloadCommunionCert = useCallback(async () => {
+    if (!id) return;
+    try {
+      const blob = await fetchCommunionCertificate(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `communion-certificate-${communion?.baptismName ?? ''}-${communion?.surname ?? ''}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setCommunionCertError('Download failed');
+    }
+  }, [id, communion?.baptismName, communion?.surname]);
 
   const handleDownloadBaptismCert = useCallback(async () => {
     if (!communion?.baptismId) return;
@@ -354,43 +406,98 @@ export default function CommunionViewPage() {
               <CrossIcon className="h-5 w-5 text-gray-500" />
               First Holy Communion Certificate
             </h2>
-            <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-              <iframe
-                src={`/communions/${id}/certificate?embed=1`}
-                title="First Holy Communion certificate"
-                className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link
-                href={`/communions/${id}/certificate`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <ExpandIcon className="h-4 w-4" />
-                View Fullscreen
-              </Link>
-              <Link
-                href={`/communions/${id}/certificate`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
-              >
-                <DownloadIcon className="h-4 w-4" />
-                Download PDF
-              </Link>
-              <Link
-                href={`/communions/${id}/certificate`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <DownloadIcon className="h-4 w-4" />
-                Download Image
-              </Link>
-            </div>
-            {hasBaptismCert && (
+            {hasCommunionCert ? (
+              <>
+                <p className="mt-1 text-sm text-gray-600">
+                  Original certificate received and uploaded (Communion in another church).
+                </p>
+                <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                  {communionCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
+                  {communionCertError && <p className="text-red-600 text-sm p-4">{communionCertError}</p>}
+                  {!communionCertLoading && !communionCertError && communionCertUrl && (
+                    communionCertIsPdf ? (
+                      <iframe
+                        src={`${communionCertUrl}#view=FitH`}
+                        title="First Holy Communion certificate (uploaded)"
+                        className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                      />
+                    ) : (
+                      <img
+                        src={communionCertUrl}
+                        alt="First Holy Communion certificate (uploaded)"
+                        className="w-full h-full object-contain border-0 rounded"
+                      />
+                    )
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (communionCertUrl) window.open(communionCertUrl, '_blank', 'noopener');
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <ExpandIcon className="h-4 w-4" />
+                    View Fullscreen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCommunionCert}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    Download PDF
+                  </button>
+                </div>
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 flex gap-2">
+                  <InfoIcon className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-900">
+                    This certificate was received from the church where First Holy Communion was celebrated. It is not editable and is stored for reference only.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                  <iframe
+                    src={`/communions/${id}/certificate?embed=1`}
+                    title="First Holy Communion certificate"
+                    className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/communions/${id}/certificate`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <ExpandIcon className="h-4 w-4" />
+                    View Fullscreen
+                  </Link>
+                  <Link
+                    href={`/communions/${id}/certificate`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    Download PDF
+                  </Link>
+                  <Link
+                    href={`/communions/${id}/certificate`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    Download Image
+                  </Link>
+                </div>
+              </>
+            )}
+            {hasBaptismCert && !hasCommunionCert && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 flex gap-2">
                 <InfoIcon className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <p className="text-sm text-amber-900">

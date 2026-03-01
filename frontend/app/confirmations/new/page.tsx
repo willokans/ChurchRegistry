@@ -294,6 +294,7 @@ export default function ConfirmationCreatePage() {
             communionDate: externalCommunion.communionDate,
             officiatingPriest: externalCommunion.officiatingPriest,
             parish: currentParishName,
+            baptismCertificatePath: createdBaptism.certificatePath,
           });
           communionId = communion.id;
         } else {
@@ -304,7 +305,8 @@ export default function ConfirmationCreatePage() {
               officiatingPriest: externalCommunion.officiatingPriest,
               parish: externalCommunion.communionChurchAddress.trim(),
             },
-            communionCertificateFile!
+            communionCertificateFile!,
+            createdBaptism.certificatePath
           );
           communionId = created.id;
         }

@@ -133,6 +133,7 @@ export async function POST(request: Request) {
           officiatingPriest,
           parish,
           communionCertificatePath: certificatePath,
+          baptismCertificatePath: formData.get('baptismCertificatePath') ? String(formData.get('baptismCertificatePath')).trim() : undefined,
         };
         const created = await addCommunion(record);
         return NextResponse.json(created);

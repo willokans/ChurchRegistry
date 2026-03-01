@@ -292,6 +292,8 @@ export interface FirstHolyCommunionRequest {
   communionDate: string;
   officiatingPriest: string;
   parish: string;
+  /** When provided (e.g. after creating baptism with certificate), stored on communion so baptism record can show uploaded cert. */
+  baptismCertificatePath?: string;
 }
 
 export async function fetchCommunions(parishId: number): Promise<FirstHolyCommunionResponse[]> {
@@ -305,6 +307,16 @@ export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResp
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communion');
   return res.json();
+}
+
+/** Fetches the uploaded communion certificate file (when communion was received in another church). */
+export async function fetchCommunionCertificate(communionId: number): Promise<Blob> {
+  const res = await fetch(`${getBaseUrl()}/api/communions/${communionId}/communion-certificate`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) throw new Error('No uploaded communion certificate for this record');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load certificate');
+  return res.blob();
 }
 
 export async function createCommunion(body: FirstHolyCommunionRequest): Promise<FirstHolyCommunionResponse> {
@@ -331,12 +343,12 @@ export interface ExternalBaptismPayload {
   baptisedChurchAddress: string;
 }
 
-/** Create only external baptism (with certificate). Returns the created baptism id. Use when communion will be added separately (this church or another church). */
+/** Create only external baptism (with certificate). Returns the created baptism id and certificate path for linking to communion. */
 export async function createBaptismWithCertificate(
   parishId: number,
   certificate: File,
   externalBaptism: ExternalBaptismPayload
-): Promise<{ id: number }> {
+): Promise<{ id: number; certificatePath: string }> {
   const formData = new FormData();
   formData.set('parishId', String(parishId));
   formData.set('certificate', certificate);
@@ -417,10 +429,11 @@ export async function createCommunionWithCertificate(
   return res.json();
 }
 
-/** Create communion when Holy Communion was in another church: upload communion certificate, link to existing baptism. */
+/** Create communion when Holy Communion was in another church: upload communion certificate, link to existing baptism. Optional baptismCertificatePath when baptism was just created with certificate (e.g. from confirmation flow). */
 export async function createCommunionWithCommunionCertificate(
   data: { baptismId: number; communionDate: string; officiatingPriest: string; parish: string },
-  certificate: File
+  certificate: File,
+  baptismCertificatePath?: string
 ): Promise<FirstHolyCommunionResponse> {
   const formData = new FormData();
   formData.set('communionSource', 'external');
@@ -429,6 +442,9 @@ export async function createCommunionWithCommunionCertificate(
   formData.set('officiatingPriest', data.officiatingPriest);
   formData.set('parish', data.parish);
   formData.set('communionCertificate', certificate);
+  if (baptismCertificatePath) {
+    formData.set('baptismCertificatePath', baptismCertificatePath);
+  }
 
   const token = getStoredToken();
   const headers: HeadersInit = {};

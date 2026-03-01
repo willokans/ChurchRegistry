@@ -104,7 +104,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Store certificate (so it can be linked to a communion later if needed; for now we only create baptism)
+    // Store certificate (path will be passed to communion so baptism record can show it)
+    let certificatePath: string;
     if (isSupabaseConfigured()) {
       const supabase = getSupabase();
       if (!supabase) {
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
       const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      const { error } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from(BAPTISM_CERTIFICATES_BUCKET)
         .upload(safeName, buffer, { contentType: file.type || 'application/octet-stream' });
       if (error) {
@@ -123,12 +124,14 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+      certificatePath = data.path;
     } else {
       await fs.mkdir(DATA_CERTIFICATES_DIR, { recursive: true });
       const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const filePath = path.join(DATA_CERTIFICATES_DIR, safeName);
       const arrayBuffer = await file.arrayBuffer();
       await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+      certificatePath = `baptism-certificates/${safeName}`;
     }
 
     const baptisms = await getBaptisms();
@@ -143,7 +146,7 @@ export async function POST(request: Request) {
       parishAddress: externalBaptisedChurchAddress,
     });
     const created = await addBaptism(placeholder);
-    return NextResponse.json({ id: created.id });
+    return NextResponse.json({ id: created.id, certificatePath });
   } catch (err) {
     console.error('[baptisms] POST', err);
     return NextResponse.json(
