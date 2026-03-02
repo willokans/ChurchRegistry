@@ -84,7 +84,13 @@ export async function addParish(dioceseId: number, parishName: string): Promise<
 
 // Baptisms (normalize so old JSON without officiatingPriest/otherNames/note still conforms to Baptism)
 function normalizeBaptism(b: Baptism & { officiatingPriest?: string; otherNames?: string; note?: string }): Baptism {
-  return { ...b, officiatingPriest: b.officiatingPriest ?? '', otherNames: b.otherNames ?? '', note: b.note ?? undefined };
+  return {
+    ...b,
+    createdAt: b.createdAt ?? undefined,
+    officiatingPriest: b.officiatingPriest ?? '',
+    otherNames: b.otherNames ?? '',
+    note: b.note ?? undefined,
+  };
 }
 export async function getBaptisms(): Promise<Baptism[]> {
   const list = await readJson<(Baptism & { officiatingPriest?: string; otherNames?: string })[]>(FILES.baptisms, []);
@@ -103,9 +109,9 @@ export async function getBaptismsByParishId(parishId: number): Promise<Baptism[]
 
 export async function addBaptism(record: Baptism): Promise<Baptism> {
   const list = await getBaptisms();
-  list.push(record);
+  list.push({ ...record, createdAt: record.createdAt ?? new Date().toISOString() });
   await writeJson(FILES.baptisms, list);
-  return record;
+  return list[list.length - 1];
 }
 
 export async function getBaptismNoteHistory(baptismId: number): Promise<BaptismNote[]> {
@@ -130,7 +136,8 @@ export async function updateBaptism(id: number, patch: { note?: string }): Promi
 
 // Communions
 export async function getCommunions(): Promise<FirstHolyCommunion[]> {
-  return readJson<FirstHolyCommunion[]>(FILES.communions, []);
+  const list = await readJson<FirstHolyCommunion[]>(FILES.communions, []);
+  return list.map((c) => ({ ...c, createdAt: c.createdAt ?? undefined }));
 }
 
 export async function getCommunionById(id: number): Promise<FirstHolyCommunion | null> {
@@ -145,14 +152,15 @@ export async function getCommunionByBaptismId(baptismId: number): Promise<FirstH
 
 export async function addCommunion(record: FirstHolyCommunion): Promise<FirstHolyCommunion> {
   const list = await getCommunions();
-  list.push(record);
+  list.push({ ...record, createdAt: record.createdAt ?? new Date().toISOString() });
   await writeJson(FILES.communions, list);
-  return record;
+  return list[list.length - 1];
 }
 
 // Confirmations
 export async function getConfirmations(): Promise<Confirmation[]> {
-  return readJson<Confirmation[]>(FILES.confirmations, []);
+  const list = await readJson<Confirmation[]>(FILES.confirmations, []);
+  return list.map((c) => ({ ...c, createdAt: c.createdAt ?? undefined }));
 }
 
 export async function getConfirmationById(id: number): Promise<Confirmation | null> {
@@ -162,14 +170,15 @@ export async function getConfirmationById(id: number): Promise<Confirmation | nu
 
 export async function addConfirmation(record: Confirmation): Promise<Confirmation> {
   const list = await getConfirmations();
-  list.push(record);
+  list.push({ ...record, createdAt: record.createdAt ?? new Date().toISOString() });
   await writeJson(FILES.confirmations, list);
-  return record;
+  return list[list.length - 1];
 }
 
 // Marriages
 export async function getMarriages(): Promise<Marriage[]> {
-  return readJson<Marriage[]>(FILES.marriages, []);
+  const list = await readJson<Marriage[]>(FILES.marriages, []);
+  return list.map((m) => ({ ...m, createdAt: m.createdAt ?? undefined }));
 }
 
 export async function getMarriageById(id: number): Promise<Marriage | null> {
@@ -179,9 +188,9 @@ export async function getMarriageById(id: number): Promise<Marriage | null> {
 
 export async function addMarriage(record: Marriage): Promise<Marriage> {
   const list = await getMarriages();
-  list.push(record);
+  list.push({ ...record, createdAt: record.createdAt ?? new Date().toISOString() });
   await writeJson(FILES.marriages, list);
-  return record;
+  return list[list.length - 1];
 }
 
 // Holy orders

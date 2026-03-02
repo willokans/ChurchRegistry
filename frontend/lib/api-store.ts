@@ -23,6 +23,7 @@ export interface Parish {
 
 export interface Baptism {
   id: number;
+  createdAt?: string;
   baptismName: string;
   otherNames: string;
   surname: string;
@@ -48,6 +49,7 @@ export interface BaptismNote {
 
 export interface FirstHolyCommunion {
   id: number;
+  createdAt?: string;
   baptismId: number;
   communionDate: string;
   officiatingPriest: string;
@@ -60,6 +62,7 @@ export interface FirstHolyCommunion {
 
 export interface Confirmation {
   id: number;
+  createdAt?: string;
   baptismId: number;
   communionId: number;
   confirmationDate: string;
@@ -69,6 +72,7 @@ export interface Confirmation {
 
 export interface Marriage {
   id: number;
+  createdAt?: string;
   baptismId?: number | null;
   communionId?: number | null;
   confirmationId?: number | null;

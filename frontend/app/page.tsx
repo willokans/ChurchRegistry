@@ -77,7 +77,6 @@ function useDashboardData(parishId: number | null) {
   }, [parishId]);
 
   const recentItems: RecentItem[] = [];
-  const year = String(currentYear);
   [...baptisms]
     .sort((a, b) => b.id - a.id)
     .slice(0, 15)
@@ -121,31 +120,47 @@ function useDashboardData(parishId: number | null) {
   const recent = recentItems.slice(0, 8);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthly = { baptisms: new Array(12).fill(0), confirmations: new Array(12).fill(0), marriages: new Array(12).fill(0) };
+  const monthly = {
+    baptisms: new Array(12).fill(0),
+    communions: new Array(12).fill(0),
+    confirmations: new Array(12).fill(0),
+    marriages: new Array(12).fill(0),
+  };
+  const getMonthIndex = (primaryDate?: string, fallbackDate?: string): number | null => {
+    const source = primaryDate || fallbackDate;
+    if (!source) return null;
+    const d = new Date(source);
+    if (Number.isNaN(d.getTime()) || d.getFullYear() !== currentYear) return null;
+    return d.getMonth();
+  };
+
   baptisms.forEach((r) => {
-    if (r.dateOfBirth?.startsWith(year)) {
-      const m = parseInt(r.dateOfBirth.slice(5, 7), 10) - 1;
-      if (m >= 0 && m < 12) monthly.baptisms[m]++;
-    }
+    const m = getMonthIndex(r.createdAt, r.dateOfBirth);
+    if (m !== null) monthly.baptisms[m]++;
   });
   confirmations.forEach((r) => {
-    if (r.confirmationDate?.startsWith(year)) {
-      const m = parseInt(r.confirmationDate.slice(5, 7), 10) - 1;
-      if (m >= 0 && m < 12) monthly.confirmations[m]++;
-    }
+    const m = getMonthIndex(r.createdAt, r.confirmationDate);
+    if (m !== null) monthly.confirmations[m]++;
+  });
+  communions.forEach((r) => {
+    const m = getMonthIndex(r.createdAt, r.communionDate);
+    if (m !== null) monthly.communions[m]++;
   });
   marriages.forEach((r) => {
-    if (r.marriageDate?.startsWith(year)) {
-      const m = parseInt(r.marriageDate.slice(5, 7), 10) - 1;
-      if (m >= 0 && m < 12) monthly.marriages[m]++;
-    }
+    const m = getMonthIndex(r.createdAt, r.marriageDate);
+    if (m !== null) monthly.marriages[m]++;
   });
-  const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.confirmations, ...monthly.marriages);
+  const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.communions, ...monthly.confirmations, ...monthly.marriages);
 
   return {
     counts: { baptisms: baptisms.length, communions: communions.length, confirmations: confirmations.length, marriages: marriages.length },
     recent,
-    monthly: { baptisms: monthly.baptisms, confirmations: monthly.confirmations, marriages: monthly.marriages },
+    monthly: {
+      baptisms: monthly.baptisms,
+      communions: monthly.communions,
+      confirmations: monthly.confirmations,
+      marriages: monthly.marriages,
+    },
     monthNames,
     maxBar,
     loading,
@@ -268,42 +283,52 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Sacraments Overview bar chart */}
+            {/* Sacraments overview grouped (clustered) bar chart */}
             <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-800 mb-3">Sacraments overview – {currentYear}</h2>
-              <div className="flex items-end gap-1 h-48">
-                {monthNames.map((name, i) => (
-                  <div key={name} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full flex gap-0.5 items-end justify-center flex-1 min-h-[80px]">
-                      <div
-                        className="w-full rounded-t bg-sancta-maroon/80 min-h-[4px]"
-                        style={{ height: `${(monthly.baptisms[i] / maxBar) * 100}%` }}
-                        title={`Baptisms: ${monthly.baptisms[i]}`}
-                      />
-                      <div
-                        className="w-full rounded-t bg-indigo-600/80 min-h-[4px]"
-                        style={{ height: `${(monthly.confirmations[i] / maxBar) * 100}%` }}
-                        title={`Confirmations: ${monthly.confirmations[i]}`}
-                      />
-                      <div
-                        className="w-full rounded-t bg-amber-700/80 min-h-[4px]"
-                        style={{ height: `${(monthly.marriages[i] / maxBar) * 100}%` }}
-                        title={`Marriages: ${monthly.marriages[i]}`}
-                      />
+              <div className="overflow-x-auto pb-1">
+                <div className="flex items-end gap-2 h-56 min-w-[780px] border-b border-gray-100">
+                  {monthNames.map((name, i) => (
+                    <div key={name} className="w-14 flex flex-col items-center gap-1">
+                      <div className="w-full flex gap-0.5 items-end justify-center flex-1 min-h-[110px]">
+                        <div
+                          className="w-full rounded-t bg-sancta-maroon min-h-[6px]"
+                          style={{ height: `${(monthly.baptisms[i] / maxBar) * 100}%` }}
+                          title={`Baptisms: ${monthly.baptisms[i]}`}
+                        />
+                        <div
+                          className="w-full rounded-t bg-indigo-600 min-h-[6px]"
+                          style={{ height: `${(monthly.confirmations[i] / maxBar) * 100}%` }}
+                          title={`Confirmations: ${monthly.confirmations[i]}`}
+                        />
+                        <div
+                          className="w-full rounded-t bg-purple-700 min-h-[6px]"
+                          style={{ height: `${(monthly.communions[i] / maxBar) * 100}%` }}
+                          title={`Holy Communion: ${monthly.communions[i]}`}
+                        />
+                        <div
+                          className="w-full rounded-t bg-amber-700 min-h-[6px]"
+                          style={{ height: `${(monthly.marriages[i] / maxBar) * 100}%` }}
+                          title={`Marriages: ${monthly.marriages[i]}`}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500">{name}</span>
                     </div>
-                    <span className="text-xs text-gray-500">{name}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
               <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-gray-100">
                 <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-sancta-maroon/80" /> Baptisms
+                  <span className="w-3 h-3 rounded bg-sancta-maroon" /> Baptisms
                 </span>
                 <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-indigo-600/80" /> Confirmations
+                  <span className="w-3 h-3 rounded bg-indigo-600" /> Confirmations
                 </span>
                 <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-amber-700/80" /> Marriages
+                  <span className="w-3 h-3 rounded bg-purple-700" /> Holy Communion
+                </span>
+                <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <span className="w-3 h-3 rounded bg-amber-700" /> Marriages
                 </span>
               </div>
             </section>
@@ -311,7 +336,7 @@ export default function DashboardPage() {
             {/* Sacraments overview + Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-800 mb-3">Sacraments overview – {currentYear}</h2>
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">Latest sacrament records</h2>
                 {recent.length === 0 ? (
                   <p className="text-sm text-gray-500">No recent records yet.</p>
                 ) : (

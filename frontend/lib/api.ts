@@ -75,6 +75,7 @@ function getAuthHeaders(): HeadersInit {
 
 export interface BaptismResponse {
   id: number;
+  createdAt?: string;
   baptismName: string;
   otherNames: string;
   surname: string;
@@ -270,6 +271,7 @@ export async function emailBaptismCertificate(id: number, to: string): Promise<v
 
 export interface FirstHolyCommunionResponse {
   id: number;
+  createdAt?: string;
   baptismId: number;
   communionDate: string;
   officiatingPriest: string;
@@ -471,6 +473,7 @@ export async function createCommunionWithCommunionCertificate(
 
 export interface ConfirmationResponse {
   id: number;
+  createdAt?: string;
   baptismId: number;
   communionId: number;
   confirmationDate: string;
@@ -522,6 +525,7 @@ export async function createConfirmation(body: ConfirmationRequest): Promise<Con
 
 export interface MarriageResponse {
   id: number;
+  createdAt?: string;
   baptismId?: number;
   communionId?: number;
   confirmationId?: number;

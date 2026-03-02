@@ -22,6 +22,7 @@ type DioceseRow = { id: number; name: string };
 type ParishRow = { id: number; diocese_id: number; parish_name: string; description: string | null };
 type BaptismRow = {
   id: number;
+  created_at?: string | null;
   parish_id: number;
   baptism_name: string;
   other_names: string;
@@ -39,6 +40,7 @@ type BaptismRow = {
 };
 type CommunionRow = {
   id: number;
+  created_at?: string | null;
   baptism_id: number;
   communion_date: string;
   officiating_priest: string;
@@ -48,6 +50,7 @@ type CommunionRow = {
 };
 type ConfirmationRow = {
   id: number;
+  created_at?: string | null;
   baptism_id: number;
   communion_id: number;
   confirmation_date: string;
@@ -56,6 +59,7 @@ type ConfirmationRow = {
 };
 type MarriageRow = {
   id: number;
+  created_at?: string | null;
   baptism_id: number | null;
   communion_id: number | null;
   confirmation_id: number | null;
@@ -134,6 +138,7 @@ function toParish(r: ParishRow): Parish {
 function toBaptism(r: BaptismRow): Baptism {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismName: r.baptism_name,
     otherNames: r.other_names ?? '',
     surname: r.surname,
@@ -153,6 +158,7 @@ function toBaptism(r: BaptismRow): Baptism {
 function toCommunion(r: CommunionRow): FirstHolyCommunion {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismId: r.baptism_id,
     communionDate: r.communion_date,
     officiatingPriest: r.officiating_priest,
@@ -164,6 +170,7 @@ function toCommunion(r: CommunionRow): FirstHolyCommunion {
 function toConfirmation(r: ConfirmationRow): Confirmation {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismId: r.baptism_id,
     communionId: r.communion_id,
     confirmationDate: r.confirmation_date,
@@ -174,6 +181,7 @@ function toConfirmation(r: ConfirmationRow): Confirmation {
 function toMarriage(r: MarriageRow): Marriage {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismId: r.baptism_id ?? undefined,
     communionId: r.communion_id ?? undefined,
     confirmationId: r.confirmation_id ?? undefined,
