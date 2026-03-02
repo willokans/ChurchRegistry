@@ -9,8 +9,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -72,6 +78,68 @@ class AdminUserAccessSecurityIntegrationTest {
                 .andExpect(jsonPath("$.message").value("User not found: " + Long.MAX_VALUE));
     }
 
+    @Test
+    void adminUser_canReplaceUserParishAccess_withMultipleAndSingleParishes() throws Exception {
+        String adminToken = loginAndGetToken("admin", "password");
+        JsonNode users = listUsersWithParishAccess(adminToken);
+        Long targetUserId = users.get(0).get("userId").asLong();
+
+        List<Long> availableParishIds = ensureAtLeastTwoParishIds(adminToken);
+
+        Long firstParishId = availableParishIds.get(0);
+        Long secondParishId = availableParishIds.get(1);
+
+        String multiParishRequest = objectMapper.writeValueAsString(
+                new ReplaceUserParishAccessPayload(Set.of(firstParishId, secondParishId), firstParishId)
+        );
+
+        mvc.perform(put("/api/admin/users/{id}/parish-access", targetUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(multiParishRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(targetUserId))
+                .andExpect(jsonPath("$.defaultParishId").value(firstParishId))
+                .andExpect(jsonPath("$.parishAccessIds.length()").value(2));
+
+        String singleParishRequest = objectMapper.writeValueAsString(
+                new ReplaceUserParishAccessPayload(Set.of(secondParishId), null)
+        );
+
+        mvc.perform(put("/api/admin/users/{id}/parish-access", targetUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(singleParishRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(targetUserId))
+                .andExpect(jsonPath("$.defaultParishId").value(secondParishId))
+                .andExpect(jsonPath("$.parishAccessIds.length()").value(1))
+                .andExpect(jsonPath("$.parishAccessIds[0]").value(secondParishId));
+    }
+
+    @Test
+    void nonAdminUser_cannotReplaceUserParishAccess() throws Exception {
+        String adminToken = loginAndGetToken("admin", "password");
+        String priestToken = loginAndGetToken("priest@church_registry.com", "password");
+        JsonNode users = listUsersWithParishAccess(adminToken);
+        Long targetUserId = users.get(0).get("userId").asLong();
+        List<Long> availableParishIds = ensureAtLeastTwoParishIds(adminToken);
+        Long parishId = availableParishIds.get(0);
+
+        String request = objectMapper.writeValueAsString(
+                new ReplaceUserParishAccessPayload(Set.of(parishId), parishId)
+        );
+
+        mvc.perform(put("/api/admin/users/{id}/parish-access", targetUserId)
+                        .header("Authorization", "Bearer " + priestToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").isString());
+    }
+
     private String loginAndGetToken(String username, String password) throws Exception {
         String response = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -84,4 +152,101 @@ class AdminUserAccessSecurityIntegrationTest {
         JsonNode payload = objectMapper.readTree(response);
         return payload.get("token").asText();
     }
+
+    private JsonNode listUsersWithParishAccess(String token) throws Exception {
+        String response = mvc.perform(get("/api/admin/users/parish-access")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response);
+    }
+
+    private List<Long> listAllParishIds(String token) throws Exception {
+        Set<Long> ids = new HashSet<>();
+        String diocesesResponse = mvc.perform(get("/api/dioceses")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode dioceses = objectMapper.readTree(diocesesResponse);
+
+        for (JsonNode diocese : dioceses) {
+            JsonNode dioceseIdNode = diocese.get("id");
+            if (dioceseIdNode == null || !dioceseIdNode.canConvertToLong()) {
+                continue;
+            }
+
+            Long dioceseId = dioceseIdNode.asLong();
+            String parishesResponse = mvc.perform(get("/api/dioceses/{dioceseId}/parishes", dioceseId)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+            JsonNode parishes = objectMapper.readTree(parishesResponse);
+
+            for (JsonNode parish : parishes) {
+                JsonNode parishIdNode = parish.get("id");
+                if (parishIdNode != null && parishIdNode.canConvertToLong()) {
+                    ids.add(parishIdNode.asLong());
+                }
+            }
+        }
+        if (ids.isEmpty()) {
+            throw new IllegalStateException("Expected at least 1 parish ID in seeded data");
+        }
+        return new ArrayList<>(ids);
+    }
+
+    private List<Long> ensureAtLeastTwoParishIds(String token) throws Exception {
+        try {
+            List<Long> existingParishIds = listAllParishIds(token);
+            if (existingParishIds.size() >= 2) {
+                return existingParishIds;
+            }
+        } catch (IllegalStateException ignored) {
+            // Create fixture data below when there are no existing parishes.
+        }
+
+        long seed = System.nanoTime();
+        String dioceseRequest = objectMapper.writeValueAsString(
+                new DiocesePayload("Integration Diocese " + seed, "INT" + (seed % 10000), "Integration test diocese")
+        );
+        String dioceseResponse = mvc.perform(post("/api/dioceses")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(dioceseRequest))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long dioceseId = objectMapper.readTree(dioceseResponse).get("id").asLong();
+
+        String firstParishRequest = objectMapper.writeValueAsString(
+                new ParishPayload("Integration Parish A " + seed, dioceseId, "Integration test parish A")
+        );
+        mvc.perform(post("/api/parishes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstParishRequest))
+                .andExpect(status().isCreated());
+
+        String secondParishRequest = objectMapper.writeValueAsString(
+                new ParishPayload("Integration Parish B " + seed, dioceseId, "Integration test parish B")
+        );
+        mvc.perform(post("/api/parishes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secondParishRequest))
+                .andExpect(status().isCreated());
+
+        return listAllParishIds(token);
+    }
+
+    private record ReplaceUserParishAccessPayload(Set<Long> parishIds, Long defaultParishId) {}
+    private record DiocesePayload(String dioceseName, String code, String description) {}
+    private record ParishPayload(String parishName, Long dioceseId, String description) {}
 }
