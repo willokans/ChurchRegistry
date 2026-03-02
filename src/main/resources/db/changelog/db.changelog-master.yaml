@@ -195,3 +195,7 @@ databaseChangeLog:
       file: db/changelog/changes/009-fix-priest-seed-login-consistency.yaml
   - include:
       file: db/changelog/changes/010-backfill-diocese-parish-and-user-access.yaml
+  - include:
+      file: db/changelog/changes/011-backfill-legacy-sacrament-records.yaml
+  - include:
+      file: db/changelog/changes/012-reconcile-baptism-parish-links.yaml

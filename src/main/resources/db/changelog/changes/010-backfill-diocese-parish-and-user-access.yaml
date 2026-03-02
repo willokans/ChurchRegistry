@@ -45,6 +45,7 @@ databaseChangeLog:
         - onFail: MARK_RAN
         - dbms:
             type: postgresql
+      comment: Set sequences for diocese/parish only; no default diocese or parish seeded (create via UI).
       changes:
         - sql:
             sql: |
@@ -61,26 +62,6 @@ databaseChangeLog:
                 true
               )
               WHERE EXISTS (SELECT 1 FROM parish);
-
-              INSERT INTO diocese (diocese_name, code, description)
-              SELECT 'Abuja Archdiocese', 'ABJ', 'Auto-seeded for legacy compatibility'
-              WHERE NOT EXISTS (SELECT 1 FROM diocese);
-
-              WITH base_diocese AS (
-                SELECT id FROM diocese ORDER BY id LIMIT 1
-              )
-              INSERT INTO parish (diocese_id, parish_name, description)
-              SELECT d.id, v.parish_name, 'Auto-seeded for legacy compatibility'
-              FROM base_diocese d
-              JOIN (
-                VALUES
-                  ('Holy Family Catholic Church'),
-                  ('St. Peter & Paul, Kuje')
-              ) AS v(parish_name) ON TRUE
-              WHERE NOT EXISTS (
-                SELECT 1 FROM parish p
-                WHERE LOWER(p.parish_name) = LOWER(v.parish_name)
-              );
 
   - changeSet:
       id: 29
