@@ -129,9 +129,15 @@ function useDashboardData(parishId: number | null) {
   const getMonthIndex = (primaryDate?: string, fallbackDate?: string): number | null => {
     const source = primaryDate || fallbackDate;
     if (!source) return null;
+    const isoLike = source.match(/^(\d{4})-(\d{2})/);
+    if (isoLike) {
+      const month = Number.parseInt(isoLike[2], 10) - 1;
+      return month >= 0 && month < 12 ? month : null;
+    }
     const d = new Date(source);
     if (Number.isNaN(d.getTime())) return null;
-    return d.getMonth();
+    const month = d.getMonth();
+    return month >= 0 && month < 12 ? month : null;
   };
 
   baptisms.forEach((r) => {
@@ -150,6 +156,12 @@ function useDashboardData(parishId: number | null) {
     const m = getMonthIndex(r.createdAt, r.marriageDate);
     if (m !== null) monthly.marriages[m]++;
   });
+  const plotted = {
+    baptisms: monthly.baptisms.reduce((sum, value) => sum + value, 0),
+    communions: monthly.communions.reduce((sum, value) => sum + value, 0),
+    confirmations: monthly.confirmations.reduce((sum, value) => sum + value, 0),
+    marriages: monthly.marriages.reduce((sum, value) => sum + value, 0),
+  };
   const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.communions, ...monthly.confirmations, ...monthly.marriages);
 
   return {
@@ -161,6 +173,7 @@ function useDashboardData(parishId: number | null) {
       confirmations: monthly.confirmations,
       marriages: monthly.marriages,
     },
+    plotted,
     monthNames,
     maxBar,
     loading,
@@ -171,7 +184,7 @@ function useDashboardData(parishId: number | null) {
 export default function DashboardPage() {
   const user = getStoredUser();
   const { parishId, parishes } = useParish();
-  const { counts, recent, monthly, monthNames, maxBar, loading, error } = useDashboardData(parishId ?? null);
+  const { counts, recent, monthly, plotted, monthNames, maxBar, loading, error } = useDashboardData(parishId ?? null);
 
   const parish = parishId ? parishes.find((p) => p.id === parishId) : undefined;
   const parishName = parish?.parishName ?? null;
@@ -290,26 +303,26 @@ export default function DashboardPage() {
               <div className="overflow-x-auto pb-1">
                 <div className="flex items-end gap-2 h-56 min-w-[780px] border-b border-gray-100">
                   {monthNames.map((name, i) => (
-                    <div key={name} className="w-14 flex flex-col items-center gap-1">
-                      <div className="w-full flex gap-0.5 items-end justify-center flex-1 min-h-[110px]">
+                    <div key={name} className="w-14 h-full flex flex-col items-center justify-end gap-1">
+                      <div className="w-full h-44 flex gap-0.5 items-end justify-center">
                         <div
-                          className="w-full rounded-t bg-sancta-maroon min-h-[6px]"
-                          style={{ height: `${(monthly.baptisms[i] / maxBar) * 100}%` }}
+                          className="w-full rounded-t bg-sancta-maroon"
+                          style={{ height: monthly.baptisms[i] > 0 ? `${Math.max(6, (monthly.baptisms[i] / maxBar) * 100)}%` : '0%' }}
                           title={`Baptisms: ${monthly.baptisms[i]}`}
                         />
                         <div
-                          className="w-full rounded-t bg-indigo-600 min-h-[6px]"
-                          style={{ height: `${(monthly.confirmations[i] / maxBar) * 100}%` }}
+                          className="w-full rounded-t bg-indigo-600"
+                          style={{ height: monthly.confirmations[i] > 0 ? `${Math.max(6, (monthly.confirmations[i] / maxBar) * 100)}%` : '0%' }}
                           title={`Confirmations: ${monthly.confirmations[i]}`}
                         />
                         <div
-                          className="w-full rounded-t bg-purple-700 min-h-[6px]"
-                          style={{ height: `${(monthly.communions[i] / maxBar) * 100}%` }}
+                          className="w-full rounded-t bg-purple-700"
+                          style={{ height: monthly.communions[i] > 0 ? `${Math.max(6, (monthly.communions[i] / maxBar) * 100)}%` : '0%' }}
                           title={`Holy Communion: ${monthly.communions[i]}`}
                         />
                         <div
-                          className="w-full rounded-t bg-amber-700 min-h-[6px]"
-                          style={{ height: `${(monthly.marriages[i] / maxBar) * 100}%` }}
+                          className="w-full rounded-t bg-amber-700"
+                          style={{ height: monthly.marriages[i] > 0 ? `${Math.max(6, (monthly.marriages[i] / maxBar) * 100)}%` : '0%' }}
                           title={`Marriages: ${monthly.marriages[i]}`}
                         />
                       </div>
@@ -331,6 +344,9 @@ export default function DashboardPage() {
                 <span className="flex items-center gap-1.5 text-sm text-gray-600">
                   <span className="w-3 h-3 rounded bg-amber-700" /> Marriages
                 </span>
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                Plotted totals - Baptisms: {plotted.baptisms}/{counts.baptisms}, Holy Communion: {plotted.communions}/{counts.communions}, Confirmations: {plotted.confirmations}/{counts.confirmations}, Marriages: {plotted.marriages}/{counts.marriages}
               </div>
             </section>
 

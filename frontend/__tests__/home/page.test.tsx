@@ -114,4 +114,53 @@ describe('Dashboard page', () => {
       expect(screen.getAllByTitle('Holy Communion: 1').length).toBeGreaterThan(0);
     });
   });
+
+  it('renders visible grouped chart bars when monthly values are non-zero', async () => {
+    const year = new Date().getFullYear();
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchBaptisms.mockResolvedValue([
+      {
+        id: 1,
+        baptismName: 'John',
+        otherNames: '',
+        surname: 'Doe',
+        gender: 'MALE',
+        dateOfBirth: '2020-01-10',
+        fathersName: 'Father',
+        mothersName: 'Mother',
+        sponsorNames: 'Sponsor',
+        officiatingPriest: 'Fr A',
+        parishId: 10,
+        createdAt: `${year}-01-15T12:00:00.000Z`,
+      },
+    ]);
+    api.fetchCommunions.mockResolvedValue([]);
+    api.fetchConfirmations.mockResolvedValue([]);
+    api.fetchMarriages.mockResolvedValue([]);
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Plotted totals - Baptisms: 1/1, Holy Communion: 0/0, Confirmations: 0/0, Marriages: 0/0')).toBeInTheDocument();
+    });
+
+    const baptismBar = screen.getByTitle('Baptisms: 1');
+    expect(baptismBar).toHaveStyle('height: 100%');
+  });
 });
