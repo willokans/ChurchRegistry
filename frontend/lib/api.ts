@@ -131,12 +131,23 @@ export interface ParishResponse {
 export interface DioceseResponse {
   id: number;
   name: string;
+  dioceseName?: string;
 }
 
 export async function fetchDioceses(): Promise<DioceseResponse[]> {
   const res = await fetch(`${getBaseUrl()}/api/dioceses`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch dioceses');
-  return res.json();
+  const raw = await res.json();
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item: any) => {
+    const id = Number(item?.id);
+    const resolvedName = String(item?.name ?? item?.dioceseName ?? '').trim();
+    return {
+      id: Number.isNaN(id) ? 0 : id,
+      name: resolvedName || `Diocese ${Number.isNaN(id) ? '' : id}`.trim(),
+      dioceseName: item?.dioceseName,
+    };
+  }).filter((d) => d.id > 0);
 }
 
 export async function fetchParishes(dioceseId: number): Promise<ParishResponse[]> {
@@ -243,9 +254,9 @@ export async function fetchBaptismCertificateData(id: number): Promise<BaptismCe
 
 export interface BaptismNoteResponse {
   id: number;
-  baptismId: number;
   content: string;
   createdAt: string;
+  createdBy?: string;
 }
 
 export async function fetchBaptismNoteHistory(baptismId: number): Promise<BaptismNoteResponse[]> {
@@ -279,6 +290,7 @@ export async function emailBaptismCertificate(id: number, to: string): Promise<v
 export interface FirstHolyCommunionResponse {
   id: number;
   createdAt?: string;
+  note?: string;
   baptismId: number;
   communionDate: string;
   officiatingPriest: string;
@@ -481,6 +493,7 @@ export async function createCommunionWithCommunionCertificate(
 export interface ConfirmationResponse {
   id: number;
   createdAt?: string;
+  note?: string;
   baptismId: number;
   communionId: number;
   confirmationDate: string;
@@ -533,6 +546,7 @@ export async function createConfirmation(body: ConfirmationRequest): Promise<Con
 export interface MarriageResponse {
   id: number;
   createdAt?: string;
+  note?: string;
   baptismId?: number;
   communionId?: number;
   confirmationId?: number;
@@ -664,6 +678,72 @@ export async function fetchMarriage(id: number): Promise<MarriageResponse | null
   const res = await fetch(`${getBaseUrl()}/api/marriages/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriage');
+  return res.json();
+}
+
+export async function updateCommunionNotes(id: number, note: string): Promise<FirstHolyCommunionResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/communions/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to update notes');
+  }
+  return res.json();
+}
+
+export async function fetchCommunionNoteHistory(communionId: number): Promise<BaptismNoteResponse[]> {
+  const res = await fetch(`${getBaseUrl()}/api/communions/${communionId}/notes`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch note history');
+  return res.json();
+}
+
+export async function updateConfirmationNotes(id: number, note: string): Promise<ConfirmationResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/confirmations/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to update notes');
+  }
+  return res.json();
+}
+
+export async function fetchConfirmationNoteHistory(confirmationId: number): Promise<BaptismNoteResponse[]> {
+  const res = await fetch(`${getBaseUrl()}/api/confirmations/${confirmationId}/notes`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch note history');
+  return res.json();
+}
+
+export async function updateMarriageNotes(id: number, note: string): Promise<MarriageResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/marriages/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to update notes');
+  }
+  return res.json();
+}
+
+export async function fetchMarriageNoteHistory(marriageId: number): Promise<BaptismNoteResponse[]> {
+  const res = await fetch(`${getBaseUrl()}/api/marriages/${marriageId}/notes`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch note history');
   return res.json();
 }
 

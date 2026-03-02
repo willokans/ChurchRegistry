@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "first_holy_communion")
@@ -30,4 +31,16 @@ public class FirstHolyCommunion {
 
     @Column(name = "parish", nullable = false, length = 255)
     private String parish;
+
+    @Column(name = "baptism_certificate_path")
+    private String baptismCertificatePath;
+
+    @Column(name = "communion_certificate_path")
+    private String communionCertificatePath;
+
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
+
+    @Column(name = "note")
+    private String note;
 }

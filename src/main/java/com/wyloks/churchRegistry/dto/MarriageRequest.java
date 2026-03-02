@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Data
 @NoArgsConstructor
@@ -25,6 +26,24 @@ public class MarriageRequest {
 
     @NotNull(message = "marriageDate is required")
     private LocalDate marriageDate;
+
+    private LocalTime marriageTime;
+
+    @Size(max = 255)
+    private String churchName;
+
+    @Size(max = 255)
+    private String marriageRegister;
+
+    @Size(max = 255)
+    private String diocese;
+
+    @Size(max = 255)
+    private String civilRegistryNumber;
+
+    private Boolean dispensationGranted;
+
+    private String canonicalNotes;
 
     @NotBlank(message = "officiatingPriest is required")
     @Size(max = 255)

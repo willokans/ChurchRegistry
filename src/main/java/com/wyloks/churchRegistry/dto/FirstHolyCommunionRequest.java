@@ -29,4 +29,8 @@ public class FirstHolyCommunionRequest {
     @NotBlank(message = "parish is required")
     @Size(max = 255)
     private String parish;
+
+    private String baptismCertificatePath;
+
+    private String communionCertificatePath;
 }

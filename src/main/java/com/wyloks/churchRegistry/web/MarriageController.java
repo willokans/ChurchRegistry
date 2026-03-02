@@ -2,6 +2,8 @@ package com.wyloks.churchRegistry.web;
 
 import com.wyloks.churchRegistry.dto.MarriageRequest;
 import com.wyloks.churchRegistry.dto.MarriageResponse;
+import com.wyloks.churchRegistry.dto.NoteUpdateRequest;
+import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.MarriageService;
 import jakarta.validation.Valid;
@@ -43,5 +45,17 @@ public class MarriageController {
                 })
                 .orElseGet(() -> marriageService.create(request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PatchMapping("/marriages/{id}")
+    public ResponseEntity<MarriageResponse> updateNote(@PathVariable Long id, @RequestBody NoteUpdateRequest request) {
+        authorizationService.findMarriageParishId(id).ifPresent(authorizationService::requireWriteAccessForParish);
+        return ResponseEntity.ok(marriageService.updateNote(id, request != null ? request.getNote() : null));
+    }
+
+    @GetMapping("/marriages/{id}/notes")
+    public List<SacramentNoteResponse> getNoteHistory(@PathVariable Long id) {
+        authorizationService.findMarriageParishId(id).ifPresent(authorizationService::requireParishAccess);
+        return marriageService.getNoteHistory(id);
     }
 }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "confirmation")
@@ -34,6 +35,12 @@ public class Confirmation {
 
     @Column(name = "parish", length = 255)
     private String parish;
+
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
+
+    @Column(name = "note")
+    private String note;
 
     @OneToOne(mappedBy = "confirmation", cascade = CascadeType.ALL, orphanRemoval = true)
     private Marriage marriage;

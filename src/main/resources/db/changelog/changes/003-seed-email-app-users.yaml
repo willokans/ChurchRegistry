@@ -1,0 +1,78 @@
+databaseChangeLog:
+  - changeSet:
+      id: 11
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - sqlCheck:
+            expectedResult: "0"
+            sql: "select count(*) from app_user where username = 'priest@church_registry.com'"
+      changes:
+        - insert:
+            tableName: app_user
+            columns:
+              - column:
+                  name: username
+                  value: priest@church_registry.com
+              - column:
+                  name: password_hash
+                  value: $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG
+              - column:
+                  name: display_name
+                  value: Parish Priest
+              - column:
+                  name: role
+                  value: PRIEST
+
+  - changeSet:
+      id: 12
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - sqlCheck:
+            expectedResult: "0"
+            sql: "select count(*) from app_user where username = 'admin@church_registry.com'"
+      changes:
+        - insert:
+            tableName: app_user
+            columns:
+              - column:
+                  name: username
+                  value: admin@church_registry.com
+              - column:
+                  name: password_hash
+                  value: $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG
+              - column:
+                  name: display_name
+                  value: Administrator
+              - column:
+                  name: role
+                  value: ADMIN
+
+  - changeSet:
+      id: 13
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - sqlCheck:
+            expectedResult: "0"
+            sql: "select count(*) from app_user where username = 'secretary@church_registry.com'"
+      changes:
+        - insert:
+            tableName: app_user
+            columns:
+              - column:
+                  name: username
+                  value: secretary@church_registry.com
+              - column:
+                  name: password_hash
+                  value: $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG
+              - column:
+                  name: display_name
+                  value: Parish Secretary
+              - column:
+                  name: role
+                  value: PARISH_SECRETARY

@@ -1,0 +1,67 @@
+databaseChangeLog:
+  - changeSet:
+      id: 17
+      author: will_okanumeh
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE first_holy_communion ADD COLUMN IF NOT EXISTS note TEXT;
+              ALTER TABLE confirmation ADD COLUMN IF NOT EXISTS note TEXT;
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS note TEXT;
+
+  - changeSet:
+      id: 18
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: sacrament_note_history
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: sacrament_type
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: record_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: sacrament_note_history
+            indexName: idx_sacrament_note_history_type_record_created
+            columns:
+              - column:
+                  name: sacrament_type
+              - column:
+                  name: record_id
+              - column:
+                  name: created_at
+
+  - changeSet:
+      id: 19
+      author: will_okanumeh
+      changes:
+        - addColumn:
+            tableName: sacrament_note_history
+            columns:
+              - column:
+                  name: created_by
+                  type: varchar(255)

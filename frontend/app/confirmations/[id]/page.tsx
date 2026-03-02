@@ -10,9 +10,12 @@ import {
   fetchCommunion,
   fetchBaptismExternalCertificate,
   fetchCommunionCertificate,
+  updateConfirmationNotes,
+  fetchConfirmationNoteHistory,
   type ConfirmationResponse,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
+  type BaptismNoteResponse,
 } from '@/lib/api';
 
 function formatDisplayDate(isoDate: string): string {
@@ -20,6 +23,13 @@ function formatDisplayDate(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00');
   if (Number.isNaN(d.getTime())) return isoDate;
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 const cardClass = 'rounded-xl border border-gray-200 bg-white p-5 shadow-sm';
@@ -114,6 +124,11 @@ export default function ConfirmationViewPage() {
   const communionCertUrlRef = useRef<string | null>(null);
   const [communionCertLoading, setCommunionCertLoading] = useState(false);
   const [communionCertError, setCommunionCertError] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [noteHistory, setNoteHistory] = useState<BaptismNoteResponse[]>([]);
+  const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (Number.isNaN(id)) {
@@ -122,12 +137,32 @@ export default function ConfirmationViewPage() {
     }
     let cancelled = false;
     fetchConfirmation(id).then((c) => {
-      if (!cancelled) setConfirmation(c ?? null);
+      if (!cancelled) {
+        setConfirmation(c ?? null);
+        setNotes(c?.note ?? '');
+      }
     }).catch(() => {
       if (!cancelled) setConfirmation(null);
     });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (confirmation?.id == null || Number.isNaN(id)) {
+      setNoteHistory([]);
+      return;
+    }
+    let cancelled = false;
+    setNoteHistoryLoading(true);
+    fetchConfirmationNoteHistory(id).then((list) => {
+      if (!cancelled) setNoteHistory(list);
+    }).catch(() => {
+      if (!cancelled) setNoteHistory([]);
+    }).finally(() => {
+      if (!cancelled) setNoteHistoryLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [id, confirmation?.id]);
 
   useEffect(() => {
     if (!confirmation?.baptismId) {
@@ -312,6 +347,23 @@ export default function ConfirmationViewPage() {
   const communionParish = communion?.parish ?? confirmation.parish ?? '—';
 
   const hasExternalConfirmationCert = false;
+
+  async function handleSaveNotes() {
+    if (!confirmation) return;
+    setNotesError(null);
+    setSavingNotes(true);
+    try {
+      const updated = await updateConfirmationNotes(confirmation.id, notes);
+      setConfirmation(updated);
+      const list = await fetchConfirmationNoteHistory(confirmation.id);
+      setNoteHistory(list);
+      setNotes('');
+    } catch (e) {
+      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
+    } finally {
+      setSavingNotes(false);
+    }
+  }
 
   return (
     <AuthenticatedLayout>
@@ -527,18 +579,38 @@ export default function ConfirmationViewPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-500">Add internal notes about this Confirmation record (optional)</p>
             <textarea
-              readOnly
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Follow-up actions, observations..."
               rows={4}
-              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-500 bg-gray-50"
+              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
             />
             <button
               type="button"
-              disabled
-              className="mt-3 rounded-lg bg-gray-300 px-4 py-2 font-medium text-white cursor-not-allowed text-sm"
+              onClick={handleSaveNotes}
+              disabled={savingNotes}
+              className="mt-3 rounded-lg bg-sancta-maroon px-4 py-2 font-medium text-white hover:bg-sancta-maroon-dark disabled:opacity-60 text-sm"
             >
-              Save Note
+              {savingNotes ? 'Saving…' : 'Save Note'}
             </button>
+            {notesError && <p className="mt-2 text-sm text-red-600">{notesError}</p>}
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <h3 className="text-sm font-medium text-gray-800">Note History</h3>
+              {noteHistoryLoading ? (
+                <p className="mt-2 text-sm text-gray-500">Loading note history…</p>
+              ) : noteHistory.length === 0 ? (
+                <p className="mt-2 text-sm text-gray-500">No notes saved yet.</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {noteHistory.map((item) => (
+                    <li key={item.id} className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                      <p className="text-xs text-gray-500">{formatDateTime(item.createdAt)} By {item.createdBy || 'Unknown'}</p>
+                      <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{item.content || '—'}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         </div>
 

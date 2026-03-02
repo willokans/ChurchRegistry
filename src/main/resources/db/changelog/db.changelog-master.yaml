@@ -179,3 +179,9 @@ databaseChangeLog:
       file: db/changelog/changes/001-diocese-parish-user-holy-order.yaml
   - include:
       file: db/changelog/changes/002-refresh-token.yaml
+  - include:
+      file: db/changelog/changes/003-seed-email-app-users.yaml
+  - include:
+      file: db/changelog/changes/004-legacy-compat-fields.yaml
+  - include:
+      file: db/changelog/changes/005-sacrament-notes-audit.yaml

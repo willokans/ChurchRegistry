@@ -38,7 +38,7 @@ export default function AuthenticatedLayout({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { parishId, setParishId, parishes, loading: parishLoading } = useParish();
+  const { parishId, setParishId, parishes, loading: parishLoading, error: parishError, refetch } = useParish();
 
   useEffect(() => {
     setMounted(true);
@@ -176,6 +176,18 @@ export default function AuthenticatedLayout({
                     {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
                   </Link>
                 )}
+                {parishError && (
+                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                    <p className="text-xs text-amber-900">{parishError}</p>
+                    <button
+                      type="button"
+                      onClick={refetch}
+                      className="mt-1 text-xs font-medium text-sancta-maroon hover:underline"
+                    >
+                      Retry loading parishes
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             <nav className="flex-1 p-4">
@@ -253,6 +265,18 @@ export default function AuthenticatedLayout({
               >
                 {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
               </Link>
+            )}
+            {parishError && (
+              <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                <p className="text-xs text-amber-900">{parishError}</p>
+                <button
+                  type="button"
+                  onClick={refetch}
+                  className="mt-1 text-xs font-medium text-sancta-maroon hover:underline"
+                >
+                  Retry loading parishes
+                </button>
+              </div>
             )}
           </div>
         )}

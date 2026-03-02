@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 14
+      author: will_okanumeh
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE baptism ADD COLUMN IF NOT EXISTS other_names VARCHAR(255) NOT NULL DEFAULT '';
+              ALTER TABLE baptism ADD COLUMN IF NOT EXISTS officiating_priest VARCHAR(255) NOT NULL DEFAULT '';
+              ALTER TABLE baptism ADD COLUMN IF NOT EXISTS note TEXT;
+              ALTER TABLE baptism ADD COLUMN IF NOT EXISTS external_certificate_path TEXT;
+              ALTER TABLE baptism ADD COLUMN IF NOT EXISTS external_certificate_issuing_parish VARCHAR(255);
+              ALTER TABLE baptism ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
+  - changeSet:
+      id: 15
+      author: will_okanumeh
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE first_holy_communion ADD COLUMN IF NOT EXISTS baptism_certificate_path TEXT;
+              ALTER TABLE first_holy_communion ADD COLUMN IF NOT EXISTS communion_certificate_path TEXT;
+              ALTER TABLE first_holy_communion ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
+  - changeSet:
+      id: 16
+      author: will_okanumeh
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE confirmation ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS marriage_time TIME;
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS church_name VARCHAR(255);
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS marriage_register VARCHAR(255);
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS diocese VARCHAR(255);
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS civil_registry_number VARCHAR(255);
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS dispensation_granted BOOLEAN;
+              ALTER TABLE marriage ADD COLUMN IF NOT EXISTS canonical_notes TEXT;
+              ALTER TABLE holy_order ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();

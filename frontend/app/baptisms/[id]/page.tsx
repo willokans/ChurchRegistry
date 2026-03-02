@@ -171,6 +171,7 @@ export default function BaptismViewPage() {
       setBaptism(updated);
       const list = await fetchBaptismNoteHistory(baptism.id);
       setNoteHistory(list);
+      setNotes('');
     } catch (e) {
       setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
     } finally {
@@ -399,7 +400,7 @@ export default function BaptismViewPage() {
               <ul className="mt-3 space-y-4" role="list">
                 {noteHistory.map((entry) => (
                   <li key={entry.id} className="border-l-2 border-gray-200 pl-4">
-                    <p className="text-xs font-medium text-gray-500">{formatDateTime(entry.createdAt)}</p>
+                    <p className="text-xs font-medium text-gray-500">{formatDateTime(entry.createdAt)} By {entry.createdBy || 'Unknown'}</p>
                     <p className="mt-0.5 text-sm text-gray-900 whitespace-pre-wrap">{entry.content}</p>
                   </li>
                 ))}

@@ -2,6 +2,8 @@ package com.wyloks.churchRegistry.web;
 
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionRequest;
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionResponse;
+import com.wyloks.churchRegistry.dto.NoteUpdateRequest;
+import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.FirstHolyCommunionService;
 import jakarta.validation.Valid;
@@ -52,5 +54,17 @@ public class FirstHolyCommunionController {
                 })
                 .orElseGet(() -> communionService.create(request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PatchMapping("/communions/{id}")
+    public ResponseEntity<FirstHolyCommunionResponse> updateNote(@PathVariable Long id, @RequestBody NoteUpdateRequest request) {
+        authorizationService.findCommunionParishId(id).ifPresent(authorizationService::requireWriteAccessForParish);
+        return ResponseEntity.ok(communionService.updateNote(id, request != null ? request.getNote() : null));
+    }
+
+    @GetMapping("/communions/{id}/notes")
+    public List<SacramentNoteResponse> getNoteHistory(@PathVariable Long id) {
+        authorizationService.findCommunionParishId(id).ifPresent(authorizationService::requireParishAccess);
+        return communionService.getNoteHistory(id);
     }
 }

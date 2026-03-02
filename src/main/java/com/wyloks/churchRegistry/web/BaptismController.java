@@ -2,6 +2,8 @@ package com.wyloks.churchRegistry.web;
 
 import com.wyloks.churchRegistry.dto.BaptismRequest;
 import com.wyloks.churchRegistry.dto.BaptismResponse;
+import com.wyloks.churchRegistry.dto.NoteUpdateRequest;
+import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.BaptismService;
 import jakarta.validation.Valid;
@@ -41,5 +43,17 @@ public class BaptismController {
         }
         BaptismResponse created = baptismService.create(parishId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PatchMapping("/api/baptisms/{id}")
+    public ResponseEntity<BaptismResponse> updateNote(@PathVariable Long id, @RequestBody NoteUpdateRequest request) {
+        authorizationService.findBaptismParishId(id).ifPresent(authorizationService::requireWriteAccessForParish);
+        return ResponseEntity.ok(baptismService.updateNote(id, request != null ? request.getNote() : null));
+    }
+
+    @GetMapping("/api/baptisms/{id}/notes")
+    public List<SacramentNoteResponse> getNoteHistory(@PathVariable Long id) {
+        authorizationService.findBaptismParishId(id).ifPresent(authorizationService::requireParishAccess);
+        return baptismService.getNoteHistory(id);
     }
 }

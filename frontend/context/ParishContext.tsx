@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { usePathname } from 'next/navigation';
 import {
+  clearAuth,
   fetchDioceses,
   fetchParishes,
   getStoredParishId,
@@ -86,7 +87,20 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
           setParishIdState(null);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load parishes');
+        if (!cancelled) {
+          const message = e instanceof Error ? e.message : 'Failed to load parishes';
+          if (message === 'Unauthorized') {
+            clearAuth();
+            setParishes([]);
+            setParishIdState(null);
+            setError('Session expired. Please sign in again.');
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+            }
+            return;
+          }
+          setError(message);
+        }
       } finally {
         if (!cancelled) {
           window.clearTimeout(timeoutId);

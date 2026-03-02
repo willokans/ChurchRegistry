@@ -2,6 +2,7 @@ package com.wyloks.churchRegistry.service;
 
 import com.wyloks.churchRegistry.dto.BaptismRequest;
 import com.wyloks.churchRegistry.dto.BaptismResponse;
+import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,4 +14,8 @@ public interface BaptismService {
     Optional<BaptismResponse> findById(Long id);
 
     BaptismResponse create(Long parishId, BaptismRequest request);
+
+    BaptismResponse updateNote(Long id, String note);
+
+    List<SacramentNoteResponse> getNoteHistory(Long id);
 }
