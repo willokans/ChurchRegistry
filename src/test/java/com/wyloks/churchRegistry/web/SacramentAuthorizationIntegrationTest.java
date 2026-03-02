@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -158,13 +159,15 @@ class SacramentAuthorizationIntegrationTest {
         viewerUsername = "viewer_" + suffix;
         viewerPassword = "secret123";
 
-        appUserRepository.save(AppUser.builder()
+        AppUser writer = AppUser.builder()
                 .username(writerUsername)
                 .passwordHash(passwordEncoder.encode(writerPassword))
                 .displayName("Parish Writer")
                 .role("PARISH_PRIEST")
                 .parish(parishA)
-                .build());
+                .build();
+        writer.getParishAccesses().add(parishA);
+        appUserRepository.save(writer);
 
         appUserRepository.save(AppUser.builder()
                 .username(viewerUsername)
@@ -173,6 +176,167 @@ class SacramentAuthorizationIntegrationTest {
                 .role("PARISH_VIEWER")
                 .parish(parishA)
                 .build());
+    }
+
+    @Test
+    void userWithTwoParishes_canCrudInBothParishes() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String multiParishUsername = "multi_" + suffix;
+        String multiParishPassword = "secret123";
+
+        AppUser multiParishUser = AppUser.builder()
+                .username(multiParishUsername)
+                .passwordHash(passwordEncoder.encode(multiParishPassword))
+                .displayName("Multi Parish Priest")
+                .role("PARISH_PRIEST")
+                .parish(parishA)
+                .build();
+        multiParishUser.getParishAccesses().add(parishA);
+        multiParishUser.getParishAccesses().add(parishB);
+        appUserRepository.save(multiParishUser);
+
+        String token = login(multiParishUsername, multiParishPassword);
+
+        // Read parish A
+        mvc.perform(get("/api/parishes/" + parishA.getId() + "/baptisms")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/baptisms/" + baptismA.getId())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        // Read parish B
+        mvc.perform(get("/api/parishes/" + parishB.getId() + "/baptisms")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/baptisms/" + baptismB.getId())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        // Create baptism in parish A
+        Map<String, Object> baptismReqA = Map.of(
+                "baptismName", "New Child A",
+                "surname", "Family",
+                "gender", "F",
+                "dateOfBirth", "2018-04-10",
+                "fathersName", "Father",
+                "mothersName", "Mother",
+                "sponsorNames", "Sponsor",
+                "parishId", parishA.getId()
+        );
+        mvc.perform(post("/api/parishes/" + parishA.getId() + "/baptisms")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baptismReqA)))
+                .andExpect(status().isCreated());
+
+        // Create baptism in parish B
+        Map<String, Object> baptismReqB = Map.of(
+                "baptismName", "New Child B",
+                "surname", "Family",
+                "gender", "M",
+                "dateOfBirth", "2019-05-15",
+                "fathersName", "Father B",
+                "mothersName", "Mother B",
+                "sponsorNames", "Sponsor B",
+                "parishId", parishB.getId()
+        );
+        mvc.perform(post("/api/parishes/" + parishB.getId() + "/baptisms")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baptismReqB)))
+                .andExpect(status().isCreated());
+
+        // PATCH baptism in parish A
+        mvc.perform(patch("/api/baptisms/" + baptismA.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Test note A"))))
+                .andExpect(status().isOk());
+
+        // PATCH baptism in parish B
+        mvc.perform(patch("/api/baptisms/" + baptismB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Test note B"))))
+                .andExpect(status().isOk());
+
+        // PATCH communion in parish B
+        mvc.perform(patch("/api/communions/" + communionB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Communion note"))))
+                .andExpect(status().isOk());
+
+        // PATCH confirmation in parish B
+        mvc.perform(patch("/api/confirmations/" + confirmationB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Confirmation note"))))
+                .andExpect(status().isOk());
+
+        // PATCH marriage in parish B
+        mvc.perform(patch("/api/marriages/" + marriageB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Marriage note"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void userWithZeroParishes_parishScopedReads_return403() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String noParishUsername = "noparish_" + suffix;
+        String noParishPassword = "secret123";
+
+        AppUser noParishUser = AppUser.builder()
+                .username(noParishUsername)
+                .passwordHash(passwordEncoder.encode(noParishPassword))
+                .displayName("No Parish User")
+                .role("PARISH_PRIEST")
+                .parish(null)
+                .build();
+        appUserRepository.save(noParishUser);
+
+        String token = login(noParishUsername, noParishPassword);
+
+        mvc.perform(get("/api/parishes/" + parishA.getId() + "/baptisms")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/baptisms/" + baptismA.getId())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/parishes/" + parishA.getId() + "/baptisms")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validBaptismRequest())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parishWriter_crossParishPatch_returns403() throws Exception {
+        String token = login(writerUsername, writerPassword);
+
+        mvc.perform(patch("/api/baptisms/" + baptismB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Unauthorized note"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/communions/" + communionB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Unauthorized note"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/confirmations/" + confirmationB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Unauthorized note"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/marriages/" + marriageB.getId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("note", "Unauthorized note"))))
+                .andExpect(status().isForbidden());
     }
 
     @Test

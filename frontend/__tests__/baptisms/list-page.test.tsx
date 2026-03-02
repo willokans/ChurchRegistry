@@ -177,6 +177,14 @@ describe('Baptisms list page', () => {
     expect(screen.queryByText('Bob')).not.toBeInTheDocument();
   });
 
+  it('when fetchBaptisms returns error (e.g. 403) shows error message', async () => {
+    (fetchBaptisms as jest.Mock).mockRejectedValue(new Error('Forbidden'));
+    render(<BaptismsPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/forbidden|failed to load/i);
+    });
+  });
+
   it('search filters baptisms by name', async () => {
     (fetchBaptisms as jest.Mock).mockResolvedValue([
       { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-01-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
