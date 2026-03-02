@@ -199,3 +199,5 @@ databaseChangeLog:
       file: db/changelog/changes/011-backfill-legacy-sacrament-records.yaml
   - include:
       file: db/changelog/changes/012-reconcile-baptism-parish-links.yaml
+  - include:
+      file: db/changelog/changes/015-rls-tenant-isolation.yaml

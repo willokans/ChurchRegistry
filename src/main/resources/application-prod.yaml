@@ -17,6 +17,8 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 app:
+  rls:
+    enabled: true  # RLS session vars for tenant isolation (Postgres)
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
   jwt:

@@ -44,7 +44,11 @@ public class RemoteFileService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate file not found");
         }
 
-        URI uri = resolveUri(pathOrUrl.trim());
+        String trimmed = pathOrUrl.trim();
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            validateCertificatePath(trimmed);
+        }
+        URI uri = resolveUri(trimmed);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                 .GET()
                 .timeout(Duration.ofSeconds(30));
@@ -111,6 +115,21 @@ public class RemoteFileService {
             encoded.append(URLEncoder.encode(segments[i], StandardCharsets.UTF_8));
         }
         return URI.create(trimTrailingSlash(base) + "/" + encoded);
+    }
+
+    /**
+     * Validates certificate object path to prevent path traversal and invalid paths.
+     * Expected format: bucket/path or flat path (e.g. baptism-certificates/123-foo.pdf).
+     * Rejects: '..', null bytes, and non-safe characters.
+     */
+    private void validateCertificatePath(String path) {
+        if (path.contains("..") || path.contains("\0")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid certificate path");
+        }
+        String normalized = path.startsWith("/") ? path.substring(1) : path;
+        if (!normalized.matches("^[a-zA-Z0-9._/-]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid certificate path");
+        }
     }
 
     private String trimTrailingSlash(String value) {

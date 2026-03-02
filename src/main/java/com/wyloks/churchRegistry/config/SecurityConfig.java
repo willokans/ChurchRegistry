@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.config;
 
 import com.wyloks.churchRegistry.security.JwtAuthFilter;
+import com.wyloks.churchRegistry.security.RlsSessionFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +26,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RlsSessionFilter rlsSessionFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -60,7 +62,8 @@ public class SecurityConfig {
                         .hasAnyRole("ADMIN", "PRIEST", "PARISH_PRIEST", "PARISH_SECRETARY")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rlsSessionFilter, JwtAuthFilter.class);
         return http.build();
     }
 
