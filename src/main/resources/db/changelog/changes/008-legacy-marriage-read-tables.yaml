@@ -1,0 +1,127 @@
+databaseChangeLog:
+  - changeSet:
+      id: 23
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: marriage_parties
+      changes:
+        - createTable:
+            tableName: marriage_parties
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: marriage_id
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: full_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: date_of_birth
+                  type: date
+              - column:
+                  name: place_of_birth
+                  type: varchar(255)
+              - column:
+                  name: nationality
+                  type: varchar(255)
+              - column:
+                  name: residential_address
+                  type: varchar(500)
+              - column:
+                  name: phone
+                  type: varchar(100)
+              - column:
+                  name: email
+                  type: varchar(255)
+              - column:
+                  name: occupation
+                  type: varchar(255)
+              - column:
+                  name: marital_status
+                  type: varchar(100)
+              - column:
+                  name: baptism_id
+                  type: int
+              - column:
+                  name: communion_id
+                  type: int
+              - column:
+                  name: confirmation_id
+                  type: int
+              - column:
+                  name: baptism_certificate_path
+                  type: text
+              - column:
+                  name: communion_certificate_path
+                  type: text
+              - column:
+                  name: confirmation_certificate_path
+                  type: text
+              - column:
+                  name: baptism_church
+                  type: varchar(255)
+              - column:
+                  name: communion_church
+                  type: varchar(255)
+              - column:
+                  name: confirmation_church
+                  type: varchar(255)
+
+  - changeSet:
+      id: 24
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: marriage_witnesses
+      changes:
+        - createTable:
+            tableName: marriage_witnesses
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: marriage_id
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: full_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: phone
+                  type: varchar(100)
+              - column:
+                  name: address
+                  type: varchar(500)
+              - column:
+                  name: sort_order
+                  type: int
+                  constraints:
+                    nullable: false

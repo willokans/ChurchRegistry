@@ -189,3 +189,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-priest-parish-access.yaml
   - include:
       file: db/changelog/changes/007-baptism-legacy-columns-nullable.yaml
+  - include:
+      file: db/changelog/changes/008-legacy-marriage-read-tables.yaml
