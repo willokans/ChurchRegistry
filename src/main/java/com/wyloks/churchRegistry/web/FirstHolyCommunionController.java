@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -47,12 +48,11 @@ public class FirstHolyCommunionController {
 
     @PostMapping("/communions")
     public ResponseEntity<FirstHolyCommunionResponse> create(@Valid @RequestBody FirstHolyCommunionRequest request) {
-        FirstHolyCommunionResponse created = authorizationService.findBaptismParishIdForCommunionRequest(request.getBaptismId())
-                .map(parishId -> {
-                    authorizationService.requireWriteAccessForParish(parishId);
-                    return communionService.create(request);
-                })
-                .orElseGet(() -> communionService.create(request));
+        Long parishId = authorizationService.findBaptismParishIdForCommunionRequest(request.getBaptismId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Baptism not found or has no parish"));
+        authorizationService.requireWriteAccessForParish(parishId);
+        FirstHolyCommunionResponse created = communionService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

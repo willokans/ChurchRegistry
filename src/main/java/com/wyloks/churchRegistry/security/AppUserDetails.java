@@ -19,18 +19,22 @@ public class AppUserDetails implements UserDetails {
     private final Long parishId;
     private final Set<Long> parishAccessIds;
 
+    /**
+     * Builds parish scope from app_user_parish_access (source of truth).
+     * Falls back to parish_id for legacy users who have no parish_access rows.
+     */
     public AppUserDetails(AppUser user) {
         this.user = user;
         this.role = user.getRole();
         this.parishId = user.getParish() != null ? user.getParish().getId() : null;
         this.parishAccessIds = new HashSet<>();
-        if (this.parishId != null) {
-            this.parishAccessIds.add(this.parishId);
-        }
         if (user.getParishAccesses() != null) {
             user.getParishAccesses().stream()
                     .filter(p -> p != null && p.getId() != null)
                     .forEach(p -> this.parishAccessIds.add(p.getId()));
+        }
+        if (this.parishAccessIds.isEmpty() && this.parishId != null) {
+            this.parishAccessIds.add(this.parishId);
         }
     }
 

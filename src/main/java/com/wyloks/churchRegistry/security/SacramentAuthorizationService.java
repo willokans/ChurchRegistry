@@ -15,6 +15,10 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Final authorization guard for sacrament read/write operations.
+ * Scope is derived from app_user_parish_access (assignment flow); parish_id is optional default.
+ */
 @Component
 @RequiredArgsConstructor
 public class SacramentAuthorizationService {
@@ -31,6 +35,9 @@ public class SacramentAuthorizationService {
         if (user.isAdmin()) {
             return;
         }
+        if (user.parishIds().isEmpty()) {
+            throw forbidden("No parish assigned. Contact admin.");
+        }
         if (parishId == null || !user.parishIds().contains(parishId)) {
             throw forbidden("Cross-parish access denied");
         }
@@ -42,6 +49,9 @@ public class SacramentAuthorizationService {
             throw forbidden("Insufficient role for sacrament write access");
         }
         if (!user.isAdmin()) {
+            if (user.parishIds().isEmpty()) {
+                throw forbidden("No parish assigned. Contact admin.");
+            }
             if (parishId == null || !user.parishIds().contains(parishId)) {
                 throw forbidden("Cross-parish write denied");
             }

@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -38,12 +39,11 @@ public class ConfirmationController {
 
     @PostMapping("/confirmations")
     public ResponseEntity<ConfirmationResponse> create(@Valid @RequestBody ConfirmationRequest request) {
-        ConfirmationResponse created = authorizationService.findConfirmationParishIdByCommunionId(request.getCommunionId())
-                .map(parishId -> {
-                    authorizationService.requireWriteAccessForParish(parishId);
-                    return confirmationService.create(request);
-                })
-                .orElseGet(() -> confirmationService.create(request));
+        Long parishId = authorizationService.findConfirmationParishIdByCommunionId(request.getCommunionId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Communion not found or has no parish"));
+        authorizationService.requireWriteAccessForParish(parishId);
+        ConfirmationResponse created = confirmationService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

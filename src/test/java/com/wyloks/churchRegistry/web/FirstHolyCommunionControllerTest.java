@@ -22,6 +22,7 @@ import com.wyloks.churchRegistry.config.TestSecurityConfig;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -68,6 +69,7 @@ class FirstHolyCommunionControllerTest {
                 .parish("St Mary")
                 .build();
 
+        when(sacramentAuthorizationService.findBaptismParishIdForCommunionRequest(1L)).thenReturn(Optional.of(1L));
         when(communionService.create(any(FirstHolyCommunionRequest.class))).thenReturn(response);
 
         mvc.perform(post("/api/communions")

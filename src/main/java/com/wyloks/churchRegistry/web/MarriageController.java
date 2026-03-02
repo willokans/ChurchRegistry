@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -38,12 +39,11 @@ public class MarriageController {
 
     @PostMapping("/marriages")
     public ResponseEntity<MarriageResponse> create(@Valid @RequestBody MarriageRequest request) {
-        MarriageResponse created = authorizationService.findMarriageParishIdByConfirmationId(request.getConfirmationId())
-                .map(parishId -> {
-                    authorizationService.requireWriteAccessForParish(parishId);
-                    return marriageService.create(request);
-                })
-                .orElseGet(() -> marriageService.create(request));
+        Long parishId = authorizationService.findMarriageParishIdByConfirmationId(request.getConfirmationId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Confirmation not found or has no parish"));
+        authorizationService.requireWriteAccessForParish(parishId);
+        MarriageResponse created = marriageService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
