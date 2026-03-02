@@ -163,6 +163,12 @@ describe('Marriage view page', () => {
     ).toBeTruthy();
   });
 
+  it('shows civil marriage certificate action link', async () => {
+    render(<MarriageViewPage />);
+    const civilCertLink = await screen.findByRole('link', { name: /Civil Marriage Certificate/i });
+    expect(civilCertLink).toHaveAttribute('href', '/marriages/3/certificate');
+  });
+
   it('when marriage not found shows not-found message', async () => {
     (fetchMarriage as jest.Mock).mockResolvedValue(null);
     render(<MarriageViewPage />);

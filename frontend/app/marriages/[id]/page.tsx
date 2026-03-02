@@ -764,12 +764,15 @@ export default function MarriageViewPage() {
                 <DownloadIcon className="h-4 w-4" />
                 View &amp; Download Full Record
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+              <Link
+                href={`/marriages/${id}/certificate`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <DownloadIcon className="h-4 w-4" />
                 Civil Marriage Certificate
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                Baptism &amp; Confirmation Certificate
-              </span>
+              </Link>
             </div>
           </section>
 
