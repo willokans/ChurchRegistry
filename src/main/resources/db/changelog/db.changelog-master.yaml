@@ -191,3 +191,7 @@ databaseChangeLog:
       file: db/changelog/changes/007-baptism-legacy-columns-nullable.yaml
   - include:
       file: db/changelog/changes/008-legacy-marriage-read-tables.yaml
+  - include:
+      file: db/changelog/changes/009-fix-priest-seed-login-consistency.yaml
+  - include:
+      file: db/changelog/changes/010-backfill-diocese-parish-and-user-access.yaml

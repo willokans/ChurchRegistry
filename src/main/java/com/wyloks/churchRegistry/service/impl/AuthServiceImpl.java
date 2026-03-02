@@ -34,11 +34,31 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public LoginResponse login(String username, String password) {
-        AppUser user = appUserRepository.findByUsername(username)
-                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+        final AppUser user;
+        try {
+            user = appUserRepository.findByUsername(username)
+                    .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        } catch (BadCredentialsException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            // Avoid leaking internal user-data issues through 500 responses on login.
+            throw new BadCredentialsException("Invalid credentials", e);
+        }
+
+        String passwordHash = user.getPasswordHash();
+        if (passwordHash == null || passwordHash.isBlank()) {
             throw new BadCredentialsException("Invalid credentials");
         }
+        final boolean passwordMatches;
+        try {
+            passwordMatches = passwordEncoder.matches(password, passwordHash);
+        } catch (RuntimeException e) {
+            throw new BadCredentialsException("Invalid credentials", e);
+        }
+        if (!passwordMatches) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+
         String accessToken = jwtService.generateToken(user.getUsername(), user.getRole());
         String refreshTokenValue = createRefreshTokenForUser(user);
         return LoginResponse.builder()

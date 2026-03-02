@@ -5,6 +5,8 @@
 app = "church-registry-staging"
 
 [build]
+  [build.args]
+    NEXT_PUBLIC_API_URL = "https://church-registry-api-staging.fly.dev"
 
 [env]
   PORT = "3000"
