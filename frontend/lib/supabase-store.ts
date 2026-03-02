@@ -190,6 +190,42 @@ function toMarriage(r: MarriageRow): Marriage {
     parish: r.parish,
   };
 }
+function toMarriageParty(r: MarriagePartyRow): MarriageParty {
+  return {
+    id: r.id,
+    marriageId: r.marriage_id,
+    role: r.role as 'GROOM' | 'BRIDE',
+    fullName: r.full_name,
+    dateOfBirth: r.date_of_birth ?? undefined,
+    placeOfBirth: r.place_of_birth ?? undefined,
+    nationality: r.nationality ?? undefined,
+    residentialAddress: r.residential_address ?? undefined,
+    phone: r.phone ?? undefined,
+    email: r.email ?? undefined,
+    occupation: r.occupation ?? undefined,
+    maritalStatus: r.marital_status ?? undefined,
+    baptismId: r.baptism_id ?? undefined,
+    communionId: r.communion_id ?? undefined,
+    confirmationId: r.confirmation_id ?? undefined,
+    baptismCertificatePath: r.baptism_certificate_path ?? undefined,
+    communionCertificatePath: r.communion_certificate_path ?? undefined,
+    confirmationCertificatePath: r.confirmation_certificate_path ?? undefined,
+    baptismChurch: r.baptism_church ?? undefined,
+    communionChurch: r.communion_church ?? undefined,
+    confirmationChurch: r.confirmation_church ?? undefined,
+  };
+}
+function toMarriageWitness(r: MarriageWitnessRow): MarriageWitness {
+  return {
+    id: r.id,
+    marriageId: r.marriage_id,
+    fullName: r.full_name,
+    phone: r.phone ?? undefined,
+    address: r.address ?? undefined,
+    signaturePath: r.signature_path ?? undefined,
+    sortOrder: r.sort_order,
+  };
+}
 function toHolyOrder(r: HolyOrderRow): HolyOrder {
   return {
     id: r.id,
@@ -403,6 +439,26 @@ export async function getMarriageById(id: number): Promise<Marriage | null> {
   const { data, error } = await getDb().from('marriages').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? toMarriage(data as MarriageRow) : null;
+}
+
+export async function getMarriagePartiesByMarriageId(marriageId: number): Promise<MarriageParty[]> {
+  const { data, error } = await getDb()
+    .from('marriage_parties')
+    .select('*')
+    .eq('marriage_id', marriageId)
+    .order('role');
+  if (error) throw error;
+  return (data ?? []).map((r) => toMarriageParty(r as MarriagePartyRow));
+}
+
+export async function getMarriageWitnessesByMarriageId(marriageId: number): Promise<MarriageWitness[]> {
+  const { data, error } = await getDb()
+    .from('marriage_witnesses')
+    .select('*')
+    .eq('marriage_id', marriageId)
+    .order('sort_order');
+  if (error) throw error;
+  return (data ?? []).map((r) => toMarriageWitness(r as MarriageWitnessRow));
 }
 
 export async function addMarriage(record: Marriage): Promise<Marriage> {

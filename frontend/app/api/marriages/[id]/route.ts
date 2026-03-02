@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken, getMarriageById } from '@/lib/api-store';
+import {
+  getUserFromToken,
+  getMarriageById,
+  getMarriagePartiesByMarriageId,
+  getMarriageWitnessesByMarriageId,
+} from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -18,5 +23,9 @@ export async function GET(
   if (!record) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  return NextResponse.json(record);
+  const [parties, witnesses] = await Promise.all([
+    getMarriagePartiesByMarriageId(numId),
+    getMarriageWitnessesByMarriageId(numId),
+  ]);
+  return NextResponse.json({ ...record, parties, witnesses });
 }

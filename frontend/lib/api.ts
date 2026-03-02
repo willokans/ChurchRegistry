@@ -536,6 +536,41 @@ export interface MarriageResponse {
   canonicalNotes?: string;
   officiatingPriest: string;
   parish: string;
+  /** Groom and bride when marriage was created with full form (Supabase). */
+  parties?: MarriagePartyResponse[];
+  witnesses?: MarriageWitnessResponse[];
+}
+
+export interface MarriagePartyResponse {
+  id: number;
+  marriageId: number;
+  role: 'GROOM' | 'BRIDE';
+  fullName: string;
+  dateOfBirth?: string | null;
+  placeOfBirth?: string | null;
+  nationality?: string | null;
+  residentialAddress?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  occupation?: string | null;
+  maritalStatus?: string | null;
+  baptismId?: number | null;
+  communionId?: number | null;
+  confirmationId?: number | null;
+  baptismCertificatePath?: string | null;
+  communionCertificatePath?: string | null;
+  confirmationCertificatePath?: string | null;
+  baptismChurch?: string | null;
+  communionChurch?: string | null;
+  confirmationChurch?: string | null;
+}
+export interface MarriageWitnessResponse {
+  id: number;
+  marriageId: number;
+  fullName: string;
+  phone?: string | null;
+  address?: string | null;
+  sortOrder: number;
 }
 
 export interface MarriageRequest {
@@ -566,11 +601,24 @@ export interface MarriagePartyPayload {
   baptismChurch?: string;
   communionChurch?: string;
   confirmationChurch?: string;
+  baptismSource?: 'this_parish' | 'external';
+  communionSource?: 'this_parish' | 'external';
+  confirmationSource?: 'this_parish' | 'external';
+  externalBaptism?: {
+    baptismName: string;
+    surname: string;
+    otherNames?: string;
+    gender: string;
+    fathersName: string;
+    mothersName: string;
+    baptisedChurchAddress?: string;
+  };
 }
 
 export interface CreateMarriageWithPartiesRequest {
   marriage: {
     partnersName?: string;
+    parishId?: number;
     marriageDate: string;
     marriageTime?: string;
     churchName?: string;
@@ -665,6 +713,21 @@ export async function uploadMarriageCertificate(
     throw new Error(msg);
   }
   return res.json();
+}
+
+/** Fetches uploaded marriage-party certificate (baptism, communion, confirmation) for groom/bride. */
+export async function fetchMarriagePartyCertificate(
+  marriageId: number,
+  role: 'groom' | 'bride',
+  type: 'baptism' | 'communion' | 'confirmation'
+): Promise<Blob> {
+  const res = await fetch(
+    `${getBaseUrl()}/api/marriages/${marriageId}/party-certificate?role=${role}&type=${type}`,
+    { headers: getAuthHeaders() }
+  );
+  if (res.status === 404) throw new Error('No uploaded certificate for this party');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load certificate');
+  return res.blob();
 }
 
 export interface HolyOrderResponse {

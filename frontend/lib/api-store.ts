@@ -234,6 +234,14 @@ export async function getMarriages() {
 export async function getMarriageById(id: number) {
   return storeUsesSupabase() ? supabaseStore.getMarriageById(id) : fileStore.getMarriageById(id);
 }
+export async function getMarriagePartiesByMarriageId(marriageId: number) {
+  if (!storeUsesSupabase()) return [];
+  return supabaseStore.getMarriagePartiesByMarriageId(marriageId);
+}
+export async function getMarriageWitnessesByMarriageId(marriageId: number) {
+  if (!storeUsesSupabase()) return [];
+  return supabaseStore.getMarriageWitnessesByMarriageId(marriageId);
+}
 export async function addMarriage(record: Parameters<typeof fileStore.addMarriage>[0]) {
   return storeUsesSupabase() ? supabaseStore.addMarriage(record) : fileStore.addMarriage(record);
 }

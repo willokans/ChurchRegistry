@@ -35,6 +35,15 @@ const inputClass =
 const labelClass = 'block text-sm font-medium text-gray-700';
 
 type SacramentSource = 'this_parish' | 'external';
+type ExternalBaptismDetails = {
+  baptismName: string;
+  surname: string;
+  otherNames: string;
+  gender: 'MALE' | 'FEMALE';
+  fathersName: string;
+  mothersName: string;
+  baptisedChurchAddress: string;
+};
 
 const emptyParty: MarriagePartyPayload = {
   fullName: '',
@@ -80,6 +89,24 @@ export default function MarriageCreatePage() {
   const [brideBaptismSource, setBrideBaptismSource] = useState<SacramentSource>('this_parish');
   const [brideCommunionSource, setBrideCommunionSource] = useState<SacramentSource>('this_parish');
   const [brideConfirmationSource, setBrideConfirmationSource] = useState<SacramentSource>('this_parish');
+  const [groomExternalBaptism, setGroomExternalBaptism] = useState<ExternalBaptismDetails>({
+    baptismName: '',
+    surname: '',
+    otherNames: '',
+    gender: 'MALE',
+    fathersName: '',
+    mothersName: '',
+    baptisedChurchAddress: '',
+  });
+  const [brideExternalBaptism, setBrideExternalBaptism] = useState<ExternalBaptismDetails>({
+    baptismName: '',
+    surname: '',
+    otherNames: '',
+    gender: 'FEMALE',
+    fathersName: '',
+    mothersName: '',
+    baptisedChurchAddress: '',
+  });
 
   const [marriageDetails, setMarriageDetails] = useState({
     marriageDate: '',
@@ -143,6 +170,50 @@ export default function MarriageCreatePage() {
       setError('Marriage date, officiating priest, and parish are required.');
       return;
     }
+    if (groomBaptismSource === 'external') {
+      if (!groom.baptismCertificatePath) {
+        setError('Upload the groom baptism certificate for Baptism done elsewhere.');
+        return;
+      }
+      if (!groomExternalBaptism.baptismName.trim() || !groomExternalBaptism.surname.trim()) {
+        setError('Groom external baptism name and surname are required.');
+        return;
+      }
+      if (!groomExternalBaptism.fathersName.trim() || !groomExternalBaptism.mothersName.trim()) {
+        setError("Groom external baptism father's and mother's names are required.");
+        return;
+      }
+    }
+    if (brideBaptismSource === 'external') {
+      if (!bride.baptismCertificatePath) {
+        setError('Upload the bride baptism certificate for Baptism done elsewhere.');
+        return;
+      }
+      if (!brideExternalBaptism.baptismName.trim() || !brideExternalBaptism.surname.trim()) {
+        setError('Bride external baptism name and surname are required.');
+        return;
+      }
+      if (!brideExternalBaptism.fathersName.trim() || !brideExternalBaptism.mothersName.trim()) {
+        setError("Bride external baptism father's and mother's names are required.");
+        return;
+      }
+    }
+    if (groomCommunionSource === 'external' && !groom.communionCertificatePath) {
+      setError('Upload the groom Holy Communion certificate for Communion done elsewhere.');
+      return;
+    }
+    if (brideCommunionSource === 'external' && !bride.communionCertificatePath) {
+      setError('Upload the bride Holy Communion certificate for Communion done elsewhere.');
+      return;
+    }
+    if (groomConfirmationSource === 'external' && !groom.confirmationCertificatePath) {
+      setError('Upload the groom Confirmation certificate for Confirmation done elsewhere.');
+      return;
+    }
+    if (brideConfirmationSource === 'external' && !bride.confirmationCertificatePath) {
+      setError('Upload the bride Confirmation certificate for Confirmation done elsewhere.');
+      return;
+    }
     const witnessList = witnesses.filter((w) => w.fullName.trim());
     if (witnessList.length < 2) {
       setError('At least 2 witnesses are required.');
@@ -154,6 +225,7 @@ export default function MarriageCreatePage() {
       const payload: CreateMarriageWithPartiesRequest = {
         marriage: {
           partnersName: `${groom.fullName.trim()} & ${bride.fullName.trim()}`,
+          parishId: effectiveParishId,
           marriageDate: marriageDetails.marriageDate,
           marriageTime: marriageDetails.marriageTime || undefined,
           churchName: marriageDetails.churchName || undefined,
@@ -168,6 +240,21 @@ export default function MarriageCreatePage() {
         groom: {
           ...groom,
           fullName: groom.fullName.trim(),
+          baptismSource: groomBaptismSource,
+          communionSource: groomCommunionSource,
+          confirmationSource: groomConfirmationSource,
+          externalBaptism:
+            groomBaptismSource === 'external'
+              ? {
+                  baptismName: groomExternalBaptism.baptismName.trim(),
+                  surname: groomExternalBaptism.surname.trim(),
+                  otherNames: groomExternalBaptism.otherNames.trim(),
+                  gender: groomExternalBaptism.gender,
+                  fathersName: groomExternalBaptism.fathersName.trim(),
+                  mothersName: groomExternalBaptism.mothersName.trim(),
+                  baptisedChurchAddress: groomExternalBaptism.baptisedChurchAddress.trim(),
+                }
+              : undefined,
           baptismId: groomBaptismSource === 'this_parish' ? groom.baptismId : undefined,
           communionId: groomCommunionSource === 'this_parish' ? groom.communionId : undefined,
           confirmationId: groomConfirmationSource === 'this_parish' ? groom.confirmationId : undefined,
@@ -178,6 +265,21 @@ export default function MarriageCreatePage() {
         bride: {
           ...bride,
           fullName: bride.fullName.trim(),
+          baptismSource: brideBaptismSource,
+          communionSource: brideCommunionSource,
+          confirmationSource: brideConfirmationSource,
+          externalBaptism:
+            brideBaptismSource === 'external'
+              ? {
+                  baptismName: brideExternalBaptism.baptismName.trim(),
+                  surname: brideExternalBaptism.surname.trim(),
+                  otherNames: brideExternalBaptism.otherNames.trim(),
+                  gender: brideExternalBaptism.gender,
+                  fathersName: brideExternalBaptism.fathersName.trim(),
+                  mothersName: brideExternalBaptism.mothersName.trim(),
+                  baptisedChurchAddress: brideExternalBaptism.baptisedChurchAddress.trim(),
+                }
+              : undefined,
           baptismId: brideBaptismSource === 'this_parish' ? bride.baptismId : undefined,
           communionId: brideCommunionSource === 'this_parish' ? bride.communionId : undefined,
           confirmationId: brideConfirmationSource === 'this_parish' ? bride.confirmationId : undefined,
@@ -309,6 +411,13 @@ export default function MarriageCreatePage() {
                   }}
                   churchName={groom.baptismChurch}
                   setChurchName={(v) => setGroom((p) => ({ ...p, baptismChurch: v }))}
+                  externalDetails={
+                    <ExternalBaptismFields
+                      prefix="groom"
+                      values={groomExternalBaptism}
+                      setValues={setGroomExternalBaptism}
+                    />
+                  }
                 />
                 {/* Groom: Holy Communion */}
                 <SacramentSection
@@ -417,6 +526,13 @@ export default function MarriageCreatePage() {
                   }}
                   churchName={bride.baptismChurch}
                   setChurchName={(v) => setBride((p) => ({ ...p, baptismChurch: v }))}
+                  externalDetails={
+                    <ExternalBaptismFields
+                      prefix="bride"
+                      values={brideExternalBaptism}
+                      setValues={setBrideExternalBaptism}
+                    />
+                  }
                 />
                 <SacramentSection
                   title="Holy Communion"
@@ -609,6 +725,7 @@ function SacramentSection<T extends { id: number }>({
   onCertificateUpload,
   churchName,
   setChurchName,
+  externalDetails,
 }: {
   title: string;
   labelSearch: string;
@@ -622,6 +739,7 @@ function SacramentSection<T extends { id: number }>({
   onCertificateUpload: (file: File) => Promise<void>;
   churchName?: string | null;
   setChurchName: (v: string) => void;
+  externalDetails?: React.ReactNode;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -707,6 +825,7 @@ function SacramentSection<T extends { id: number }>({
       )}
       {source === 'external' && (
         <div className="mt-2 space-y-2">
+          {externalDetails}
           <input
             ref={fileInputRef}
             type="file"
@@ -739,6 +858,108 @@ function SacramentSection<T extends { id: number }>({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ExternalBaptismFields({
+  prefix,
+  values,
+  setValues,
+}: {
+  prefix: string;
+  values: ExternalBaptismDetails;
+  setValues: React.Dispatch<React.SetStateAction<ExternalBaptismDetails>>;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-600">Enter details from the baptism certificate.</p>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-name`} className={labelClass}>
+          Baptism Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          id={`${prefix}-external-baptism-name`}
+          type="text"
+          value={values.baptismName}
+          onChange={(e) => setValues((prev) => ({ ...prev, baptismName: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-surname`} className={labelClass}>
+          Surname <span className="text-red-500">*</span>
+        </label>
+        <input
+          id={`${prefix}-external-baptism-surname`}
+          type="text"
+          value={values.surname}
+          onChange={(e) => setValues((prev) => ({ ...prev, surname: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-otherNames`} className={labelClass}>
+          Other Names (Optional)
+        </label>
+        <input
+          id={`${prefix}-external-baptism-otherNames`}
+          type="text"
+          value={values.otherNames}
+          onChange={(e) => setValues((prev) => ({ ...prev, otherNames: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-gender`} className={labelClass}>
+          Gender <span className="text-red-500">*</span>
+        </label>
+        <select
+          id={`${prefix}-external-baptism-gender`}
+          value={values.gender}
+          onChange={(e) => setValues((prev) => ({ ...prev, gender: e.target.value as 'MALE' | 'FEMALE' }))}
+          className={inputClass}
+        >
+          <option value="MALE">Male</option>
+          <option value="FEMALE">Female</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-father`} className={labelClass}>
+          Father&apos;s Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          id={`${prefix}-external-baptism-father`}
+          type="text"
+          value={values.fathersName}
+          onChange={(e) => setValues((prev) => ({ ...prev, fathersName: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-mother`} className={labelClass}>
+          Mother&apos;s Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          id={`${prefix}-external-baptism-mother`}
+          type="text"
+          value={values.mothersName}
+          onChange={(e) => setValues((prev) => ({ ...prev, mothersName: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-external-baptism-church-address`} className={labelClass}>
+          Baptised Church Address (Optional)
+        </label>
+        <input
+          id={`${prefix}-external-baptism-church-address`}
+          type="text"
+          value={values.baptisedChurchAddress}
+          onChange={(e) => setValues((prev) => ({ ...prev, baptisedChurchAddress: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
     </div>
   );
 }
