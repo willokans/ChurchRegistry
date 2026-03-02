@@ -94,9 +94,6 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
             setParishes([]);
             setParishIdState(null);
             setError('Session expired. Please sign in again.');
-            if (typeof window !== 'undefined') {
-              window.location.href = '/login';
-            }
             return;
           }
           setError(message);

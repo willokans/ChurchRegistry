@@ -16,6 +16,8 @@ import {
   fetchBaptismExternalCertificate,
   fetchCommunionCertificate,
   fetchMarriagePartyCertificate,
+  fetchMarriageNoteHistory,
+  updateMarriageNotes,
 } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
@@ -33,6 +35,8 @@ jest.mock('@/lib/api', () => ({
   fetchBaptismExternalCertificate: jest.fn(),
   fetchCommunionCertificate: jest.fn(),
   fetchMarriagePartyCertificate: jest.fn(),
+  fetchMarriageNoteHistory: jest.fn(),
+  updateMarriageNotes: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -84,6 +88,8 @@ describe('Marriage view page', () => {
     (fetchBaptismExternalCertificate as jest.Mock).mockResolvedValue(new Blob(['dummy'], { type: 'application/pdf' }));
     (fetchCommunionCertificate as jest.Mock).mockResolvedValue(new Blob(['dummy'], { type: 'application/pdf' }));
     (fetchMarriagePartyCertificate as jest.Mock).mockResolvedValue(new Blob(['dummy'], { type: 'application/pdf' }));
+    (fetchMarriageNoteHistory as jest.Mock).mockResolvedValue([]);
+    (updateMarriageNotes as jest.Mock).mockResolvedValue({});
     (fetchMarriage as jest.Mock).mockResolvedValue({
       id: 3,
       baptismId: 5,

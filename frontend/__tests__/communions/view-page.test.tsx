@@ -8,7 +8,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { useRouter, useParams } from 'next/navigation';
 import CommunionViewPage from '@/app/communions/[id]/page';
-import { getStoredToken, getStoredUser, fetchCommunion, fetchBaptismExternalCertificate } from '@/lib/api';
+import {
+  getStoredToken,
+  getStoredUser,
+  fetchCommunion,
+  fetchBaptismExternalCertificate,
+  fetchCommunionNoteHistory,
+  updateCommunionNotes,
+} from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -20,6 +27,8 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchCommunion: jest.fn(),
   fetchBaptismExternalCertificate: jest.fn(),
+  fetchCommunionNoteHistory: jest.fn(),
+  updateCommunionNotes: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -52,6 +61,8 @@ describe('Communion view page', () => {
       baptismParishName: 'St Mary',
     });
     (fetchBaptismExternalCertificate as jest.Mock).mockReset();
+    (fetchCommunionNoteHistory as jest.Mock).mockResolvedValue([]);
+    (updateCommunionNotes as jest.Mock).mockResolvedValue({});
   });
 
   it('fetches communion by id and shows date', async () => {
