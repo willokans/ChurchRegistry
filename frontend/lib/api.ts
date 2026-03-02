@@ -873,3 +873,99 @@ export async function createHolyOrder(body: HolyOrderRequest): Promise<HolyOrder
   }
   return res.json();
 }
+
+/** Admin: user parish access management */
+export interface UserParishAccessResponse {
+  userId: number;
+  username: string;
+  displayName: string | null;
+  role: string | null;
+  defaultParishId: number | null;
+  parishAccessIds: number[];
+}
+
+export interface ReplaceUserParishAccessRequest {
+  parishIds: number[];
+  defaultParishId?: number | null;
+}
+
+export async function listUsersWithParishAccess(): Promise<UserParishAccessResponse[]> {
+  const res = await fetch(`${getBaseUrl()}/api/admin/users/parish-access`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 403) throw new Error('Admin access required');
+    throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch users');
+  }
+  const raw = await res.json();
+  if (!Array.isArray(raw)) return [];
+  return raw.map((u: any) => ({
+    userId: Number(u.userId),
+    username: String(u.username ?? ''),
+    displayName: u.displayName ?? null,
+    role: u.role ?? null,
+    defaultParishId: u.defaultParishId != null ? Number(u.defaultParishId) : null,
+    parishAccessIds: Array.isArray(u.parishAccessIds)
+      ? u.parishAccessIds.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n) && n > 0)
+      : [],
+  }));
+}
+
+export async function getUserParishAccess(userId: number): Promise<UserParishAccessResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/admin/users/${userId}/parish-access`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 403) throw new Error('Admin access required');
+    if (res.status === 404) throw new Error('User not found');
+    throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch user');
+  }
+  const u = await res.json();
+  return {
+    userId: Number(u.userId),
+    username: String(u.username ?? ''),
+    displayName: u.displayName ?? null,
+    role: u.role ?? null,
+    defaultParishId: u.defaultParishId != null ? Number(u.defaultParishId) : null,
+    parishAccessIds: Array.isArray(u.parishAccessIds)
+      ? u.parishAccessIds.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n) && n > 0)
+      : [],
+  };
+}
+
+export async function replaceUserParishAccess(
+  userId: number,
+  request: ReplaceUserParishAccessRequest
+): Promise<UserParishAccessResponse> {
+  const body: any = { parishIds: request.parishIds };
+  if (request.defaultParishId != null && request.defaultParishId > 0) {
+    body.defaultParishId = request.defaultParishId;
+  }
+  const res = await fetch(`${getBaseUrl()}/api/admin/users/${userId}/parish-access`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { message?: string };
+      if (typeof json?.message === 'string') msg = json.message;
+    } catch {
+      if (!text) msg = 'Failed to update parish access';
+    }
+    throw new Error(msg);
+  }
+  const u = await res.json();
+  return {
+    userId: Number(u.userId),
+    username: String(u.username ?? ''),
+    displayName: u.displayName ?? null,
+    role: u.role ?? null,
+    defaultParishId: u.defaultParishId != null ? Number(u.defaultParishId) : null,
+    parishAccessIds: Array.isArray(u.parishAccessIds)
+      ? u.parishAccessIds.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n) && n > 0)
+      : [],
+  };
+}

@@ -165,7 +165,9 @@ export default function AuthenticatedLayout({
                     ))}
                   </select>
                 ) : (
-                  <p className="text-sm text-gray-500 mb-1">No parish selected</p>
+                  <p className="text-sm text-gray-500 mb-1">
+                    {isAdmin ? 'No parish selected' : 'No parish assigned. Contact admin.'}
+                  </p>
                 )}
                 {isAdmin && (
                   <Link
@@ -194,7 +196,12 @@ export default function AuthenticatedLayout({
               <ul className="space-y-1">
                 {[
                   { href: '/', label: 'Dashboard' },
-                  ...(isAdmin ? [{ href: '/parishes', label: 'Dioceses & Parishes' }] : []),
+                  ...(isAdmin
+                    ? [
+                        { href: '/parishes', label: 'Dioceses & Parishes' },
+                        { href: '/users', label: 'User Access' },
+                      ]
+                    : []),
                   { href: '/baptisms', label: 'Baptisms' },
                   { href: '/communions', label: 'Holy Communion' },
                   { href: '/confirmations', label: 'Confirmation' },
@@ -256,7 +263,9 @@ export default function AuthenticatedLayout({
                 ))}
               </select>
             ) : (
-              <p className="text-sm text-gray-500 mb-1">No parish selected</p>
+              <p className="text-sm text-gray-500 mb-1">
+                {isAdmin ? 'No parish selected' : 'No parish assigned. Contact admin.'}
+              </p>
             )}
             {isAdmin && (
               <Link
@@ -291,14 +300,24 @@ export default function AuthenticatedLayout({
               </Link>
             </li>
             {isAdmin && (
-              <li>
-                <Link
-                  href="/parishes"
-                  className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
-                >
-                  Dioceses & Parishes
-                </Link>
-              </li>
+              <>
+                <li>
+                  <Link
+                    href="/parishes"
+                    className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                  >
+                    Dioceses & Parishes
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/users"
+                    className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                  >
+                    User Access
+                  </Link>
+                </li>
+              </>
             )}
             <li>
               <Link

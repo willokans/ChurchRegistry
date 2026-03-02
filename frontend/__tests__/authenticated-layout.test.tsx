@@ -3,9 +3,10 @@
  * - When authenticated: renders header with Church Registry branding and cross, sidebar, and children
  * - When not authenticated: redirects to /login and does not render layout content
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { getStoredToken, getStoredUser } from '@/lib/api';
+import { useParish } from '@/context/ParishContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 jest.mock('next/navigation', () => ({
@@ -18,17 +19,20 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('@/context/ParishContext', () => ({
-  useParish: () => ({
-    parishId: 10,
-    setParishId: jest.fn(),
-    parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-    loading: false,
-    error: null,
-  }),
+  useParish: jest.fn(),
 }));
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+
+const defaultParishContext = {
+  parishId: 10,
+  setParishId: jest.fn(),
+  parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+  loading: false,
+  error: null,
+  refetch: jest.fn(),
+};
 
 describe('AuthenticatedLayout', () => {
   beforeEach(() => {
@@ -39,6 +43,7 @@ describe('AuthenticatedLayout', () => {
       displayName: 'Admin',
       role: 'ADMIN',
     });
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
   });
 
   it('renders header with Church Registry branding when authenticated', () => {
@@ -99,5 +104,61 @@ describe('AuthenticatedLayout', () => {
     );
     expect(mockPush).toHaveBeenCalledWith('/login');
     expect(screen.queryByText('Dashboard content')).not.toBeInTheDocument();
+  });
+
+  it('parish selector displays only assigned parishes when parishes present', () => {
+    (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
+      parishId: 10,
+      parishes: [
+        { id: 10, parishName: 'St Mary', dioceseId: 1 },
+        { id: 11, parishName: 'St John', dioceseId: 1 },
+      ],
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const parishSelect = screen.getByRole('combobox', { name: /parish/i });
+    expect(parishSelect).toBeInTheDocument();
+    expect(within(parishSelect).getByRole('option', { name: 'St Mary' })).toBeInTheDocument();
+    expect(within(parishSelect).getByRole('option', { name: 'St John' })).toBeInTheDocument();
+  });
+
+  it('no-assigned-parish state: non-admin sees "No parish assigned. Contact admin."', () => {
+    (getStoredUser as jest.Mock).mockReturnValue({
+      username: 'priest',
+      displayName: 'Priest',
+      role: 'PRIEST',
+    });
+    (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
+      parishId: null,
+      parishes: [],
+      loading: false,
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    expect(screen.getByText('No parish assigned. Contact admin.')).toBeInTheDocument();
+  });
+
+  it('no-assigned-parish state: admin sees "No parish selected" and Add diocese link', () => {
+    (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
+      parishId: null,
+      parishes: [],
+      loading: false,
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    expect(screen.getByText('No parish selected')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /add diocese & parish/i })).toBeInTheDocument();
   });
 });
