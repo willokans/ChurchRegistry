@@ -11,6 +11,9 @@ public interface BaptismRepository extends JpaRepository<Baptism, Long> {
 
     List<Baptism> findByParishId(Long parishId);
 
+    @Query("SELECT b.parish.id FROM Baptism b WHERE b.id = :id")
+    java.util.Optional<Long> findParishIdById(@Param("id") Long id);
+
     @Query("SELECT b FROM Baptism b WHERE LOWER(b.baptismName) LIKE LOWER(CONCAT('%', :q, '%')) " +
             "OR LOWER(b.surname) LIKE LOWER(CONCAT('%', :q, '%')) " +
             "OR LOWER(COALESCE(b.address, '')) LIKE LOWER(CONCAT('%', :q, '%')) " +
