@@ -69,6 +69,78 @@ describe('Marriages list page', () => {
     expect(screen.getByRole('main')).toHaveTextContent('2025-06-15');
   });
 
+  it('shows the requested matrimony grid headers on desktop table', async () => {
+    (fetchMarriages as jest.Mock).mockResolvedValue([
+      {
+        id: 1,
+        partnersName: 'John Okeke & Jane Woods',
+        marriageDate: '2026-06-25',
+        officiatingPriest: 'Fr. Smith',
+        parish: 'St Mary',
+        diocese: 'Enugu Diocese',
+        groomName: 'John Okeke',
+        brideName: 'Jane Woods',
+        groomFatherName: 'Matthew Okeke',
+        groomMotherName: 'Rose Okeke',
+        brideFatherName: 'Paul Woods',
+        brideMotherName: 'Ada Woods',
+        witnessesDisplay: 'Peter N, Mark O',
+      },
+    ]);
+    render(<MarriagesPage />);
+    await waitFor(() => {
+      expect(fetchMarriages).toHaveBeenCalled();
+    });
+
+    expect(screen.getAllByText(/GROOM NAME/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/BRIDE NAME/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/MARRIAGE DATE/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/GROOM'S FATHER/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/GROOM'S MOTHER/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/BRIDE'S FATHER/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/BRIDE'S MOTHER/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/DIOCESE/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/OFFICIATING CLERGY/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/WITNESSES/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/CERTIFICATE/i).length).toBeGreaterThan(0);
+  });
+
+  it('shows groom/bride parents, witnesses and civil certificate link', async () => {
+    (fetchMarriages as jest.Mock).mockResolvedValue([
+      {
+        id: 11,
+        partnersName: 'Jacob Lamin & Rebecca Smith',
+        marriageDate: '2026-09-14',
+        officiatingPriest: 'Fr. Damian',
+        parish: 'St Mary',
+        diocese: 'Enugu Diocese',
+        groomName: 'Jacob Lamin',
+        brideName: 'Rebecca Smith',
+        groomFatherName: 'Tita Tochukwu',
+        groomMotherName: 'Ngozi Tochukwu',
+        brideFatherName: 'David Smith',
+        brideMotherName: 'Mary Smith',
+        witnessesDisplay: 'Peter Nkosi, Felix Obinna',
+      },
+    ]);
+    render(<MarriagesPage />);
+    await waitFor(() => {
+      expect(fetchMarriages).toHaveBeenCalled();
+    });
+
+    const main = screen.getByRole('main');
+    expect(within(main).getAllByText(/Jacob Lamin/).length).toBeGreaterThan(0);
+    expect(within(main).getAllByText(/Rebecca Smith/).length).toBeGreaterThan(0);
+    expect(within(main).getByText(/Tita Tochukwu/)).toBeInTheDocument();
+    expect(within(main).getByText(/Ngozi Tochukwu/)).toBeInTheDocument();
+    expect(within(main).getByText(/David Smith/)).toBeInTheDocument();
+    expect(within(main).getByText(/Mary Smith/)).toBeInTheDocument();
+    expect(within(main).getByText(/Peter Nkosi, Felix Obinna/)).toBeInTheDocument();
+
+    const certLink = within(main).getByRole('link', { name: /Civil Marriage Certificate/i });
+    expect(certLink).toHaveAttribute('href', '/marriages/11/certificate');
+  });
+
   it('shows link to add new marriage', async () => {
     render(<MarriagesPage />);
     await waitFor(() => {

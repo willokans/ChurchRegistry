@@ -539,6 +539,14 @@ export interface MarriageResponse {
   /** Groom and bride when marriage was created with full form (Supabase). */
   parties?: MarriagePartyResponse[];
   witnesses?: MarriageWitnessResponse[];
+  /** Enriched fields used by marriages grid view. */
+  groomName?: string;
+  brideName?: string;
+  groomFatherName?: string;
+  groomMotherName?: string;
+  brideFatherName?: string;
+  brideMotherName?: string;
+  witnessesDisplay?: string;
 }
 
 export interface MarriagePartyResponse {
