@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 22
+      author: will_okanumeh
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE baptism ALTER COLUMN other_names DROP NOT NULL;
+              ALTER TABLE baptism ALTER COLUMN officiating_priest DROP NOT NULL;
