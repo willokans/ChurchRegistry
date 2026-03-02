@@ -122,6 +122,23 @@ jobs:
       - name: Install Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Sync frontend runtime env
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_FRONTEND_APP_NAME: ${{ vars.FLY_FRONTEND_APP_NAME }}
+          FLY_API_APP_NAME: ${{ vars.FLY_API_APP_NAME }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: |
+          set -euo pipefail
+          FRONTEND_APP="${FLY_FRONTEND_APP_NAME:-church-registry-staging}"
+          API_APP="${FLY_API_APP_NAME:-church-registry-api-staging}"
+          FRONTEND_API_URL="${NEXT_PUBLIC_API_URL:-https://${API_APP}.fly.dev}"
+
+          flyctl secrets set \
+            NEXT_PUBLIC_API_URL="$FRONTEND_API_URL" \
+            --stage \
+            --app "$FRONTEND_APP"
+
       - name: Deploy to Fly staging
         working-directory: frontend
         run: flyctl deploy --remote-only --app "${FLY_FRONTEND_APP_NAME:-church-registry-staging}"
