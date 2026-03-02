@@ -185,3 +185,5 @@ databaseChangeLog:
       file: db/changelog/changes/004-legacy-compat-fields.yaml
   - include:
       file: db/changelog/changes/005-sacrament-notes-audit.yaml
+  - include:
+      file: db/changelog/changes/006-priest-parish-access.yaml

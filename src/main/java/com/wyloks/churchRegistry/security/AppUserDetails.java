@@ -7,6 +7,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,11 +17,21 @@ public class AppUserDetails implements UserDetails {
     private final AppUser user;
     private final String role;
     private final Long parishId;
+    private final Set<Long> parishAccessIds;
 
     public AppUserDetails(AppUser user) {
         this.user = user;
         this.role = user.getRole();
         this.parishId = user.getParish() != null ? user.getParish().getId() : null;
+        this.parishAccessIds = new HashSet<>();
+        if (this.parishId != null) {
+            this.parishAccessIds.add(this.parishId);
+        }
+        if (user.getParishAccesses() != null) {
+            user.getParishAccesses().stream()
+                    .filter(p -> p != null && p.getId() != null)
+                    .forEach(p -> this.parishAccessIds.add(p.getId()));
+        }
     }
 
     @Override
@@ -72,5 +84,9 @@ public class AppUserDetails implements UserDetails {
 
     public Long getParishId() {
         return parishId;
+    }
+
+    public Set<Long> getParishAccessIds() {
+        return Collections.unmodifiableSet(parishAccessIds);
     }
 }

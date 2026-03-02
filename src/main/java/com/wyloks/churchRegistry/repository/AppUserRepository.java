@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
-    @EntityGraph(attributePaths = "parish")
+    @EntityGraph(attributePaths = {"parish", "parishAccesses"})
     Optional<AppUser> findByUsername(String username);
 
     boolean existsByUsername(String username);

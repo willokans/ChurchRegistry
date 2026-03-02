@@ -3,6 +3,9 @@ package com.wyloks.churchRegistry.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "app_user")
 @Getter
@@ -28,6 +31,15 @@ public class AppUser {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parish_id", foreignKey = @ForeignKey(name = "fk_app_user_parish_id"))
     private Parish parish;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "app_user_parish_access",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "parish_id")
+    )
+    @Builder.Default
+    private Set<Parish> parishAccesses = new HashSet<>();
 
     @Column(name = "role", length = 50)
     private String role;

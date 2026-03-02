@@ -31,7 +31,7 @@ public class SacramentAuthorizationService {
         if (user.isAdmin()) {
             return;
         }
-        if (parishId == null || user.parishId() == null || !parishId.equals(user.parishId())) {
+        if (parishId == null || !user.parishIds().contains(parishId)) {
             throw forbidden("Cross-parish access denied");
         }
     }
@@ -42,7 +42,7 @@ public class SacramentAuthorizationService {
             throw forbidden("Insufficient role for sacrament write access");
         }
         if (!user.isAdmin()) {
-            if (parishId == null || user.parishId() == null || !parishId.equals(user.parishId())) {
+            if (parishId == null || !user.parishIds().contains(parishId)) {
                 throw forbidden("Cross-parish write denied");
             }
         }
@@ -96,7 +96,7 @@ public class SacramentAuthorizationService {
             throw forbidden("Role is required");
         }
 
-        return new CurrentUser(role, userDetails.getParishId());
+        return new CurrentUser(role, userDetails.getParishAccessIds());
     }
 
     private String normalizeRole(String role) {
@@ -110,7 +110,7 @@ public class SacramentAuthorizationService {
         return new ResponseStatusException(HttpStatus.FORBIDDEN, message);
     }
 
-    private record CurrentUser(String role, Long parishId) {
+    private record CurrentUser(String role, Set<Long> parishIds) {
         boolean isAdmin() {
             return "ADMIN".equals(role);
         }
