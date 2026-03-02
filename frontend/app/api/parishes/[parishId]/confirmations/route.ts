@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken, getParishes, getConfirmations } from '@/lib/api-store';
+import { getUserFromToken, getConfirmations, getBaptisms } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -14,8 +14,25 @@ export async function GET(
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: 'Invalid parish id' }, { status: 400 });
   }
-  const [parishes, confirmations] = await Promise.all([getParishes(), getConfirmations()]);
-  const parishName = parishes.find((p) => p.id === id)?.parishName;
-  const list = confirmations.filter((c) => (c.parish ?? '') === parishName);
+  const [confirmations, baptisms] = await Promise.all([
+    getConfirmations(),
+    getBaptisms(),
+  ]);
+  const baptismIdsInParish = new Set(baptisms.filter((b) => b.parishId === id).map((b) => b.id));
+  const filtered = confirmations.filter((c) => baptismIdsInParish.has(c.baptismId));
+  const baptismMap = new Map(baptisms.map((b) => [b.id, b]));
+  const list = filtered.map((c) => {
+    const b = baptismMap.get(c.baptismId);
+    return {
+      ...c,
+      baptismName: b?.baptismName ?? '',
+      otherNames: b?.otherNames ?? '',
+      surname: b?.surname ?? '',
+      dateOfBirth: b?.dateOfBirth ?? '',
+      gender: b?.gender ?? '',
+      fathersName: b?.fathersName ?? '',
+      mothersName: b?.mothersName ?? '',
+    };
+  });
   return NextResponse.json(list);
 }

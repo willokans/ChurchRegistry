@@ -4,7 +4,7 @@
  * - Shows link to add new holy order
  * - When no parish available, shows message
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import HolyOrdersPage from '@/app/holy-orders/page';
 import { getStoredToken, getStoredUser, fetchHolyOrders } from '@/lib/api';
@@ -74,9 +74,10 @@ describe('Holy Orders list page', () => {
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
-    const addLink = screen.getByRole('link', { name: /add|new holy order/i });
-    expect(addLink).toBeInTheDocument();
-    expect(addLink.getAttribute('href')).toMatch(/holy-orders\/new/);
+    const main = screen.getByRole('main');
+    const addLinks = within(main).getAllByRole('link', { name: /add holy order/i });
+    expect(addLinks.length).toBeGreaterThanOrEqual(1);
+    expect(addLinks[0].getAttribute('href')).toMatch(/holy-orders\/new/);
   });
 
   it('when no parishes shows message and no fetch to holy orders', async () => {
@@ -88,8 +89,9 @@ describe('Holy Orders list page', () => {
       error: null,
     });
     render(<HolyOrdersPage />);
+    const main = screen.getByRole('main');
     await waitFor(() => {
-      expect(screen.getByText(/no parish/i)).toBeInTheDocument();
+      expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
     });
     expect(fetchHolyOrders).not.toHaveBeenCalled();
   });

@@ -75,27 +75,39 @@ function getAuthHeaders(): HeadersInit {
 
 export interface BaptismResponse {
   id: number;
+  createdAt?: string;
   baptismName: string;
+  otherNames: string;
   surname: string;
   gender: string;
   dateOfBirth: string;
   fathersName: string;
   mothersName: string;
   sponsorNames: string;
+  officiatingPriest: string;
   parishId: number;
+  /** Parish name (for display when baptized in same church). */
+  parishName?: string;
   address?: string;
   parishAddress?: string;
   parentAddress?: string;
+  note?: string;
+  /** Set when this baptism has an external certificate (baptized in another parish). */
+  externalCertificatePath?: string | null;
+  /** Issuing parish name for the external certificate. */
+  externalCertificateIssuingParish?: string | null;
 }
 
 export interface BaptismRequest {
   baptismName: string;
+  otherNames: string;
   surname: string;
   gender: string;
   dateOfBirth: string;
   fathersName: string;
   mothersName: string;
   sponsorNames: string;
+  officiatingPriest: string;
   parishId?: number;
   address?: string;
   parishAddress?: string;
@@ -165,6 +177,16 @@ export async function fetchBaptism(id: number): Promise<BaptismResponse | null> 
   return res.json();
 }
 
+/** Fetch external baptism certificate file (when baptized in another parish). Returns blob for view/download. */
+export async function fetchBaptismExternalCertificate(baptismId: number): Promise<Blob> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${baptismId}/external-certificate`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) throw new Error('No external certificate for this baptism');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load certificate');
+  return res.blob();
+}
+
 export async function createBaptism(parishId: number, body: BaptismRequest): Promise<BaptismResponse> {
   const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, {
     method: 'POST',
@@ -173,17 +195,98 @@ export async function createBaptism(parishId: number, body: BaptismRequest): Pro
   });
   if (!res.ok) {
     const text = await res.text();
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (json?.error && typeof json.error === 'string') throw new Error(json.error);
+    } catch (e) {
+      if (e instanceof Error && e.message !== 'Failed to create baptism') throw e;
+    }
     throw new Error(text || 'Failed to create baptism');
   }
   return res.json();
 }
 
+export async function updateBaptismNotes(id: number, note: string): Promise<BaptismResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to update notes');
+  }
+  return res.json();
+}
+
+export interface BaptismCertificateData {
+  baptism: BaptismResponse;
+  parishName: string;
+  dioceseName: string;
+}
+
+export async function fetchBaptismCertificateData(id: number): Promise<BaptismCertificateData> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/certificate-data`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) throw new Error('Baptism not found');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch certificate data');
+  return res.json();
+}
+
+export interface BaptismNoteResponse {
+  id: number;
+  baptismId: number;
+  content: string;
+  createdAt: string;
+}
+
+export async function fetchBaptismNoteHistory(baptismId: number): Promise<BaptismNoteResponse[]> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${baptismId}/notes`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch note history');
+  return res.json();
+}
+
+export async function emailBaptismCertificate(id: number, to: string): Promise<void> {
+  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/email-certificate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ to }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = 'Failed to send certificate';
+    try {
+      const data = JSON.parse(text) as { error?: string };
+      if (typeof data?.error === 'string') msg = data.error;
+    } catch {
+      if (text && text.length < 200) msg = text;
+    }
+    throw new Error(msg);
+  }
+}
+
 export interface FirstHolyCommunionResponse {
   id: number;
+  createdAt?: string;
   baptismId: number;
   communionDate: string;
   officiatingPriest: string;
   parish: string;
+  baptismCertificatePath?: string | null;
+  communionCertificatePath?: string | null;
+  /** From baptism (when loaded with communion). */
+  baptismName?: string;
+  otherNames?: string;
+  surname?: string;
+  dateOfBirth?: string;
+  baptismParishName?: string;
+  gender?: string;
+  fathersName?: string;
+  mothersName?: string;
 }
 
 export interface FirstHolyCommunionRequest {
@@ -191,6 +294,8 @@ export interface FirstHolyCommunionRequest {
   communionDate: string;
   officiatingPriest: string;
   parish: string;
+  /** When provided (e.g. after creating baptism with certificate), stored on communion so baptism record can show uploaded cert. */
+  baptismCertificatePath?: string;
 }
 
 export async function fetchCommunions(parishId: number): Promise<FirstHolyCommunionResponse[]> {
@@ -206,6 +311,16 @@ export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResp
   return res.json();
 }
 
+/** Fetches the uploaded communion certificate file (when communion was received in another church). */
+export async function fetchCommunionCertificate(communionId: number): Promise<Blob> {
+  const res = await fetch(`${getBaseUrl()}/api/communions/${communionId}/communion-certificate`, {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) throw new Error('No uploaded communion certificate for this record');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load certificate');
+  return res.blob();
+}
+
 export async function createCommunion(body: FirstHolyCommunionRequest): Promise<FirstHolyCommunionResponse> {
   const res = await fetch(`${getBaseUrl()}/api/communions`, {
     method: 'POST',
@@ -219,16 +334,163 @@ export async function createCommunion(body: FirstHolyCommunionRequest): Promise<
   return res.json();
 }
 
+/** Payload for "Baptism from another Parish": saved into the created baptism record. */
+export interface ExternalBaptismPayload {
+  baptismName: string;
+  surname: string;
+  otherNames: string;
+  gender: string;
+  fathersName: string;
+  mothersName: string;
+  baptisedChurchAddress: string;
+}
+
+/** Create only external baptism (with certificate). Returns the created baptism id and certificate path for linking to communion. */
+export async function createBaptismWithCertificate(
+  parishId: number,
+  certificate: File,
+  externalBaptism: ExternalBaptismPayload
+): Promise<{ id: number; certificatePath: string }> {
+  const formData = new FormData();
+  formData.set('parishId', String(parishId));
+  formData.set('certificate', certificate);
+  formData.set('externalBaptismName', externalBaptism.baptismName);
+  formData.set('externalSurname', externalBaptism.surname);
+  formData.set('externalOtherNames', externalBaptism.otherNames);
+  formData.set('externalGender', externalBaptism.gender);
+  formData.set('externalFathersName', externalBaptism.fathersName);
+  formData.set('externalMothersName', externalBaptism.mothersName);
+  formData.set('externalBaptisedChurchAddress', externalBaptism.baptisedChurchAddress);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${getBaseUrl()}/api/baptisms`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create baptism';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/** Create communion with "Baptism from another Parish": uploads certificate and creates baptism with given details. */
+export async function createCommunionWithCertificate(
+  parishId: number,
+  data: { communionDate: string; officiatingPriest: string; parish: string },
+  certificate: File,
+  externalBaptism: ExternalBaptismPayload
+): Promise<FirstHolyCommunionResponse> {
+  const formData = new FormData();
+  formData.set('baptismSource', 'external');
+  formData.set('parishId', String(parishId));
+  formData.set('communionDate', data.communionDate);
+  formData.set('officiatingPriest', data.officiatingPriest);
+  formData.set('parish', data.parish);
+  formData.set('certificate', certificate);
+  formData.set('externalBaptismName', externalBaptism.baptismName);
+  formData.set('externalSurname', externalBaptism.surname);
+  formData.set('externalOtherNames', externalBaptism.otherNames);
+  formData.set('externalGender', externalBaptism.gender);
+  formData.set('externalFathersName', externalBaptism.fathersName);
+  formData.set('externalMothersName', externalBaptism.mothersName);
+  formData.set('externalBaptisedChurchAddress', externalBaptism.baptisedChurchAddress);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  // Do not set Content-Type; browser sets multipart/form-data with boundary
+
+  const res = await fetch(`${getBaseUrl()}/api/communions`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create communion';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/** Create communion when Holy Communion was in another church: upload communion certificate, link to existing baptism. Optional baptismCertificatePath when baptism was just created with certificate (e.g. from confirmation flow). */
+export async function createCommunionWithCommunionCertificate(
+  data: { baptismId: number; communionDate: string; officiatingPriest: string; parish: string },
+  certificate: File,
+  baptismCertificatePath?: string
+): Promise<FirstHolyCommunionResponse> {
+  const formData = new FormData();
+  formData.set('communionSource', 'external');
+  formData.set('baptismId', String(data.baptismId));
+  formData.set('communionDate', data.communionDate);
+  formData.set('officiatingPriest', data.officiatingPriest);
+  formData.set('parish', data.parish);
+  formData.set('communionCertificate', certificate);
+  if (baptismCertificatePath) {
+    formData.set('baptismCertificatePath', baptismCertificatePath);
+  }
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${getBaseUrl()}/api/communions`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create communion';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 export interface ConfirmationResponse {
   id: number;
+  createdAt?: string;
   baptismId: number;
   communionId: number;
   confirmationDate: string;
   officiatingBishop: string;
   parish?: string;
+  /** Enriched from baptism when listing by parish */
+  baptismName?: string;
+  otherNames?: string;
+  surname?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  fathersName?: string;
+  mothersName?: string;
 }
 
 export interface ConfirmationRequest {
+  baptismId: number;
   communionId: number;
   confirmationDate: string;
   officiatingBishop: string;
@@ -263,13 +525,64 @@ export async function createConfirmation(body: ConfirmationRequest): Promise<Con
 
 export interface MarriageResponse {
   id: number;
-  baptismId: number;
-  communionId: number;
-  confirmationId: number;
+  createdAt?: string;
+  baptismId?: number;
+  communionId?: number;
+  confirmationId?: number;
   partnersName: string;
   marriageDate: string;
+  marriageTime?: string;
+  churchName?: string;
+  marriageRegister?: string;
+  diocese?: string;
+  civilRegistryNumber?: string;
+  dispensationGranted?: boolean;
+  canonicalNotes?: string;
   officiatingPriest: string;
   parish: string;
+  /** Groom and bride when marriage was created with full form (Supabase). */
+  parties?: MarriagePartyResponse[];
+  witnesses?: MarriageWitnessResponse[];
+  /** Enriched fields used by marriages grid view. */
+  groomName?: string;
+  brideName?: string;
+  groomFatherName?: string;
+  groomMotherName?: string;
+  brideFatherName?: string;
+  brideMotherName?: string;
+  witnessesDisplay?: string;
+}
+
+export interface MarriagePartyResponse {
+  id: number;
+  marriageId: number;
+  role: 'GROOM' | 'BRIDE';
+  fullName: string;
+  dateOfBirth?: string | null;
+  placeOfBirth?: string | null;
+  nationality?: string | null;
+  residentialAddress?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  occupation?: string | null;
+  maritalStatus?: string | null;
+  baptismId?: number | null;
+  communionId?: number | null;
+  confirmationId?: number | null;
+  baptismCertificatePath?: string | null;
+  communionCertificatePath?: string | null;
+  confirmationCertificatePath?: string | null;
+  baptismChurch?: string | null;
+  communionChurch?: string | null;
+  confirmationChurch?: string | null;
+}
+export interface MarriageWitnessResponse {
+  id: number;
+  marriageId: number;
+  fullName: string;
+  phone?: string | null;
+  address?: string | null;
+  sortOrder: number;
 }
 
 export interface MarriageRequest {
@@ -278,6 +591,60 @@ export interface MarriageRequest {
   marriageDate: string;
   officiatingPriest: string;
   parish: string;
+}
+
+/** New create marriage payload: groom, bride, marriage details, witnesses */
+export interface MarriagePartyPayload {
+  fullName: string;
+  dateOfBirth?: string;
+  placeOfBirth?: string;
+  nationality?: string;
+  residentialAddress?: string;
+  phone?: string;
+  email?: string;
+  occupation?: string;
+  maritalStatus?: string;
+  baptismId?: number;
+  communionId?: number;
+  confirmationId?: number;
+  baptismCertificatePath?: string;
+  communionCertificatePath?: string;
+  confirmationCertificatePath?: string;
+  baptismChurch?: string;
+  communionChurch?: string;
+  confirmationChurch?: string;
+  baptismSource?: 'this_parish' | 'external';
+  communionSource?: 'this_parish' | 'external';
+  confirmationSource?: 'this_parish' | 'external';
+  externalBaptism?: {
+    baptismName: string;
+    surname: string;
+    otherNames?: string;
+    gender: string;
+    fathersName: string;
+    mothersName: string;
+    baptisedChurchAddress?: string;
+  };
+}
+
+export interface CreateMarriageWithPartiesRequest {
+  marriage: {
+    partnersName?: string;
+    parishId?: number;
+    marriageDate: string;
+    marriageTime?: string;
+    churchName?: string;
+    marriageRegister?: string;
+    diocese?: string;
+    civilRegistryNumber?: string;
+    dispensationGranted?: boolean;
+    canonicalNotes?: string;
+    officiatingPriest: string;
+    parish: string;
+  };
+  groom: MarriagePartyPayload;
+  bride: MarriagePartyPayload;
+  witnesses: Array<{ fullName: string; phone?: string; address?: string; sortOrder?: number }>;
 }
 
 export async function fetchMarriages(parishId: number): Promise<MarriageResponse[]> {
@@ -304,6 +671,75 @@ export async function createMarriage(body: MarriageRequest): Promise<MarriageRes
     throw new Error(text || 'Failed to create marriage');
   }
   return res.json();
+}
+
+export async function createMarriageWithParties(body: CreateMarriageWithPartiesRequest): Promise<MarriageResponse> {
+  const res = await fetch(`${getBaseUrl()}/api/marriages`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create marriage';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/** Upload a marriage certificate (baptism, communion, or confirmation for groom/bride). Returns path to store in form. */
+export async function uploadMarriageCertificate(
+  parishId: number,
+  file: File,
+  certificateType: 'baptism' | 'communion' | 'confirmation',
+  role: 'groom' | 'bride'
+): Promise<{ path: string }> {
+  const formData = new FormData();
+  formData.set('file', file);
+  formData.set('certificateType', certificateType);
+  formData.set('role', role);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(
+    `${getBaseUrl()}/api/parishes/${parishId}/marriages/upload-certificate`,
+    { method: 'POST', headers, body: formData }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to upload certificate';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/** Fetches uploaded marriage-party certificate (baptism, communion, confirmation) for groom/bride. */
+export async function fetchMarriagePartyCertificate(
+  marriageId: number,
+  role: 'groom' | 'bride',
+  type: 'baptism' | 'communion' | 'confirmation'
+): Promise<Blob> {
+  const res = await fetch(
+    `${getBaseUrl()}/api/marriages/${marriageId}/party-certificate?role=${role}&type=${type}`,
+    { headers: getAuthHeaders() }
+  );
+  if (res.status === 404) throw new Error('No uploaded certificate for this party');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load certificate');
+  return res.blob();
 }
 
 export interface HolyOrderResponse {

@@ -21,3 +21,10 @@ app = "church-registry-staging"
     type = "requests"
     hard_limit = 25
     soft_limit = 20
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "2s"

@@ -36,10 +36,10 @@ describe('Login page', () => {
     });
   });
 
-  it('renders login form with username, password and submit button', () => {
+  it('renders login form with email/phone, password and submit button', () => {
     render(<LoginPage />);
-    expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/email or phone number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in|login/i })).toBeInTheDocument();
   });
 
@@ -58,8 +58,8 @@ describe('Login page', () => {
     });
 
     render(<LoginPage />);
-    await user.type(screen.getByLabelText(/username/i), 'admin');
-    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.type(screen.getByLabelText(/email or phone number/i), 'admin');
+    await user.type(screen.getByLabelText(/^Password$/), 'password');
     await user.click(screen.getByRole('button', { name: /sign in|login/i }));
 
     await waitFor(() => {
@@ -84,8 +84,8 @@ describe('Login page', () => {
     global.fetch = jest.fn().mockResolvedValueOnce({ ok: false, status: 401 });
 
     render(<LoginPage />);
-    await user.type(screen.getByLabelText(/username/i), 'admin');
-    await user.type(screen.getByLabelText(/password/i), 'wrong');
+    await user.type(screen.getByLabelText(/email or phone number/i), 'admin');
+    await user.type(screen.getByLabelText(/^Password$/), 'wrong');
     await user.click(screen.getByRole('button', { name: /sign in|login/i }));
 
     await waitFor(() => {

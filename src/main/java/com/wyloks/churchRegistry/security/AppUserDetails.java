@@ -1,7 +1,6 @@
 package com.wyloks.churchRegistry.security;
 
 import com.wyloks.churchRegistry.entity.AppUser;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,10 +10,17 @@ import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@RequiredArgsConstructor
 public class AppUserDetails implements UserDetails {
 
     private final AppUser user;
+    private final String role;
+    private final Long parishId;
+
+    public AppUserDetails(AppUser user) {
+        this.user = user;
+        this.role = user.getRole();
+        this.parishId = user.getParish() != null ? user.getParish().getId() : null;
+    }
 
     @Override
     public String getUsername() {
@@ -28,7 +34,6 @@ public class AppUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        String role = user.getRole();
         if (role == null || role.isBlank()) {
             return Collections.emptyList();
         }
@@ -59,5 +64,13 @@ public class AppUserDetails implements UserDetails {
 
     public AppUser getAppUser() {
         return user;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public Long getParishId() {
+        return parishId;
     }
 }

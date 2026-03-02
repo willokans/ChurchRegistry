@@ -8,9 +8,12 @@ import type {
   Diocese,
   Parish,
   Baptism,
+  BaptismNote,
   FirstHolyCommunion,
   Confirmation,
   Marriage,
+  MarriageParty,
+  MarriageWitness,
   HolyOrder,
 } from './api-store';
 
@@ -19,27 +22,35 @@ type DioceseRow = { id: number; name: string };
 type ParishRow = { id: number; diocese_id: number; parish_name: string; description: string | null };
 type BaptismRow = {
   id: number;
+  created_at?: string | null;
   parish_id: number;
   baptism_name: string;
+  other_names: string;
   surname: string;
   gender: string;
   date_of_birth: string;
   fathers_name: string;
   mothers_name: string;
   sponsor_names: string;
+  officiating_priest: string;
   address: string | null;
   parish_address: string | null;
   parent_address: string | null;
+  note: string | null;
 };
 type CommunionRow = {
   id: number;
+  created_at?: string | null;
   baptism_id: number;
   communion_date: string;
   officiating_priest: string;
   parish: string;
+  baptism_certificate_path?: string | null;
+  communion_certificate_path?: string | null;
 };
 type ConfirmationRow = {
   id: number;
+  created_at?: string | null;
   baptism_id: number;
   communion_id: number;
   confirmation_date: string;
@@ -48,13 +59,53 @@ type ConfirmationRow = {
 };
 type MarriageRow = {
   id: number;
-  baptism_id: number;
-  communion_id: number;
-  confirmation_id: number;
+  created_at?: string | null;
+  baptism_id: number | null;
+  communion_id: number | null;
+  confirmation_id: number | null;
   partners_name: string;
   marriage_date: string;
+  marriage_time: string | null;
+  church_name: string | null;
+  marriage_register: string | null;
+  diocese: string | null;
+  civil_registry_number: string | null;
+  dispensation_granted: boolean | null;
+  canonical_notes: string | null;
   officiating_priest: string;
   parish: string;
+};
+type MarriagePartyRow = {
+  id: number;
+  marriage_id: number;
+  role: string;
+  full_name: string;
+  date_of_birth: string | null;
+  place_of_birth: string | null;
+  nationality: string | null;
+  residential_address: string | null;
+  phone: string | null;
+  email: string | null;
+  occupation: string | null;
+  marital_status: string | null;
+  baptism_id: number | null;
+  communion_id: number | null;
+  confirmation_id: number | null;
+  baptism_certificate_path: string | null;
+  communion_certificate_path: string | null;
+  confirmation_certificate_path: string | null;
+  baptism_church: string | null;
+  communion_church: string | null;
+  confirmation_church: string | null;
+};
+type MarriageWitnessRow = {
+  id: number;
+  marriage_id: number;
+  full_name: string;
+  phone: string | null;
+  address: string | null;
+  signature_path: string | null;
+  sort_order: number;
 };
 type HolyOrderRow = {
   id: number;
@@ -65,6 +116,12 @@ type HolyOrderRow = {
   order_type: string;
   officiating_bishop: string;
   parish_id: number | null;
+};
+type BaptismNoteRow = {
+  id: number;
+  baptism_id: number;
+  content: string;
+  created_at: string;
 };
 
 function toDiocese(r: DioceseRow): Diocese {
@@ -81,31 +138,39 @@ function toParish(r: ParishRow): Parish {
 function toBaptism(r: BaptismRow): Baptism {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismName: r.baptism_name,
+    otherNames: r.other_names ?? '',
     surname: r.surname,
     gender: r.gender,
     dateOfBirth: r.date_of_birth,
     fathersName: r.fathers_name,
     mothersName: r.mothers_name,
     sponsorNames: r.sponsor_names,
+    officiatingPriest: r.officiating_priest ?? '',
     parishId: r.parish_id,
     address: r.address ?? undefined,
     parishAddress: r.parish_address ?? undefined,
     parentAddress: r.parent_address ?? undefined,
+    note: r.note ?? undefined,
   };
 }
 function toCommunion(r: CommunionRow): FirstHolyCommunion {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismId: r.baptism_id,
     communionDate: r.communion_date,
     officiatingPriest: r.officiating_priest,
     parish: r.parish,
+    baptismCertificatePath: r.baptism_certificate_path ?? undefined,
+    communionCertificatePath: r.communion_certificate_path ?? undefined,
   };
 }
 function toConfirmation(r: ConfirmationRow): Confirmation {
   return {
     id: r.id,
+    createdAt: r.created_at ?? undefined,
     baptismId: r.baptism_id,
     communionId: r.communion_id,
     confirmationDate: r.confirmation_date,
@@ -116,13 +181,57 @@ function toConfirmation(r: ConfirmationRow): Confirmation {
 function toMarriage(r: MarriageRow): Marriage {
   return {
     id: r.id,
-    baptismId: r.baptism_id,
-    communionId: r.communion_id,
-    confirmationId: r.confirmation_id,
+    createdAt: r.created_at ?? undefined,
+    baptismId: r.baptism_id ?? undefined,
+    communionId: r.communion_id ?? undefined,
+    confirmationId: r.confirmation_id ?? undefined,
     partnersName: r.partners_name,
     marriageDate: r.marriage_date,
+    marriageTime: r.marriage_time ?? undefined,
+    churchName: r.church_name ?? undefined,
+    marriageRegister: r.marriage_register ?? undefined,
+    diocese: r.diocese ?? undefined,
+    civilRegistryNumber: r.civil_registry_number ?? undefined,
+    dispensationGranted: r.dispensation_granted ?? undefined,
+    canonicalNotes: r.canonical_notes ?? undefined,
     officiatingPriest: r.officiating_priest,
     parish: r.parish,
+  };
+}
+function toMarriageParty(r: MarriagePartyRow): MarriageParty {
+  return {
+    id: r.id,
+    marriageId: r.marriage_id,
+    role: r.role as 'GROOM' | 'BRIDE',
+    fullName: r.full_name,
+    dateOfBirth: r.date_of_birth ?? undefined,
+    placeOfBirth: r.place_of_birth ?? undefined,
+    nationality: r.nationality ?? undefined,
+    residentialAddress: r.residential_address ?? undefined,
+    phone: r.phone ?? undefined,
+    email: r.email ?? undefined,
+    occupation: r.occupation ?? undefined,
+    maritalStatus: r.marital_status ?? undefined,
+    baptismId: r.baptism_id ?? undefined,
+    communionId: r.communion_id ?? undefined,
+    confirmationId: r.confirmation_id ?? undefined,
+    baptismCertificatePath: r.baptism_certificate_path ?? undefined,
+    communionCertificatePath: r.communion_certificate_path ?? undefined,
+    confirmationCertificatePath: r.confirmation_certificate_path ?? undefined,
+    baptismChurch: r.baptism_church ?? undefined,
+    communionChurch: r.communion_church ?? undefined,
+    confirmationChurch: r.confirmation_church ?? undefined,
+  };
+}
+function toMarriageWitness(r: MarriageWitnessRow): MarriageWitness {
+  return {
+    id: r.id,
+    marriageId: r.marriage_id,
+    fullName: r.full_name,
+    phone: r.phone ?? undefined,
+    address: r.address ?? undefined,
+    signaturePath: r.signature_path ?? undefined,
+    sortOrder: r.sort_order,
   };
 }
 function toHolyOrder(r: HolyOrderRow): HolyOrder {
@@ -205,19 +314,61 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
   const row = {
     parish_id: record.parishId,
     baptism_name: record.baptismName,
+    other_names: record.otherNames ?? '',
     surname: record.surname,
     gender: record.gender,
     date_of_birth: record.dateOfBirth,
     fathers_name: record.fathersName,
     mothers_name: record.mothersName,
     sponsor_names: record.sponsorNames,
+    officiating_priest: record.officiatingPriest ?? '',
     address: record.address ?? null,
     parish_address: record.parishAddress ?? null,
     parent_address: record.parentAddress ?? null,
+    note: record.note ?? null,
   };
   const { data, error } = await getDb().from('baptisms').insert(row).select('*').single();
   if (error) throw error;
   return toBaptism(data as BaptismRow);
+}
+
+function toBaptismNote(r: BaptismNoteRow): BaptismNote {
+  return {
+    id: r.id,
+    baptismId: r.baptism_id,
+    content: r.content,
+    createdAt: r.created_at,
+  };
+}
+
+export async function getBaptismNoteHistory(baptismId: number): Promise<BaptismNote[]> {
+  try {
+    const { data, error } = await getDb()
+      .from('baptism_notes')
+      .select('*')
+      .eq('baptism_id', baptismId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return (data ?? []).map((r) => toBaptismNote(r as BaptismNoteRow));
+  } catch {
+    return [];
+  }
+}
+
+export async function updateBaptism(id: number, patch: { note?: string }): Promise<Baptism | null> {
+  const updates: Record<string, unknown> = {};
+  if (patch.note !== undefined) updates.note = patch.note;
+  if (Object.keys(updates).length === 0) return getBaptismById(id);
+  if (patch.note !== undefined) {
+    try {
+      await getDb().from('baptism_notes').insert({ baptism_id: id, content: patch.note });
+    } catch {
+      // Table may not exist yet; run migration 008_baptism_notes_history.sql. Note still saved on baptisms.note.
+    }
+  }
+  const { data, error } = await getDb().from('baptisms').update(updates).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data ? toBaptism(data as BaptismRow) : null;
 }
 
 // Communions
@@ -233,12 +384,26 @@ export async function getCommunionById(id: number): Promise<FirstHolyCommunion |
   return data ? toCommunion(data as CommunionRow) : null;
 }
 
+export async function getCommunionByBaptismId(baptismId: number): Promise<FirstHolyCommunion | null> {
+  const { data, error } = await getDb()
+    .from('communions')
+    .select('*')
+    .eq('baptism_id', baptismId)
+    .not('baptism_certificate_path', 'is', null)
+    .limit(1);
+  if (error) throw error;
+  const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+  return row ? toCommunion(row as CommunionRow) : null;
+}
+
 export async function addCommunion(record: FirstHolyCommunion): Promise<FirstHolyCommunion> {
   const row = {
     baptism_id: record.baptismId,
     communion_date: record.communionDate,
     officiating_priest: record.officiatingPriest,
     parish: record.parish,
+    baptism_certificate_path: record.baptismCertificatePath ?? null,
+    communion_certificate_path: record.communionCertificatePath ?? null,
   };
   const { data, error } = await getDb().from('communions').insert(row).select('*').single();
   if (error) throw error;
@@ -284,19 +449,129 @@ export async function getMarriageById(id: number): Promise<Marriage | null> {
   return data ? toMarriage(data as MarriageRow) : null;
 }
 
+export async function getMarriagePartiesByMarriageId(marriageId: number): Promise<MarriageParty[]> {
+  const { data, error } = await getDb()
+    .from('marriage_parties')
+    .select('*')
+    .eq('marriage_id', marriageId)
+    .order('role');
+  if (error) throw error;
+  return (data ?? []).map((r) => toMarriageParty(r as MarriagePartyRow));
+}
+
+export async function getMarriageWitnessesByMarriageId(marriageId: number): Promise<MarriageWitness[]> {
+  const { data, error } = await getDb()
+    .from('marriage_witnesses')
+    .select('*')
+    .eq('marriage_id', marriageId)
+    .order('sort_order');
+  if (error) throw error;
+  return (data ?? []).map((r) => toMarriageWitness(r as MarriageWitnessRow));
+}
+
 export async function addMarriage(record: Marriage): Promise<Marriage> {
   const row = {
-    baptism_id: record.baptismId,
-    communion_id: record.communionId,
-    confirmation_id: record.confirmationId,
+    baptism_id: record.baptismId ?? null,
+    communion_id: record.communionId ?? null,
+    confirmation_id: record.confirmationId ?? null,
     partners_name: record.partnersName,
     marriage_date: record.marriageDate,
+    marriage_time: record.marriageTime ?? null,
+    church_name: record.churchName ?? null,
+    marriage_register: record.marriageRegister ?? null,
+    diocese: record.diocese ?? null,
+    civil_registry_number: record.civilRegistryNumber ?? null,
+    dispensation_granted: record.dispensationGranted ?? null,
+    canonical_notes: record.canonicalNotes ?? null,
     officiating_priest: record.officiatingPriest,
     parish: record.parish,
   };
   const { data, error } = await getDb().from('marriages').insert(row).select('*').single();
   if (error) throw error;
   return toMarriage(data as MarriageRow);
+}
+
+/** Create marriage with groom/bride parties and witnesses (new form flow). */
+export interface CreateMarriageWithPartiesPayload {
+  marriage: Omit<Marriage, 'id'>;
+  groom: Omit<MarriageParty, 'id' | 'marriageId'>;
+  bride: Omit<MarriageParty, 'id' | 'marriageId'>;
+  witnesses: Array<Omit<MarriageWitness, 'id' | 'marriageId'>>;
+}
+
+export async function addMarriageWithParties(payload: CreateMarriageWithPartiesPayload): Promise<Marriage> {
+  const { marriage, groom, bride, witnesses } = payload;
+  const marriageRow = {
+    baptism_id: null,
+    communion_id: null,
+    confirmation_id: null,
+    partners_name: marriage.partnersName,
+    marriage_date: marriage.marriageDate,
+    marriage_time: marriage.marriageTime ?? null,
+    church_name: marriage.churchName ?? null,
+    marriage_register: marriage.marriageRegister ?? null,
+    diocese: marriage.diocese ?? null,
+    civil_registry_number: marriage.civilRegistryNumber ?? null,
+    dispensation_granted: marriage.dispensationGranted ?? null,
+    canonical_notes: marriage.canonicalNotes ?? null,
+    officiating_priest: marriage.officiatingPriest,
+    parish: marriage.parish,
+  };
+  const { data: marriageData, error: marriageError } = await getDb()
+    .from('marriages')
+    .insert(marriageRow)
+    .select('*')
+    .single();
+  if (marriageError) throw marriageError;
+  const marriageId = (marriageData as MarriageRow).id;
+
+  const partyRow = (p: Omit<MarriageParty, 'id' | 'marriageId'>, role: 'GROOM' | 'BRIDE') => ({
+    marriage_id: marriageId,
+    role,
+    full_name: p.fullName,
+    date_of_birth: p.dateOfBirth ?? null,
+    place_of_birth: p.placeOfBirth ?? null,
+    nationality: p.nationality ?? null,
+    residential_address: p.residentialAddress ?? null,
+    phone: p.phone ?? null,
+    email: p.email ?? null,
+    occupation: p.occupation ?? null,
+    marital_status: p.maritalStatus ?? null,
+    baptism_id: p.baptismId ?? null,
+    communion_id: p.communionId ?? null,
+    confirmation_id: p.confirmationId ?? null,
+    baptism_certificate_path: p.baptismCertificatePath ?? null,
+    communion_certificate_path: p.communionCertificatePath ?? null,
+    confirmation_certificate_path: p.confirmationCertificatePath ?? null,
+    baptism_church: p.baptismChurch ?? null,
+    communion_church: p.communionChurch ?? null,
+    confirmation_church: p.confirmationChurch ?? null,
+  });
+
+  const { error: groomError } = await getDb()
+    .from('marriage_parties')
+    .insert(partyRow(groom, 'GROOM'));
+  if (groomError) throw groomError;
+
+  const { error: brideError } = await getDb()
+    .from('marriage_parties')
+    .insert(partyRow(bride, 'BRIDE'));
+  if (brideError) throw brideError;
+
+  if (witnesses.length > 0) {
+    const witnessRows = witnesses.map((w, i) => ({
+      marriage_id: marriageId,
+      full_name: w.fullName,
+      phone: w.phone ?? null,
+      address: w.address ?? null,
+      signature_path: w.signaturePath ?? null,
+      sort_order: w.sortOrder ?? i,
+    }));
+    const { error: witError } = await getDb().from('marriage_witnesses').insert(witnessRows);
+    if (witError) throw witError;
+  }
+
+  return toMarriage(marriageData as MarriageRow);
 }
 
 // Holy orders

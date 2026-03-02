@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserFromToken, getCommunionById } from '@/lib/api-store';
+import { getUserFromToken, getCommunionById, getBaptismById, getParishes } from '@/lib/api-store';
 
 export async function GET(
   request: Request,
@@ -18,5 +18,16 @@ export async function GET(
   if (!record) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  return NextResponse.json(record);
+  const baptism = await getBaptismById(record.baptismId);
+  const parishes = await getParishes();
+  const baptismParish = baptism ? parishes.find((p) => p.id === baptism.parishId) : undefined;
+  const payload = {
+    ...record,
+    baptismName: baptism?.baptismName ?? undefined,
+    otherNames: baptism?.otherNames ?? undefined,
+    surname: baptism?.surname ?? undefined,
+    dateOfBirth: baptism?.dateOfBirth ?? undefined,
+    baptismParishName: baptismParish?.parishName ?? undefined,
+  };
+  return NextResponse.json(payload);
 }

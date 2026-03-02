@@ -8,6 +8,7 @@ RUN npm ci
 
 COPY . .
 RUN mkdir -p /app/public
+ENV BUILD_STANDALONE=1
 RUN npm run build
 
 # Run stage
