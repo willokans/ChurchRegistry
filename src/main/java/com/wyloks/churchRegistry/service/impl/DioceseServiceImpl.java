@@ -4,6 +4,7 @@ import com.wyloks.churchRegistry.dto.DioceseRequest;
 import com.wyloks.churchRegistry.dto.DioceseResponse;
 import com.wyloks.churchRegistry.entity.Diocese;
 import com.wyloks.churchRegistry.repository.DioceseRepository;
+import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.DioceseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,11 +19,19 @@ import java.util.stream.Collectors;
 public class DioceseServiceImpl implements DioceseService {
 
     private final DioceseRepository dioceseRepository;
+    private final CurrentUserAccessService currentUserAccessService;
 
     @Override
     @Transactional(readOnly = true)
     public List<DioceseResponse> findAll() {
-        return dioceseRepository.findAll().stream()
+        CurrentUserAccessService.CurrentUserAccess currentUser = currentUserAccessService.currentUser();
+        List<Diocese> dioceses = currentUser.isAdmin()
+                ? dioceseRepository.findAll()
+                : currentUser.parishIds().isEmpty()
+                    ? List.of()
+                    : dioceseRepository.findDistinctByParishesIdIn(currentUser.parishIds());
+
+        return dioceses.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }

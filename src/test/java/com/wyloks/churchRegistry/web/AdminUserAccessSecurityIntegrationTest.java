@@ -140,6 +140,52 @@ class AdminUserAccessSecurityIntegrationTest {
                 .andExpect(jsonPath("$.message").isString());
     }
 
+    @Test
+    void nonAdminUser_dioceseAndParishListings_areScopedByAssignedParishAccess() throws Exception {
+        String adminToken = loginAndGetToken("admin", "password");
+
+        long seed = System.nanoTime();
+        Long accessibleDioceseId = createDiocese(adminToken, "Scoped Diocese A " + seed, "SDA" + (seed % 10000));
+        Long blockedDioceseId = createDiocese(adminToken, "Scoped Diocese B " + seed, "SDB" + (seed % 10000));
+        Long accessibleParishId = createParish(adminToken, accessibleDioceseId, "Scoped Parish A " + seed);
+        createParish(adminToken, blockedDioceseId, "Scoped Parish B " + seed);
+
+        JsonNode users = listUsersWithParishAccess(adminToken);
+        Long priestUserId = findUserIdByUsername(users, "priest@church_registry.com");
+        String replaceRequest = objectMapper.writeValueAsString(
+                new ReplaceUserParishAccessPayload(Set.of(accessibleParishId), accessibleParishId)
+        );
+
+        mvc.perform(put("/api/admin/users/{id}/parish-access", priestUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replaceRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultParishId").value(accessibleParishId))
+                .andExpect(jsonPath("$.parishAccessIds.length()").value(1))
+                .andExpect(jsonPath("$.parishAccessIds[0]").value(accessibleParishId));
+
+        String priestToken = loginAndGetToken("priest@church_registry.com", "password");
+
+        mvc.perform(get("/api/dioceses")
+                        .header("Authorization", "Bearer " + priestToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(accessibleDioceseId));
+
+        mvc.perform(get("/api/dioceses/{dioceseId}/parishes", accessibleDioceseId)
+                        .header("Authorization", "Bearer " + priestToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(accessibleParishId))
+                .andExpect(jsonPath("$[0].dioceseId").value(accessibleDioceseId));
+
+        mvc.perform(get("/api/dioceses/{dioceseId}/parishes", blockedDioceseId)
+                        .header("Authorization", "Bearer " + priestToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
     private String loginAndGetToken(String username, String password) throws Exception {
         String response = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -244,6 +290,44 @@ class AdminUserAccessSecurityIntegrationTest {
                 .andExpect(status().isCreated());
 
         return listAllParishIds(token);
+    }
+
+    private Long createDiocese(String token, String name, String code) throws Exception {
+        String request = objectMapper.writeValueAsString(new DiocesePayload(name, code, "Integration test diocese"));
+        String response = mvc.perform(post("/api/dioceses")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asLong();
+    }
+
+    private Long createParish(String token, Long dioceseId, String parishName) throws Exception {
+        String request = objectMapper.writeValueAsString(
+                new ParishPayload(parishName, dioceseId, "Integration test parish")
+        );
+        String response = mvc.perform(post("/api/parishes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asLong();
+    }
+
+    private Long findUserIdByUsername(JsonNode users, String username) {
+        for (JsonNode user : users) {
+            JsonNode usernameNode = user.get("username");
+            if (usernameNode != null && username.equals(usernameNode.asText())) {
+                return user.get("userId").asLong();
+            }
+        }
+        throw new IllegalStateException("Could not find user: " + username);
     }
 
     private record ReplaceUserParishAccessPayload(Set<Long> parishIds, Long defaultParishId) {}
