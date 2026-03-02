@@ -483,12 +483,14 @@ export default function MarriageViewPage() {
   const witnessesList = marriage.witnesses?.map((w) => w.fullName).join(', ') ?? '—';
 
   async function handleSaveNotes() {
+    const currentMarriage = marriage;
+    if (!currentMarriage) return;
     setNotesError(null);
     setSavingNotes(true);
     try {
-      const updated = await updateMarriageNotes(marriage.id, notes);
+      const updated = await updateMarriageNotes(currentMarriage.id, notes);
       setMarriage(updated);
-      const list = await fetchMarriageNoteHistory(marriage.id);
+      const list = await fetchMarriageNoteHistory(currentMarriage.id);
       setNoteHistory(list);
       setNotes('');
     } catch (e) {

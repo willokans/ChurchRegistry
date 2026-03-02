@@ -2,6 +2,9 @@ databaseChangeLog:
   - changeSet:
       id: 14
       author: will_okanumeh
+      validCheckSum:
+        - 9:9d9f782158a2a0b14104a6197d2432a4
+        - 9:b927eed2d7b5f3bd9376b81134fcd3de
       changes:
         - sql:
             sql: |
@@ -15,6 +18,9 @@ databaseChangeLog:
   - changeSet:
       id: 15
       author: will_okanumeh
+      validCheckSum:
+        - 9:a57471bbe0ba2631aeaa67327dbf2bef
+        - 9:fba2d7f5dd6ef01b25d1122c1d2bccdb
       changes:
         - sql:
             sql: |
@@ -25,6 +31,9 @@ databaseChangeLog:
   - changeSet:
       id: 16
       author: will_okanumeh
+      validCheckSum:
+        - 9:0182df245d687f0241164782d095eb27
+        - 9:b7cfcc11115725b1e2796692bf1f9007
       changes:
         - sql:
             sql: |
