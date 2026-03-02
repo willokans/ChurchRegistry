@@ -130,7 +130,7 @@ function useDashboardData(parishId: number | null) {
     const source = primaryDate || fallbackDate;
     if (!source) return null;
     const d = new Date(source);
-    if (Number.isNaN(d.getTime()) || d.getFullYear() !== currentYear) return null;
+    if (Number.isNaN(d.getTime())) return null;
     return d.getMonth();
   };
 
@@ -285,7 +285,8 @@ export default function DashboardPage() {
 
             {/* Sacraments overview grouped (clustered) bar chart */}
             <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Sacraments overview – {currentYear}</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-1">Sacraments overview by month</h2>
+              <p className="text-xs text-gray-500 mb-3">All records grouped by month of creation</p>
               <div className="overflow-x-auto pb-1">
                 <div className="flex items-end gap-2 h-56 min-w-[780px] border-b border-gray-100">
                   {monthNames.map((name, i) => (
