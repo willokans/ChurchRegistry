@@ -1,11 +1,18 @@
-/** When unset, use same origin so Next.js API routes are used. Set to e.g. http://localhost:8080 for an external API. */
-const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL ?? '';
-
+/**
+ * Frontend runs as a UI-only client: all API traffic must go to Spring Boot.
+ * NEXT_PUBLIC_API_URL must be an absolute URL (e.g. http://localhost:8080).
+ */
 function getBaseUrl(): string {
-  const env = getApiUrl();
-  if (env) return env;
-  if (typeof window !== 'undefined') return window.location.origin;
-  return '';
+  const raw = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!raw) {
+    throw new Error('Missing NEXT_PUBLIC_API_URL. Configure the Spring Boot API URL for the frontend runtime.');
+  }
+
+  try {
+    return new URL(raw).toString().replace(/\/$/, '');
+  } catch {
+    throw new Error('Invalid NEXT_PUBLIC_API_URL. Provide an absolute URL like http://localhost:8080');
+  }
 }
 
 export async function login(username: string, password: string) {
