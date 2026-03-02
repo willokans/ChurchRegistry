@@ -16,4 +16,6 @@ public class LoginResponse {
     private String username;
     private String displayName;
     private String role;
+    /** Default parish for this user (app_user.parish_id). Shown when user logs in. */
+    private Long defaultParishId;
 }

@@ -8,4 +8,6 @@ import java.util.Set;
 
 public interface DioceseRepository extends JpaRepository<Diocese, Long> {
     List<Diocese> findDistinctByParishesIdIn(Set<Long> parishIds);
+
+    boolean existsByDioceseNameIgnoreCase(String dioceseName);
 }

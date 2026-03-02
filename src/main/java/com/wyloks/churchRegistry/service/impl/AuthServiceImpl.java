@@ -67,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .role(user.getRole())
+                .defaultParishId(user.getParish() != null ? user.getParish().getId() : null)
                 .build();
     }
 
@@ -95,6 +96,7 @@ public class AuthServiceImpl implements AuthService {
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .role(user.getRole())
+                .defaultParishId(user.getParish() != null ? user.getParish().getId() : null)
                 .build();
     }
 

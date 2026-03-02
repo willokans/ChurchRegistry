@@ -80,6 +80,16 @@ function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
+/** Parse error response text; prefer 'error' or 'message' from JSON when present. */
+function parseErrorResponse(text: string, fallback: string): string {
+  try {
+    const j = JSON.parse(text) as { error?: string; message?: string };
+    return (j.error ?? j.message ?? fallback).trim() || fallback;
+  } catch {
+    return text.trim() || fallback;
+  }
+}
+
 export interface BaptismResponse {
   id: number;
   createdAt?: string;
@@ -160,24 +170,24 @@ export async function createDiocese(name: string): Promise<DioceseResponse> {
   const res = await fetch(`${getBaseUrl()}/api/dioceses`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ dioceseName: name }),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || 'Failed to create diocese');
+    throw new Error(parseErrorResponse(text, 'Failed to create diocese'));
   }
   return res.json();
 }
 
 export async function createParish(dioceseId: number, parishName: string): Promise<ParishResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/dioceses/${dioceseId}/parishes`, {
+  const res = await fetch(`${getBaseUrl()}/api/parishes`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ parishName }),
+    body: JSON.stringify({ parishName, dioceseId }),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || 'Failed to create parish');
+    throw new Error(parseErrorResponse(text, 'Failed to create parish'));
   }
   return res.json();
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { login, storeAuth } from '@/lib/api';
+import { login, storeAuth, setStoredParishId } from '@/lib/api';
 
 function CrossIcon({ className }: { className?: string }) {
   // Latin cross with subtly flared ends, solid fill (matches Sancta reference)
@@ -70,6 +70,9 @@ export default function LoginPage() {
         throw new Error('Invalid response from server');
       }
       storeAuth(token, refreshToken, user);
+      // Set default parish so ParishContext shows it on first load
+      const defaultParishId = res?.defaultParishId != null ? Number(res.defaultParishId) : null;
+      setStoredParishId(defaultParishId);
       // Full page navigation so home loads with auth in localStorage
       window.location.href = '/';
     } catch (err) {

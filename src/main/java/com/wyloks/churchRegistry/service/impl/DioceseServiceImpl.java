@@ -45,8 +45,12 @@ public class DioceseServiceImpl implements DioceseService {
     @Override
     @Transactional
     public DioceseResponse create(DioceseRequest request) {
+        String name = request.getDioceseName() != null ? request.getDioceseName().trim() : "";
+        if (dioceseRepository.existsByDioceseNameIgnoreCase(name)) {
+            throw new IllegalArgumentException("A diocese with that name already exists");
+        }
         Diocese entity = Diocese.builder()
-                .dioceseName(request.getDioceseName())
+                .dioceseName(name)
                 .code(request.getCode())
                 .description(request.getDescription())
                 .build();

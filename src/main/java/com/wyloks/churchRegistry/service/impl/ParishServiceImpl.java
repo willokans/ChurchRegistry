@@ -50,8 +50,12 @@ public class ParishServiceImpl implements ParishService {
     public ParishResponse create(ParishRequest request) {
         Diocese diocese = dioceseRepository.findById(request.getDioceseId())
                 .orElseThrow(() -> new IllegalArgumentException("Diocese not found: " + request.getDioceseId()));
+        String parishName = request.getParishName() != null ? request.getParishName().trim() : "";
+        if (parishRepository.existsByParishNameIgnoreCaseAndDioceseId(parishName, diocese.getId())) {
+            throw new IllegalArgumentException("A parish with that name already exists in this diocese");
+        }
         Parish entity = Parish.builder()
-                .parishName(request.getParishName())
+                .parishName(parishName)
                 .diocese(diocese)
                 .description(request.getDescription())
                 .build();

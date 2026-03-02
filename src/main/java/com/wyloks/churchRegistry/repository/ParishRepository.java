@@ -13,4 +13,6 @@ public interface ParishRepository extends JpaRepository<Parish, Long> {
     List<Parish> findByIdInAndDioceseId(Set<Long> parishIds, Long dioceseId);
 
     List<Parish> findByIdIn(Set<Long> parishIds);
+
+    boolean existsByParishNameIgnoreCaseAndDioceseId(String parishName, Long dioceseId);
 }
