@@ -36,11 +36,16 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_API_APP_NAME: ${{ vars.FLY_API_APP_NAME }}
+          FLY_ORG: ${{ vars.FLY_ORG }}
         run: |
           set -euo pipefail
           APP_NAME="${FLY_API_APP_NAME:-church-registry-api-staging}"
           if ! flyctl apps show "$APP_NAME" >/dev/null 2>&1; then
-            flyctl apps create "$APP_NAME"
+            if [ -n "${FLY_ORG:-}" ]; then
+              flyctl apps create "$APP_NAME" --org "$FLY_ORG"
+            else
+              flyctl apps create "$APP_NAME"
+            fi
           fi
 
       - name: Sync API secrets

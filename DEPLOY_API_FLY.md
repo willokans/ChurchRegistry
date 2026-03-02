@@ -25,6 +25,7 @@ This repository now includes a dedicated Fly.io deployment path for the Spring B
 
 - `FLY_API_APP_NAME` (optional, defaults to `church-registry-api-staging`)
 - `FLY_FRONTEND_APP_NAME` (optional, defaults to `church-registry-staging`)
+- `FLY_ORG` (optional, Fly organization slug used if workflow needs to create the API app)
 
 ## Runtime behavior
 
