@@ -2,9 +2,11 @@ package com.wyloks.churchRegistry.web;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,5 +32,25 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation failed");
         body.put("fields", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        return ResponseEntity.status(status).body(errorBody(status, ex.getReason()));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(errorBody(HttpStatus.FORBIDDEN, ex.getMessage()));
+    }
+
+    private Map<String, Object> errorBody(HttpStatus status, String message) {
+        return Map.of(
+                "status", status.value(),
+                "error", status.getReasonPhrase(),
+                "message", message != null ? message : status.getReasonPhrase()
+        );
     }
 }

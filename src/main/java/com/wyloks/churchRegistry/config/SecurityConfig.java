@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -31,12 +33,25 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint((req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
+                        .authenticationEntryPoint((req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .accessDeniedHandler((req, res, ex) -> {
+                            HttpStatus status = HttpStatus.FORBIDDEN;
+                            String message = ex.getMessage() != null ? ex.getMessage() : status.getReasonPhrase();
+                            String escapedMessage = message
+                                    .replace("\\", "\\\\")
+                                    .replace("\"", "\\\"");
+                            res.setStatus(status.value());
+                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            res.getWriter().write("{\"status\":" + status.value()
+                                    + ",\"error\":\"" + status.getReasonPhrase()
+                                    + "\",\"message\":\"" + escapedMessage + "\"}");
+                        }))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST,
                                 "/api/parishes/*/baptisms",
                                 "/api/communions",
