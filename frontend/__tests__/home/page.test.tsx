@@ -73,4 +73,41 @@ describe('Dashboard page', () => {
     expect(main).toHaveTextContent(/Administrator/);
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it('shows Holy Communion summary card with count', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchBaptisms.mockResolvedValue([]);
+    api.fetchCommunions.mockResolvedValue([
+      { id: 1, baptismId: 1, communionDate: '2026-01-10', officiatingPriest: 'Fr A', parish: 'St Mary' },
+      { id: 2, baptismId: 2, communionDate: '2026-02-11', officiatingPriest: 'Fr B', parish: 'St Mary' },
+    ]);
+    api.fetchConfirmations.mockResolvedValue([]);
+    api.fetchMarriages.mockResolvedValue([]);
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/^Holy Communion$/i).length).toBeGreaterThan(0);
+    });
+    const communionLabel = screen.getAllByText(/^Holy Communion$/i)[0];
+    const communionCard = communionLabel.closest('div')?.parentElement ?? null;
+    expect(communionCard).not.toBeNull();
+    expect((communionCard as HTMLElement).textContent).toContain('2');
+  });
 });
