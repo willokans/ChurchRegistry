@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wyloks.churchRegistry.dto.BaptismRequest;
 import com.wyloks.churchRegistry.dto.BaptismResponse;
+import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.BaptismService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class BaptismControllerTest {
 
     @MockBean
     BaptismService baptismService;
+
+    @MockBean
+    SacramentAuthorizationService sacramentAuthorizationService;
 
     @BeforeEach
     void setUp() {
