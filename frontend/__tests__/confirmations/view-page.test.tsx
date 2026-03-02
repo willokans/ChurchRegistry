@@ -6,7 +6,15 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { useRouter, useParams } from 'next/navigation';
 import ConfirmationViewPage from '@/app/confirmations/[id]/page';
-import { getStoredToken, getStoredUser, fetchConfirmation } from '@/lib/api';
+import {
+  getStoredToken,
+  getStoredUser,
+  fetchConfirmation,
+  fetchBaptism,
+  fetchCommunion,
+  fetchBaptismExternalCertificate,
+  fetchCommunionCertificate,
+} from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -17,6 +25,10 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchConfirmation: jest.fn(),
+  fetchBaptism: jest.fn(),
+  fetchCommunion: jest.fn(),
+  fetchBaptismExternalCertificate: jest.fn(),
+  fetchCommunionCertificate: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -36,6 +48,29 @@ describe('Confirmation view page', () => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
     (useParams as jest.Mock).mockReturnValue({ id: '7' });
+    (fetchBaptism as jest.Mock).mockResolvedValue({
+      id: 5,
+      baptismName: 'John',
+      otherNames: '',
+      surname: 'Doe',
+      gender: 'MALE',
+      dateOfBirth: '1990-01-01',
+      fathersName: 'Father Doe',
+      mothersName: 'Mother Doe',
+      sponsorNames: 'Sponsor',
+      officiatingPriest: 'Fr. A',
+      parishId: 10,
+      parishName: 'St Mary',
+    });
+    (fetchCommunion as jest.Mock).mockResolvedValue({
+      id: 2,
+      baptismId: 5,
+      communionDate: '2000-06-10',
+      officiatingPriest: 'Fr. B',
+      parish: 'St Mary',
+    });
+    (fetchBaptismExternalCertificate as jest.Mock).mockRejectedValue(new Error('no external cert'));
+    (fetchCommunionCertificate as jest.Mock).mockRejectedValue(new Error('no external cert'));
     (fetchConfirmation as jest.Mock).mockResolvedValue({
       id: 7,
       baptismId: 5,
@@ -51,17 +86,17 @@ describe('Confirmation view page', () => {
     await waitFor(() => {
       expect(fetchConfirmation).toHaveBeenCalledWith(7);
     });
-    expect(screen.getByRole('main')).toHaveTextContent('2025-04-01');
+    expect(screen.getByRole('main')).toHaveTextContent('April 1, 2025');
   });
 
   it('shows confirmation details', async () => {
     render(<ConfirmationViewPage />);
     await waitFor(() => {
-      expect(screen.getByText(/Bishop Jones/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Bishop Jones/).length).toBeGreaterThan(0);
     });
     const main = screen.getByRole('main');
-    expect(within(main).getByText(/St Mary/)).toBeInTheDocument();
-    expect(within(main).getByText(/Communion #2|communion.*2/i)).toBeInTheDocument();
+    expect(within(main).getAllByText(/St Mary/).length).toBeGreaterThan(0);
+    expect(within(main).getByText(/View Communion Record/i)).toBeInTheDocument();
   });
 
   it('when confirmation not found shows not-found message', async () => {
