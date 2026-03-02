@@ -38,6 +38,10 @@ databaseChangeLog:
   - changeSet:
       id: 21
       author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
       changes:
         - sql:
             sql: |
