@@ -156,12 +156,6 @@ function useDashboardData(parishId: number | null) {
     const m = getMonthIndex(r.createdAt, r.marriageDate);
     if (m !== null) monthly.marriages[m]++;
   });
-  const plotted = {
-    baptisms: monthly.baptisms.reduce((sum, value) => sum + value, 0),
-    communions: monthly.communions.reduce((sum, value) => sum + value, 0),
-    confirmations: monthly.confirmations.reduce((sum, value) => sum + value, 0),
-    marriages: monthly.marriages.reduce((sum, value) => sum + value, 0),
-  };
   const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.communions, ...monthly.confirmations, ...monthly.marriages);
 
   return {
@@ -173,7 +167,6 @@ function useDashboardData(parishId: number | null) {
       confirmations: monthly.confirmations,
       marriages: monthly.marriages,
     },
-    plotted,
     monthNames,
     maxBar,
     loading,
@@ -184,7 +177,7 @@ function useDashboardData(parishId: number | null) {
 export default function DashboardPage() {
   const user = getStoredUser();
   const { parishId, parishes } = useParish();
-  const { counts, recent, monthly, plotted, monthNames, maxBar, loading, error } = useDashboardData(parishId ?? null);
+  const { counts, recent, monthly, monthNames, maxBar, loading, error } = useDashboardData(parishId ?? null);
 
   const parish = parishId ? parishes.find((p) => p.id === parishId) : undefined;
   const parishName = parish?.parishName ?? null;
@@ -344,9 +337,6 @@ export default function DashboardPage() {
                 <span className="flex items-center gap-1.5 text-sm text-gray-600">
                   <span className="w-3 h-3 rounded bg-amber-700" /> Marriages
                 </span>
-              </div>
-              <div className="mt-2 text-xs text-gray-500">
-                Plotted totals - Baptisms: {plotted.baptisms}/{counts.baptisms}, Holy Communion: {plotted.communions}/{counts.communions}, Confirmations: {plotted.confirmations}/{counts.confirmations}, Marriages: {plotted.marriages}/{counts.marriages}
               </div>
             </section>
 

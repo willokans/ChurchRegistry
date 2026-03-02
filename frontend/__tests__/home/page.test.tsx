@@ -156,11 +156,7 @@ describe('Dashboard page', () => {
 
     render(<DashboardPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Plotted totals - Baptisms: 1/1, Holy Communion: 0/0, Confirmations: 0/0, Marriages: 0/0')).toBeInTheDocument();
-    });
-
-    const baptismBar = screen.getByTitle('Baptisms: 1');
+    const baptismBar = await waitFor(() => screen.getByTitle('Baptisms: 1'));
     expect(baptismBar).toHaveStyle('height: 100%');
   });
 });
