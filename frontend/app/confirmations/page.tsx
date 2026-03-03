@@ -38,8 +38,13 @@ function DotsVerticalIcon({ className }: { className?: string }) {
 export default function ConfirmationsListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const { data: confirmations, isLoading: loading, error } = useConfirmations(parishId);
+  const [page, setPage] = useState(0);
+  const { data: confirmations, totalElements, totalPages, size, isLoading: loading, error } = useConfirmations(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
+
+  useEffect(() => {
+    setPage(0);
+  }, [parishId]);
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 

@@ -37,6 +37,20 @@ public class BaptismController {
         return result;
     }
 
+    @GetMapping("/api/parishes/{parishId}/baptisms/search")
+    public Page<BaptismResponse> searchByParish(
+            @PathVariable Long parishId,
+            @RequestParam(value = "q", required = false) String query,
+            @PageableDefault(size = 50) Pageable pageable) {
+        authorizationService.requireParishAccess(parishId);
+        if (query == null || query.isBlank()) {
+            return new org.springframework.data.domain.PageImpl<>(java.util.List.of(), pageable, 0);
+        }
+        Page<BaptismResponse> result = baptismService.searchByNameOrAddress(parishId, query.trim(), pageable);
+        auditService.logReadList(SacramentType.BAPTISM, parishId);
+        return result;
+    }
+
     @GetMapping("/api/baptisms/{id}")
     public ResponseEntity<BaptismResponse> getById(@PathVariable Long id) {
         authorizationService.findBaptismParishId(id).ifPresent(authorizationService::requireParishAccess);

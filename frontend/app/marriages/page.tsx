@@ -15,8 +15,13 @@ import type { MarriageResponse } from '@/lib/api';
 export default function MarriagesListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const { data: marriages, isLoading: loading, error } = useMarriages(parishId);
+  const [page, setPage] = useState(0);
+  const { data: marriages, totalElements, totalPages, size, isLoading: loading, error } = useMarriages(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
+
+  useEffect(() => {
+    setPage(0);
+  }, [parishId]);
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 

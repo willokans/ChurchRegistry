@@ -74,6 +74,33 @@ class BaptismControllerTest {
     }
 
     @Test
+    void searchBaptisms_returnsMatchingResults() throws Exception {
+        BaptismResponse response = BaptismResponse.builder()
+                .id(1L)
+                .baptismName("Alice")
+                .surname("Smith")
+                .parishId(1L)
+                .build();
+        when(baptismService.searchByNameOrAddress(eq(1L), eq("alice"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 50), 1));
+
+        mvc.perform(get("/api/parishes/1/baptisms/search").param("q", "alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].baptismName").value("Alice"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void searchBaptisms_returnsEmptyPage_whenQueryBlank() throws Exception {
+        mvc.perform(get("/api/parishes/1/baptisms/search").param("q", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    @Test
     void createBaptism_returns201AndBody_whenValid() throws Exception {
         BaptismRequest request = BaptismRequest.builder()
                 .baptismName("John")

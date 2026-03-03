@@ -15,6 +15,8 @@ public interface BaptismService {
 
     Page<BaptismResponse> findByParishId(Long parishId, Pageable pageable);
 
+    Page<BaptismResponse> searchByNameOrAddress(Long parishId, String query, Pageable pageable);
+
     Optional<BaptismResponse> findById(Long id);
 
     BaptismResponse create(Long parishId, BaptismRequest request);

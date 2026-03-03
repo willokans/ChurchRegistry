@@ -49,6 +49,12 @@ public class BaptismServiceImpl implements BaptismService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<BaptismResponse> searchByNameOrAddress(Long parishId, String query, Pageable pageable) {
+        return baptismRepository.searchByNameOrAddress(parishId, query, pageable).map(this::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<BaptismResponse> findById(Long id) {
         return baptismRepository.findById(id).map(this::toResponse);
     }
