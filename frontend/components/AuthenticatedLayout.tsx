@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getStoredToken, getStoredUser, clearAuth } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { getChurchBranding } from '@/lib/church-branding';
 
 function CrossIcon({ className }: { className?: string }) {
   return (
@@ -90,6 +92,9 @@ export default function AuthenticatedLayout({
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const isAdmin = user.role === 'ADMIN';
 
+  const currentParish = parishId != null ? parishes.find((p) => p.id === parishId) : undefined;
+  const churchBranding = getChurchBranding(currentParish?.parishName);
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-sancta-beige">
       {/* Mobile header with hamburger */}
@@ -109,11 +114,22 @@ export default function AuthenticatedLayout({
               Church Registry
             </span>
           </div>
-          {parishes.length > 0 && parishId != null && (
+          {churchBranding ? (
+            <div className="mt-1 w-[180px] h-11 flex items-center">
+              <Image
+                src={churchBranding.logoPath}
+                alt={churchBranding.logoAlt}
+                width={180}
+                height={44}
+                className="object-contain w-full h-full"
+                priority
+              />
+            </div>
+          ) : parishes.length > 0 && parishId != null ? (
             <span className="text-sm text-gray-500 mt-0.5 truncate">
-              {parishes.find((p) => p.id === parishId)?.parishName ?? 'Select parish'}
+              {currentParish?.parishName ?? 'Select parish'}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="w-12" aria-hidden />
       </header>
@@ -131,9 +147,23 @@ export default function AuthenticatedLayout({
             aria-label="Main navigation"
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
-                <span className="font-serif font-semibold text-sancta-maroon text-lg">Church Registry</span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
+                  <span className="font-serif font-semibold text-sancta-maroon text-lg">Church Registry</span>
+                </div>
+                {churchBranding && (
+                  <div className="mt-1 w-[180px] h-11 flex items-center">
+                    <Image
+                      src={churchBranding.logoPath}
+                      alt={churchBranding.logoAlt}
+                      width={180}
+                      height={44}
+                      className="object-contain w-full h-full"
+                      priority
+                    />
+                  </div>
+                )}
               </div>
               <button
                 type="button"
@@ -238,11 +268,25 @@ export default function AuthenticatedLayout({
       )}
 
       <aside className="hidden md:flex md:flex-col md:w-56 md:border-r md:border-gray-200 md:bg-white/80 md:py-6 md:px-4">
-        <div className="flex items-center gap-2 mb-4 px-2">
-          <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
-          <span className="font-serif font-semibold text-sancta-maroon text-lg">
-            Church Registry
-          </span>
+        <div className="mb-4 px-2">
+          <div className="flex items-center gap-2">
+            <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
+            <span className="font-serif font-semibold text-sancta-maroon text-lg">
+              Church Registry
+            </span>
+          </div>
+          {churchBranding && (
+            <div className="mt-2 w-[180px] h-11 flex items-center">
+              <Image
+                src={churchBranding.logoPath}
+                alt={churchBranding.logoAlt}
+                width={180}
+                height={44}
+                className="object-contain w-full h-full"
+                priority
+              />
+            </div>
+          )}
         </div>
         {!parishLoading && (
           <div className="mb-4 px-2">

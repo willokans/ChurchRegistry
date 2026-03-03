@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getStoredUser } from '@/lib/api';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { useParish } from '@/context/ParishContext';
+import { getChurchBranding } from '@/lib/church-branding';
 import {
   fetchBaptisms,
   fetchCommunions,
@@ -200,6 +201,8 @@ export default function DashboardPage() {
 
   const parish = parishId ? parishes.find((p) => p.id === parishId) : undefined;
   const parishName = parish?.parishName ?? null;
+  const churchBranding = getChurchBranding(parishName);
+  const welcomeTitle = churchBranding?.appTitle ?? (parishName ? `${parishName} Parish Registry` : null);
   const greeting = getGreeting();
   const displayName = user?.displayName || user?.username || '…';
 
@@ -213,7 +216,7 @@ export default function DashboardPage() {
               {greeting}, {displayName}
             </h1>
             <p className="mt-1 text-gray-600">
-              {parishName ? `Welcome to ${parishName} Parish Registry` : 'Select a parish in the sidebar'}
+              {welcomeTitle ? `Welcome to ${welcomeTitle}` : 'Select a parish in the sidebar'}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
