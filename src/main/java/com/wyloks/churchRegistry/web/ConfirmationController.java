@@ -16,11 +16,16 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class ConfirmationController {
+
+    private static final Logger log = LoggerFactory.getLogger(ConfirmationController.class);
 
     private final ConfirmationService confirmationService;
     private final SacramentAuthorizationService authorizationService;
@@ -48,9 +53,14 @@ public class ConfirmationController {
 
     @PostMapping("/confirmations")
     public ResponseEntity<ConfirmationResponse> create(@Valid @RequestBody ConfirmationRequest request) {
-        Long parishId = authorizationService.findConfirmationParishIdByCommunionId(request.getCommunionId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Communion not found or has no parish"));
+        Long communionId = request.getCommunionId();
+        Optional<Long> parishOpt = authorizationService.findCommunionParishId(communionId);
+        if (parishOpt.isEmpty()) {
+            log.warn("Confirmation create failed: communionId={} has no parish (communion missing or baptism has no parish)", communionId);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Communion not found or has no parish");
+        }
+        Long parishId = parishOpt.get();
         authorizationService.requireWriteAccessForParish(parishId);
         ConfirmationResponse created = confirmationService.create(request);
         auditService.logCreate(SacramentType.CONFIRMATION, created.getId(), parishId);
