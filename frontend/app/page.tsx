@@ -9,6 +9,7 @@ import {
   fetchBaptisms,
   fetchCommunions,
   fetchConfirmations,
+  fetchDashboardCounts,
   fetchMarriages,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
@@ -57,7 +58,8 @@ function useDashboardData(parishId: number | null) {
     setError(null);
     (async () => {
       try {
-        const [bPage, cPage, cfPage, mPage] = await Promise.all([
+        const [countsPromise, bPage, cPage, cfPage, mPage] = await Promise.all([
+          fetchDashboardCounts(parishId).catch(() => null),
           fetchBaptisms(parishId),
           fetchCommunions(parishId),
           fetchConfirmations(parishId),
@@ -68,12 +70,21 @@ function useDashboardData(parishId: number | null) {
           setCommunions(cPage.content);
           setConfirmations(cfPage.content);
           setMarriages(mPage.content);
-          setCounts({
-            baptisms: bPage.totalElements,
-            communions: cPage.totalElements,
-            confirmations: cfPage.totalElements,
-            marriages: mPage.totalElements,
-          });
+          if (countsPromise) {
+            setCounts({
+              baptisms: countsPromise.baptisms,
+              communions: countsPromise.communions,
+              confirmations: countsPromise.confirmations,
+              marriages: countsPromise.marriages,
+            });
+          } else {
+            setCounts({
+              baptisms: bPage.totalElements,
+              communions: cPage.totalElements,
+              confirmations: cfPage.totalElements,
+              marriages: mPage.totalElements,
+            });
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard');

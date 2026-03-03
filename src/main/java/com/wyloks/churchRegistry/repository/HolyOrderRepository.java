@@ -18,6 +18,8 @@ public interface HolyOrderRepository extends JpaRepository<HolyOrder, Long> {
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation", "parish"})
     List<HolyOrder> findByBaptismParishId(Long parishId);
 
+    long countByBaptismParishId(Long parishId);
+
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation", "parish"})
     Page<HolyOrder> findByBaptismParishId(Long parishId, Pageable pageable);
 

@@ -13,6 +13,8 @@ public interface BaptismRepository extends JpaRepository<Baptism, Long> {
 
     List<Baptism> findByParishId(Long parishId);
 
+    long countByParishId(Long parishId);
+
     Page<Baptism> findByParishId(Long parishId, Pageable pageable);
 
     @Query("SELECT b.parish.id FROM Baptism b WHERE b.id = :id")

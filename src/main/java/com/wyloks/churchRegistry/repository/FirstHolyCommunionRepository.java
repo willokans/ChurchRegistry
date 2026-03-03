@@ -18,6 +18,8 @@ public interface FirstHolyCommunionRepository extends JpaRepository<FirstHolyCom
     @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
     List<FirstHolyCommunion> findByBaptismParishId(Long parishId);
 
+    long countByBaptismParishId(Long parishId);
+
     @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
     Page<FirstHolyCommunion> findByBaptismParishId(Long parishId, Pageable pageable);
 

@@ -232,6 +232,23 @@ export async function createParish(dioceseId: number, parishName: string): Promi
   return res.json();
 }
 
+/** Dashboard counts for a parish. Use for accurate totals (avoids pagination undercount). */
+export interface DashboardCountsResponse {
+  baptisms: number;
+  communions: number;
+  confirmations: number;
+  marriages: number;
+  holyOrders: number;
+}
+
+export async function fetchDashboardCounts(parishId: number): Promise<DashboardCountsResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/dashboard-counts`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch dashboard counts');
+  return res.json();
+}
+
 /** Paginated response from sacrament list endpoints. */
 export interface SacramentPageResponse<T> {
   content: T[];
@@ -245,6 +262,39 @@ export interface SacramentPageResponse<T> {
   empty: boolean;
 }
 
+/** Raw API response may be PageImpl (flat) or PagedModel (content + metadata). */
+interface RawPageResponse<T> {
+  content: T[];
+  totalElements?: number;
+  totalPages?: number;
+  size?: number;
+  number?: number;
+  first?: boolean;
+  last?: boolean;
+  numberOfElements?: number;
+  empty?: boolean;
+  metadata?: { size: number; number: number; totalElements: number; totalPages: number };
+}
+
+function normalizePageResponse<T>(raw: RawPageResponse<T>): SacramentPageResponse<T> {
+  const meta = raw.metadata;
+  const size = meta?.size ?? raw.size ?? 50;
+  const number = meta?.number ?? raw.number ?? 0;
+  const totalElements = meta?.totalElements ?? raw.totalElements ?? 0;
+  const totalPages = meta?.totalPages ?? raw.totalPages ?? Math.max(1, Math.ceil(totalElements / size));
+  return {
+    content: raw.content ?? [],
+    totalElements,
+    totalPages,
+    size,
+    number,
+    first: raw.first ?? number === 0,
+    last: raw.last ?? number >= totalPages - 1,
+    numberOfElements: raw.numberOfElements ?? raw.content?.length ?? 0,
+    empty: raw.empty ?? (raw.content?.length ?? 0) === 0,
+  };
+}
+
 export async function fetchBaptisms(
   parishId: number,
   page = 0,
@@ -255,7 +305,7 @@ export async function fetchBaptisms(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');
-  return res.json();
+  return normalizePageResponse(await res.json());
 }
 
 /** Server-side search for baptisms by name or address. Use when search query is present. */
@@ -270,7 +320,7 @@ export async function fetchBaptismsSearch(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to search baptisms');
-  return res.json();
+  return normalizePageResponse(await res.json());
 }
 
 export async function fetchBaptism(id: number): Promise<BaptismResponse | null> {
@@ -412,7 +462,7 @@ export async function fetchCommunions(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
-  return res.json();
+  return normalizePageResponse(await res.json());
 }
 
 export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResponse | null> {
@@ -619,7 +669,7 @@ export async function fetchConfirmations(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
-  return res.json();
+  return normalizePageResponse(await res.json());
 }
 
 export async function fetchConfirmation(id: number): Promise<ConfirmationResponse | null> {
@@ -777,7 +827,7 @@ export async function fetchMarriages(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriages');
-  return res.json();
+  return normalizePageResponse(await res.json());
 }
 
 export async function fetchMarriage(id: number): Promise<MarriageResponse | null> {
@@ -964,7 +1014,7 @@ export async function fetchHolyOrders(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy orders');
-  return res.json();
+  return normalizePageResponse(await res.json());
 }
 
 export async function fetchHolyOrder(id: number): Promise<HolyOrderResponse | null> {

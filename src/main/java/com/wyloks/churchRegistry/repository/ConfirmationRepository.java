@@ -20,6 +20,8 @@ public interface ConfirmationRepository extends JpaRepository<Confirmation, Long
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
     List<Confirmation> findByBaptismParishId(Long parishId);
 
+    long countByBaptismParishId(Long parishId);
+
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
     Page<Confirmation> findByBaptismParishId(Long parishId, Pageable pageable);
 

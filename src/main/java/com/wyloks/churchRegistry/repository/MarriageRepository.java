@@ -18,6 +18,8 @@ public interface MarriageRepository extends JpaRepository<Marriage, Long> {
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation"})
     List<Marriage> findByBaptismParishId(Long parishId);
 
+    long countByBaptismParishId(Long parishId);
+
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation"})
     Page<Marriage> findByBaptismParishId(Long parishId, Pageable pageable);
 

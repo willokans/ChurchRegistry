@@ -35,6 +35,9 @@ const toPage = (arr: unknown[], totalElements = arr.length) => ({
 jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   getStoredToken: jest.fn(),
+  fetchDashboardCounts: jest.fn(() =>
+    Promise.resolve({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0, holyOrders: 0 })
+  ),
   fetchBaptisms: jest.fn(() => Promise.resolve(toPage([]))),
   fetchCommunions: jest.fn(() => Promise.resolve(toPage([]))),
   fetchConfirmations: jest.fn(() => Promise.resolve(toPage([]))),
@@ -126,7 +129,7 @@ describe('Dashboard page', () => {
     });
   });
 
-  it('shows accurate counts for parishes with 50+ records (uses totalElements)', async () => {
+  it('shows accurate counts for parishes with 50+ records (uses dashboard-counts endpoint)', async () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue({
       username: 'admin',
@@ -134,7 +137,14 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     });
     api.getStoredToken.mockReturnValue('jwt-123');
-    // Simulate parish with 120 baptisms: first page returns 50 items but totalElements is 120
+    // Dashboard counts endpoint returns accurate totals regardless of pagination
+    api.fetchDashboardCounts.mockResolvedValue({
+      baptisms: 120,
+      communions: 0,
+      confirmations: 0,
+      marriages: 0,
+      holyOrders: 0,
+    });
     const fiftyBaptisms = Array.from({ length: 50 }, (_, i) => ({
       id: i + 1,
       baptismName: 'John',
