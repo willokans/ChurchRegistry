@@ -20,6 +20,7 @@ import com.wyloks.churchRegistry.repository.MarriageWitnessLegacyRepository;
 import com.wyloks.churchRegistry.repository.SacramentNoteHistoryRepository;
 import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.MarriageService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -78,17 +79,17 @@ public class MarriageServiceImpl implements MarriageService {
                 .baptism(confirmation.getBaptism())
                 .firstHolyCommunion(confirmation.getFirstHolyCommunion())
                 .confirmation(confirmation)
-                .partnersName(request.getPartnersName())
+                .partnersName(NameUtils.capitalizeNameOrEmpty(request.getPartnersName()))
                 .marriageDate(request.getMarriageDate())
                 .marriageTime(request.getMarriageTime())
-                .churchName(request.getChurchName())
+                .churchName(NameUtils.capitalizeNameOrEmpty(request.getChurchName()))
                 .marriageRegister(request.getMarriageRegister())
-                .diocese(request.getDiocese())
+                .diocese(NameUtils.capitalizeNameOrEmpty(request.getDiocese()))
                 .civilRegistryNumber(request.getCivilRegistryNumber())
                 .dispensationGranted(request.getDispensationGranted())
                 .canonicalNotes(request.getCanonicalNotes())
-                .officiatingPriest(request.getOfficiatingPriest())
-                .parish(request.getParish())
+                .officiatingPriest(NameUtils.capitalizeNameOrEmpty(request.getOfficiatingPriest()))
+                .parish(NameUtils.capitalizeNameOrEmpty(request.getParish()))
                 .build();
         entity = marriageRepository.save(entity);
         return toResponse(entity);

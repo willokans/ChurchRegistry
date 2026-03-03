@@ -6,6 +6,7 @@ import com.wyloks.churchRegistry.entity.Diocese;
 import com.wyloks.churchRegistry.repository.DioceseRepository;
 import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.DioceseService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +46,7 @@ public class DioceseServiceImpl implements DioceseService {
     @Override
     @Transactional
     public DioceseResponse create(DioceseRequest request) {
-        String name = request.getDioceseName() != null ? request.getDioceseName().trim() : "";
+        String name = NameUtils.capitalizeNameOrEmpty(request.getDioceseName());
         if (dioceseRepository.existsByDioceseNameIgnoreCase(name)) {
             throw new IllegalArgumentException("A diocese with that name already exists");
         }

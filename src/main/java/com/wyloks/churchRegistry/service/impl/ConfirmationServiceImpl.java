@@ -11,6 +11,7 @@ import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
 import com.wyloks.churchRegistry.repository.SacramentNoteHistoryRepository;
 import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.ConfirmationService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -62,8 +63,8 @@ public class ConfirmationServiceImpl implements ConfirmationService {
                 .baptism(communion.getBaptism())
                 .firstHolyCommunion(communion)
                 .confirmationDate(request.getConfirmationDate())
-                .officiatingBishop(request.getOfficiatingBishop())
-                .parish(request.getParish())
+                .officiatingBishop(NameUtils.capitalizeNameOrEmpty(request.getOfficiatingBishop()))
+                .parish(request.getParish() != null ? NameUtils.capitalizeName(request.getParish()) : null)
                 .build();
         entity = confirmationRepository.save(entity);
         return toResponse(entity);

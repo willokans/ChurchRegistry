@@ -11,6 +11,7 @@ import com.wyloks.churchRegistry.repository.ParishRepository;
 import com.wyloks.churchRegistry.repository.SacramentNoteHistoryRepository;
 import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.BaptismService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -51,22 +52,22 @@ public class BaptismServiceImpl implements BaptismService {
                 ? parishRepository.findById(parishId).orElseThrow(() -> new IllegalArgumentException("Parish not found: " + parishId))
                 : null;
         Baptism entity = Baptism.builder()
-                .baptismName(request.getBaptismName())
-                .surname(request.getSurname())
+                .baptismName(NameUtils.capitalizeNameOrEmpty(request.getBaptismName()))
+                .surname(NameUtils.capitalizeNameOrEmpty(request.getSurname()))
                 .gender(request.getGender())
                 .dateOfBirth(request.getDateOfBirth())
-                .fathersName(request.getFathersName())
-                .mothersName(request.getMothersName())
-                .sponsorNames(request.getSponsorNames())
-                .otherNames(nullSafe(request.getOtherNames()))
-                .officiatingPriest(nullSafe(request.getOfficiatingPriest()))
+                .fathersName(NameUtils.capitalizeNameOrEmpty(request.getFathersName()))
+                .mothersName(NameUtils.capitalizeNameOrEmpty(request.getMothersName()))
+                .sponsorNames(NameUtils.capitalizeNameOrEmpty(request.getSponsorNames()))
+                .otherNames(NameUtils.capitalizeNameOrEmpty(request.getOtherNames()))
+                .officiatingPriest(NameUtils.capitalizeNameOrEmpty(request.getOfficiatingPriest()))
                 .parish(parish)
                 .address(request.getAddress())
                 .parishAddress(request.getParishAddress())
                 .parentAddress(request.getParentAddress())
                 .note(request.getNote())
                 .externalCertificatePath(request.getExternalCertificatePath())
-                .externalCertificateIssuingParish(request.getExternalCertificateIssuingParish())
+                .externalCertificateIssuingParish(NameUtils.capitalizeNameOrEmpty(request.getExternalCertificateIssuingParish()))
                 .build();
         entity = baptismRepository.save(entity);
         return toResponse(entity);

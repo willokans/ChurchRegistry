@@ -11,6 +11,7 @@ import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
 import com.wyloks.churchRegistry.repository.SacramentNoteHistoryRepository;
 import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.FirstHolyCommunionService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -61,7 +62,7 @@ public class FirstHolyCommunionServiceImpl implements FirstHolyCommunionService 
         FirstHolyCommunion entity = FirstHolyCommunion.builder()
                 .baptism(baptism)
                 .communionDate(request.getCommunionDate())
-                .officiatingPriest(request.getOfficiatingPriest())
+                .officiatingPriest(NameUtils.capitalizeNameOrEmpty(request.getOfficiatingPriest()))
                 .parish(request.getParish())
                 .baptismCertificatePath(request.getBaptismCertificatePath())
                 .communionCertificatePath(request.getCommunionCertificatePath())

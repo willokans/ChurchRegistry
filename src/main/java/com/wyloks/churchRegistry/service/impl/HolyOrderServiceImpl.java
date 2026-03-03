@@ -10,6 +10,7 @@ import com.wyloks.churchRegistry.repository.HolyOrderRepository;
 import com.wyloks.churchRegistry.repository.MarriageRepository;
 import com.wyloks.churchRegistry.repository.ParishRepository;
 import com.wyloks.churchRegistry.service.HolyOrderService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +68,7 @@ public class HolyOrderServiceImpl implements HolyOrderService {
                 .confirmation(confirmation)
                 .ordinationDate(request.getOrdinationDate())
                 .orderType(request.getOrderType())
-                .officiatingBishop(request.getOfficiatingBishop())
+                .officiatingBishop(NameUtils.capitalizeNameOrEmpty(request.getOfficiatingBishop()))
                 .parish(parish)
                 .build();
         entity = holyOrderRepository.save(entity);
