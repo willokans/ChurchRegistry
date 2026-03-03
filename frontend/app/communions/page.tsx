@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
+import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useCommunions } from '@/lib/use-sacrament-lists';
 import type { FirstHolyCommunionResponse } from '@/lib/api';
@@ -178,9 +180,11 @@ export default function CommunionsListPage() {
         ) : (
           <>
             {/* Mobile: card list with name, date, parents, edit/menu icons */}
-            <ul className="md:hidden space-y-3" role="list">
-              {filteredCommunions.map((c) => (
-                <li key={c.id}>
+            <div className="md:hidden">
+              <VirtualizedCardList
+                items={filteredCommunions}
+                getItemKey={(c) => String(c.id)}
+                renderCard={(c) => (
                   <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <button
                       type="button"
@@ -220,9 +224,9 @@ export default function CommunionsListPage() {
                       </Link>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                )}
+              />
+            </div>
 
             <div className="md:hidden pt-2">
               <AddRecordDesktopOnlyMessage />
@@ -230,10 +234,11 @@ export default function CommunionsListPage() {
 
             {/* Desktop: table */}
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-0 w-full table-auto" role="grid">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50/80">
+              <VirtualizedTableContainer itemCount={filteredCommunions.length}>
+                {(scrollContainerRef) => (
+                  <table className="min-w-0 w-full table-auto" role="grid">
+                    <thead>
+                      <tr className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/80">
                       <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
                         BAPTISM NAME
                       </th>
@@ -259,30 +264,28 @@ export default function CommunionsListPage() {
                         OFFICIATING PRIEST
                       </th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {filteredCommunions.map((c) => (
-                      <tr
-                        key={c.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/communions/${c.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && router.push(`/communions/${c.id}`)}
-                        className="cursor-pointer hover:bg-gray-50/80 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{c.baptismName ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.otherNames || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.surname || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.communionDate}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.gender ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.fathersName ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.mothersName ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.officiatingPriest || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <VirtualizedTableBody
+                      items={filteredCommunions}
+                      getRowKey={(c) => String(c.id)}
+                      scrollContainerRef={scrollContainerRef}
+                      onRowClick={(c) => router.push(`/communions/${c.id}`)}
+                      renderRow={(c) => (
+                        <>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{c.baptismName ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.otherNames || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.surname || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.communionDate}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.gender ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.fathersName ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.mothersName ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.officiatingPriest || '—'}</td>
+                        </>
+                      )}
+                    />
+                  </table>
+                )}
+              </VirtualizedTableContainer>
             </div>
           </>
         )}

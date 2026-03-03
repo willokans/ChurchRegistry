@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useHolyOrders } from '@/lib/use-sacrament-lists';
 
@@ -62,9 +63,11 @@ export default function HolyOrdersListPage() {
           </Link>
         </div>
       ) : (
-        <ul className="mt-6 space-y-3" role="list">
-          {holyOrders.map((h) => (
-            <li key={h.id}>
+        <div className="mt-6">
+          <VirtualizedCardList
+            items={holyOrders}
+            getItemKey={(h) => String(h.id)}
+            renderCard={(h) => (
               <Link
                 href={`/holy-orders/${h.id}`}
                 className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-sancta-maroon/30 hover:shadow"
@@ -75,9 +78,9 @@ export default function HolyOrdersListPage() {
                 <span className="ml-2 text-sm text-gray-500">{h.orderType}</span>
                 <span className="ml-2 text-sm text-gray-500">{h.officiatingBishop}</span>
               </Link>
-            </li>
-          ))}
-        </ul>
+            )}
+          />
+        </div>
       )}
     </AuthenticatedLayout>
   );

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
+import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useBaptisms } from '@/lib/use-sacrament-lists';
 import type { BaptismResponse } from '@/lib/api';
@@ -180,9 +182,11 @@ export default function BaptismsListPage() {
         ) : (
           <>
             {/* Mobile: card list with name, date, parents, edit/menu icons */}
-            <ul className="md:hidden space-y-3" role="list">
-              {filteredBaptisms.map((b) => (
-                <li key={b.id}>
+            <div className="md:hidden">
+              <VirtualizedCardList
+                items={filteredBaptisms}
+                getItemKey={(b) => String(b.id)}
+                renderCard={(b) => (
                   <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <button
                       type="button"
@@ -222,9 +226,9 @@ export default function BaptismsListPage() {
                       </Link>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                )}
+              />
+            </div>
 
             {/* Mobile: message that add is desktop/tablet only */}
             <div className="md:hidden pt-2">
@@ -233,63 +237,62 @@ export default function BaptismsListPage() {
 
             {/* Desktop: table (reference: NAME, DATE OF BIRTH, GENDER, FATHER, MOTHER) */}
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-0 w-full table-auto" role="grid">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50/80">
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        BAPTISM NAME
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        OTHER NAMES
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        SURNAME
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        DATE OF BIRTH
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        GENDER
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        FATHER
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        MOTHER
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        SPONSOR
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                        OFFICIATING PRIEST
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {filteredBaptisms.map((b) => (
-                      <tr
-                        key={b.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/baptisms/${b.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && router.push(`/baptisms/${b.id}`)}
-                        className="cursor-pointer hover:bg-gray-50/80 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{b.baptismName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.otherNames || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.surname}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.dateOfBirth}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.gender}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.fathersName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.mothersName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 max-w-[180px] truncate" title={b.sponsorNames}>{b.sponsorNames || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.officiatingPriest || '—'}</td>
+              <VirtualizedTableContainer itemCount={filteredBaptisms.length}>
+                {(scrollContainerRef) => (
+                  <table className="min-w-0 w-full table-auto" role="grid">
+                    <thead>
+                      <tr className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/80">
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          BAPTISM NAME
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          OTHER NAMES
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          SURNAME
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          DATE OF BIRTH
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          GENDER
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          FATHER
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          MOTHER
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          SPONSOR
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                          OFFICIATING PRIEST
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <VirtualizedTableBody
+                      items={filteredBaptisms}
+                      getRowKey={(b) => String(b.id)}
+                      scrollContainerRef={scrollContainerRef}
+                      onRowClick={(b) => router.push(`/baptisms/${b.id}`)}
+                      renderRow={(b) => (
+                        <>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{b.baptismName}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.otherNames || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.surname}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.dateOfBirth}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.gender}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.fathersName}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.mothersName}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 max-w-[180px] truncate" title={b.sponsorNames}>{b.sponsorNames || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{b.officiatingPriest || '—'}</td>
+                        </>
+                      )}
+                    />
+                  </table>
+                )}
+              </VirtualizedTableContainer>
             </div>
           </>
         )}

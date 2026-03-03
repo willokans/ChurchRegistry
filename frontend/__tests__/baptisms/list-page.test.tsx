@@ -211,4 +211,29 @@ describe('Baptisms list page', () => {
     expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Bob')).not.toBeInTheDocument();
   });
+
+  it('loads and displays page when 500+ baptisms (virtualized)', async () => {
+    const baptisms = Array.from({ length: 600 }, (_, i) => ({
+      id: i + 1,
+      baptismName: `Baptism${i + 1}`,
+      otherNames: '',
+      surname: 'Test',
+      dateOfBirth: '2020-01-01',
+      gender: 'MALE',
+      fathersName: 'Father',
+      mothersName: 'Mother',
+      sponsorNames: '',
+      officiatingPriest: '',
+      parishId: 10,
+    }));
+    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: baptisms });
+    renderWithSWR(<BaptismsPage />);
+    await waitFor(() => {
+      expect(fetchBaptisms).toHaveBeenCalledWith(10);
+    });
+    expect(screen.getByRole('heading', { name: /baptisms/i })).toBeInTheDocument();
+    expect(screen.queryByText(/no baptism records/i)).not.toBeInTheDocument();
+    // With 500+ items, virtualization is used. In JSDOM (no viewport), virtualizer
+    // may render 0 visible items, so we only assert the page loads successfully.
+  });
 });

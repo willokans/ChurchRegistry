@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
+import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useMarriages } from '@/lib/use-sacrament-lists';
 import type { MarriageResponse } from '@/lib/api';
@@ -154,9 +156,11 @@ export default function MarriagesListPage() {
           </>
         ) : (
           <>
-            <ul className="md:hidden space-y-3" role="list">
-              {filteredMarriages.map((m) => (
-                <li key={m.id}>
+            <div className="md:hidden">
+              <VirtualizedCardList
+                items={filteredMarriages}
+                getItemKey={(m) => String(m.id)}
+                renderCard={(m) => (
                   <button
                     type="button"
                     onClick={() => router.push(`/marriages/${m.id}`)}
@@ -170,19 +174,20 @@ export default function MarriagesListPage() {
                     <p className="text-sm text-gray-600">{m.officiatingPriest || '—'}</p>
                     <p className="text-xs text-gray-500 mt-1">{m.parish || '—'}</p>
                   </button>
-                </li>
-              ))}
-            </ul>
+                )}
+              />
+            </div>
 
             <div className="md:hidden pt-2">
               <AddRecordDesktopOnlyMessage />
             </div>
 
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-[1050px] w-full table-auto" role="grid">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50/80">
+              <VirtualizedTableContainer itemCount={filteredMarriages.length}>
+                {(scrollContainerRef) => (
+                  <table className="min-w-[1050px] w-full table-auto" role="grid">
+                    <thead>
+                      <tr className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/80">
                       <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
                         GROOM NAME
                       </th>
@@ -220,47 +225,45 @@ export default function MarriagesListPage() {
                         CERTIFICATE
                       </th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {filteredMarriages.map((m) => (
-                      <tr
-                        key={m.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/marriages/${m.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && router.push(`/marriages/${m.id}`)}
-                        className="cursor-pointer hover:bg-gray-50/80 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                          {m.groomName || splitPartners(m.partnersName).groom}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                          {m.brideName || splitPartners(m.partnersName).bride}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.marriageDate}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomFatherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomMotherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideFatherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideMotherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.diocese || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.officiatingPriest || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.witnessesDisplay || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                          <Link
-                            href={`/marriages/${m.id}/certificate`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sancta-maroon hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Civil Marriage Certificate
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <VirtualizedTableBody
+                      items={filteredMarriages}
+                      getRowKey={(m) => String(m.id)}
+                      scrollContainerRef={scrollContainerRef}
+                      onRowClick={(m) => router.push(`/marriages/${m.id}`)}
+                      renderRow={(m) => (
+                        <>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                            {m.groomName || splitPartners(m.partnersName).groom}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                            {m.brideName || splitPartners(m.partnersName).bride}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.marriageDate}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomFatherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomMotherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideFatherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideMotherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.diocese || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.officiatingPriest || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.witnessesDisplay || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                            <Link
+                              href={`/marriages/${m.id}/certificate`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sancta-maroon hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Civil Marriage Certificate
+                            </Link>
+                          </td>
+                        </>
+                      )}
+                    />
+                  </table>
+                )}
+              </VirtualizedTableContainer>
             </div>
           </>
         )}
