@@ -1,3 +1,6 @@
+server:
+  address: 0.0.0.0  # Required for Fly.io: listen on all interfaces
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL}
