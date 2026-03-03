@@ -241,11 +241,15 @@ describe('Baptism view page when baptized in another parish (external certificat
     expect(refOnly.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('fetches external certificate when external cert path is present', async () => {
+  it('fetches external certificate when user opens certificate modal', async () => {
+    const user = userEvent.setup();
     render(<BaptismViewPage />);
     await waitFor(() => {
       expect(fetchBaptism).toHaveBeenCalledWith(123);
     });
+    expect(fetchBaptismExternalCertificate).not.toHaveBeenCalled();
+    const seeCertButtons = screen.getAllByRole('button', { name: /see certificate/i });
+    await user.click(seeCertButtons[0]);
     await waitFor(() => {
       expect(fetchBaptismExternalCertificate).toHaveBeenCalledWith(123);
     });

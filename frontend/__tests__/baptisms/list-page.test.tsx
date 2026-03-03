@@ -5,12 +5,13 @@
  * - Shows link to add new baptism
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import BaptismsPage from '@/app/baptisms/page';
 import { getStoredToken, getStoredUser, fetchBaptisms } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -46,7 +47,7 @@ describe('Baptisms list page', () => {
   });
 
   it('when authenticated fetches baptisms and shows list heading', async () => {
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalledWith(10);
     });
@@ -54,7 +55,7 @@ describe('Baptisms list page', () => {
   });
 
   it('shows empty state when no baptisms', async () => {
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalled();
     });
@@ -65,7 +66,7 @@ describe('Baptisms list page', () => {
     (fetchBaptisms as jest.Mock).mockResolvedValue([
       { id: 1, baptismName: 'John', otherNames: '', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'James', mothersName: 'Mary', sponsorNames: '', officiatingPriest: '' },
     ]);
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('John').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('Doe').length).toBeGreaterThanOrEqual(1);
@@ -73,7 +74,7 @@ describe('Baptisms list page', () => {
   });
 
   it('shows link to add new baptism', async () => {
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalled();
     });
@@ -91,7 +92,7 @@ describe('Baptisms list page', () => {
       parishes: [],
       error: null,
     });
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
@@ -100,15 +101,16 @@ describe('Baptisms list page', () => {
   });
 
   it('shows filters: All Years, All Genders, and Search baptisms', async () => {
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(fetchBaptisms).toHaveBeenCalled();
     });
-    expect(screen.getByRole('combobox', { name: /filter by year/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /filter by gender/i })).toBeInTheDocument();
+    // Year/gender selects are hidden on mobile (hidden md:block)
+    expect(screen.getByRole('combobox', { name: /filter by year/i, hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by gender/i, hidden: true })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search baptisms/i })).toBeInTheDocument();
     expect(screen.getByDisplayValue('')).toBeInTheDocument();
-    const yearSelect = screen.getByRole('combobox', { name: /filter by year/i });
+    const yearSelect = screen.getByRole('combobox', { name: /filter by year/i, hidden: true });
     expect(within(yearSelect).getByRole('option', { name: /all years/i })).toBeInTheDocument();
   });
 
@@ -128,14 +130,14 @@ describe('Baptisms list page', () => {
         parishId: 10,
       },
     ]);
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('columnheader', { name: /baptism name/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /other names/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /surname/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /baptism name/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /other names/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /surname/i, hidden: true })).toBeInTheDocument();
     });
-    expect(screen.getByRole('columnheader', { name: /sponsor/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /officiating priest/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /sponsor/i, hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /officiating priest/i, hidden: true })).toBeInTheDocument();
   });
 
   it('grid shows sponsor and officiating priest values in table rows', async () => {
@@ -154,7 +156,7 @@ describe('Baptisms list page', () => {
         parishId: 10,
       },
     ]);
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
       expect(screen.getByText('Fr. Smith')).toBeInTheDocument();
@@ -166,12 +168,12 @@ describe('Baptisms list page', () => {
       { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-05-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
       { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2023-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
     ]);
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('Bob').length).toBeGreaterThanOrEqual(1);
     });
-    const yearSelect = screen.getByRole('combobox', { name: /filter by year/i });
+    const yearSelect = screen.getByRole('combobox', { name: /filter by year/i, hidden: true });
     await userEvent.selectOptions(yearSelect, '2024');
     expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Bob')).not.toBeInTheDocument();
@@ -179,7 +181,7 @@ describe('Baptisms list page', () => {
 
   it('when fetchBaptisms returns error (e.g. 403) shows error message', async () => {
     (fetchBaptisms as jest.Mock).mockRejectedValue(new Error('Forbidden'));
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/forbidden|failed to load/i);
     });
@@ -190,7 +192,7 @@ describe('Baptisms list page', () => {
       { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-01-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
       { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2024-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
     ]);
-    render(<BaptismsPage />);
+    renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
     });

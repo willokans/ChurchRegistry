@@ -4,11 +4,12 @@
  * - Shows link to add new communion
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import CommunionsPage from '@/app/communions/page';
 import { getStoredToken, getStoredUser, fetchCommunions } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -42,7 +43,7 @@ describe('Communions list page', () => {
   });
 
   it('when authenticated fetches communions and shows list heading', async () => {
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalledWith(10);
     });
@@ -52,7 +53,7 @@ describe('Communions list page', () => {
   });
 
   it('shows empty state when no communions', async () => {
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalled();
     });
@@ -72,7 +73,7 @@ describe('Communions list page', () => {
         surname: 'Doe',
       },
     ]);
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('John').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('Doe').length).toBeGreaterThanOrEqual(1);
@@ -82,12 +83,13 @@ describe('Communions list page', () => {
   });
 
   it('shows filters: All Years, All Genders, and Search communions', async () => {
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalled();
     });
-    expect(screen.getByRole('combobox', { name: /filter by year/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /filter by gender/i })).toBeInTheDocument();
+    // Year/gender selects are hidden on mobile (hidden md:block); include hidden elements for jsdom
+    expect(screen.getByRole('combobox', { name: /filter by year/i, hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by gender/i, hidden: true })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search communions/i })).toBeInTheDocument();
   });
 
@@ -104,18 +106,19 @@ describe('Communions list page', () => {
         surname: 'Smith',
       },
     ]);
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('columnheader', { name: /baptism name/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /other names/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /surname/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /communion date/i })).toBeInTheDocument();
+      // Table is hidden on mobile (hidden md:block); include hidden elements for jsdom
+      expect(screen.getByRole('columnheader', { name: /baptism name/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /other names/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /surname/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /communion date/i, hidden: true })).toBeInTheDocument();
     });
-    expect(screen.getByRole('columnheader', { name: /officiating priest/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /officiating priest/i, hidden: true })).toBeInTheDocument();
   });
 
   it('shows link to add new communion', async () => {
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       expect(fetchCommunions).toHaveBeenCalled();
     });
@@ -133,7 +136,7 @@ describe('Communions list page', () => {
       parishes: [],
       error: null,
     });
-    render(<CommunionsPage />);
+    renderWithSWR(<CommunionsPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();

@@ -6,12 +6,13 @@
  * - Mobile: card list with edit/menu icons
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import ConfirmationsPage from '@/app/confirmations/page';
 import { getStoredToken, getStoredUser, fetchConfirmations } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -47,7 +48,7 @@ describe('Confirmations list page', () => {
   });
 
   it('when authenticated fetches confirmations and shows list heading', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalledWith(10);
     });
@@ -55,7 +56,7 @@ describe('Confirmations list page', () => {
   });
 
   it('shows empty state when no confirmations', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
@@ -79,7 +80,7 @@ describe('Confirmations list page', () => {
         mothersName: 'Mary',
       },
     ]);
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
@@ -90,12 +91,12 @@ describe('Confirmations list page', () => {
   });
 
   it('shows filters: All Years, All Genders, and Search confirmations', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
-    expect(screen.getByRole('combobox', { name: /filter by year/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /filter by gender/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by year/i, hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by gender/i, hidden: true })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search confirmations/i })).toBeInTheDocument();
   });
 
@@ -112,13 +113,13 @@ describe('Confirmations list page', () => {
         surname: 'Smith',
       },
     ]);
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('columnheader', { name: /baptism name/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /other names/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /surname/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /confirmation date/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /officiating bishop/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /baptism name/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /other names/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /surname/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /confirmation date/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /officiating bishop/i, hidden: true })).toBeInTheDocument();
     });
   });
 
@@ -135,11 +136,11 @@ describe('Confirmations list page', () => {
         surname: 'Smith',
       },
     ]);
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('grid')).toHaveTextContent('Jane');
+      expect(screen.getByRole('grid', { hidden: true })).toHaveTextContent('Jane');
     });
-    const grid = screen.getByRole('grid');
+    const grid = screen.getByRole('grid', { hidden: true });
     const cell = within(grid).getByRole('cell', { name: 'Jane' });
     const row = cell.closest('tr');
     expect(row).toBeInTheDocument();
@@ -148,7 +149,7 @@ describe('Confirmations list page', () => {
   });
 
   it('shows link to add new confirmation', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
@@ -166,7 +167,7 @@ describe('Confirmations list page', () => {
       parishes: [],
       error: null,
     });
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
@@ -198,15 +199,15 @@ describe('Confirmations list page', () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('grid')).toBeInTheDocument();
+      expect(screen.getByRole('grid', { hidden: true })).toBeInTheDocument();
     });
     const search = screen.getByRole('searchbox', { name: /search confirmations/i });
     await user.type(search, 'Jane');
     await waitFor(() => {
-      expect(screen.getByRole('grid')).toHaveTextContent('Jane');
-      expect(screen.getByRole('grid')).not.toHaveTextContent('Bob');
+      expect(screen.getByRole('grid', { hidden: true })).toHaveTextContent('Jane');
+      expect(screen.getByRole('grid', { hidden: true })).not.toHaveTextContent('Bob');
     });
   });
 });

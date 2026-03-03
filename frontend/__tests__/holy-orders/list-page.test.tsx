@@ -4,11 +4,12 @@
  * - Shows link to add new holy order
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import HolyOrdersPage from '@/app/holy-orders/page';
 import { getStoredToken, getStoredUser, fetchHolyOrders } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -42,7 +43,7 @@ describe('Holy Orders list page', () => {
   });
 
   it('when authenticated fetches holy orders and shows list heading', async () => {
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalledWith(10);
     });
@@ -50,7 +51,7 @@ describe('Holy Orders list page', () => {
   });
 
   it('shows empty state when no holy orders', async () => {
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
@@ -61,7 +62,7 @@ describe('Holy Orders list page', () => {
     (fetchHolyOrders as jest.Mock).mockResolvedValue([
       { id: 1, confirmationId: 7, ordinationDate: '2025-09-01', orderType: 'PRIEST', officiatingBishop: 'Bishop Jones' },
     ]);
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
@@ -70,7 +71,7 @@ describe('Holy Orders list page', () => {
   });
 
   it('shows link to add new holy order', async () => {
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
@@ -88,7 +89,7 @@ describe('Holy Orders list page', () => {
       parishes: [],
       error: null,
     });
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
