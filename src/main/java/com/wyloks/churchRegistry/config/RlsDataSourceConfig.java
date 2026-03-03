@@ -18,15 +18,24 @@ import java.sql.Statement;
  * Wraps the DataSource to set PostgreSQL session variables (app.parish_ids, app.is_admin)
  * for RLS policies when a connection is obtained. Only active when RLS is enabled.
  * Creates an explicit raw DataSource to avoid circular reference with Liquibase/JPA.
+ * Ensures PgBouncer-compatible URL params (preferQueryMode=simple, prepareThreshold=0).
  */
 @Configuration
 @Profile("!auth-slice")
 @ConditionalOnProperty(name = "app.rls.enabled", havingValue = "true", matchIfMissing = false)
 public class RlsDataSourceConfig {
 
+    private static final String PG_BOUNCER_PARAMS = "preferQueryMode=simple&prepareThreshold=0";
+
     @Bean("rawDataSource")
     public DataSource rawDataSource(DataSourceProperties properties) {
-        return properties.initializeDataSourceBuilder().build();
+        var builder = properties.initializeDataSourceBuilder();
+        String url = properties.getUrl();
+        if (url != null && url.contains("postgresql") && !url.contains("preferQueryMode")) {
+            url = url + (url.contains("?") ? "&" : "?") + PG_BOUNCER_PARAMS;
+            builder.url(url);
+        }
+        return builder.build();
     }
 
     @Bean
