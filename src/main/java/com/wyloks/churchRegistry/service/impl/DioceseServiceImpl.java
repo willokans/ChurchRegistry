@@ -1,5 +1,6 @@
 package com.wyloks.churchRegistry.service.impl;
 
+import com.wyloks.churchRegistry.config.CacheConfig;
 import com.wyloks.churchRegistry.dto.DioceseRequest;
 import com.wyloks.churchRegistry.dto.DioceseResponse;
 import com.wyloks.churchRegistry.dto.DioceseWithParishesResponse;
@@ -11,6 +12,8 @@ import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.DioceseService;
 import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +46,7 @@ public class DioceseServiceImpl implements DioceseService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.CACHE_DIOCESES_WITH_PARISHES, keyGenerator = "dioceseParishCacheKeyGenerator")
     public List<DioceseWithParishesResponse> findDiocesesWithParishes() {
         CurrentUserAccessService.CurrentUserAccess currentUser = currentUserAccessService.currentUser();
         List<Diocese> dioceses = currentUser.isAdmin()
@@ -65,6 +69,7 @@ public class DioceseServiceImpl implements DioceseService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DIOCESES_WITH_PARISHES, CacheConfig.CACHE_PARISHES_BY_DIOCESE}, allEntries = true)
     public DioceseResponse create(DioceseRequest request) {
         String name = NameUtils.capitalizeNameOrEmpty(request.getDioceseName());
         if (dioceseRepository.existsByDioceseNameIgnoreCase(name)) {

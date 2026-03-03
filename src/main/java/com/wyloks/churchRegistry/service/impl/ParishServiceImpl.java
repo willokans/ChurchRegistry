@@ -1,5 +1,6 @@
 package com.wyloks.churchRegistry.service.impl;
 
+import com.wyloks.churchRegistry.config.CacheConfig;
 import com.wyloks.churchRegistry.dto.ParishRequest;
 import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.entity.Diocese;
@@ -10,6 +11,8 @@ import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.ParishService;
 import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +30,7 @@ public class ParishServiceImpl implements ParishService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.CACHE_PARISHES_BY_DIOCESE, keyGenerator = "dioceseParishCacheKeyGenerator")
     public List<ParishResponse> findByDioceseId(Long dioceseId) {
         CurrentUserAccessService.CurrentUserAccess currentUser = currentUserAccessService.currentUser();
         List<Parish> parishes = currentUser.isAdmin()
@@ -48,6 +52,7 @@ public class ParishServiceImpl implements ParishService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DIOCESES_WITH_PARISHES, CacheConfig.CACHE_PARISHES_BY_DIOCESE}, allEntries = true)
     public ParishResponse create(ParishRequest request) {
         Diocese diocese = dioceseRepository.findById(request.getDioceseId())
                 .orElseThrow(() -> new IllegalArgumentException("Diocese not found: " + request.getDioceseId()));
