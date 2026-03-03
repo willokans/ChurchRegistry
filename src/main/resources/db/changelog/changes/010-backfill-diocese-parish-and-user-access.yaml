@@ -41,6 +41,9 @@ databaseChangeLog:
   - changeSet:
       id: 28
       author: will_okanumeh
+      validCheckSum:
+        - 9:dcc67587919b57faeda84afe3ba5a556
+        - 9:639493dc52e851099cf8233bd834b313
       preConditions:
         - onFail: MARK_RAN
         - dbms:
