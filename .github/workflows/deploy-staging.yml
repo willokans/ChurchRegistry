@@ -83,6 +83,7 @@ jobs:
             --app "$APP_NAME"
 
       - name: Deploy API to Fly staging
+        id: deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_API_APP_NAME: ${{ vars.FLY_API_APP_NAME }}
@@ -90,6 +91,16 @@ jobs:
           set -euo pipefail
           APP_NAME="${FLY_API_APP_NAME:-church-registry-api-staging}"
           flyctl deploy -c fly.api.toml --remote-only --app "$APP_NAME"
+
+      - name: Show Fly logs on deploy failure
+        if: failure()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_APP_NAME: ${{ vars.FLY_API_APP_NAME }}
+        run: |
+          APP_NAME="${FLY_API_APP_NAME:-church-registry-api-staging}"
+          echo "=== Fly API logs (last 150 lines) - check for startup errors ==="
+          flyctl logs -a "$APP_NAME" 2>&1 | tail -150
 
   deploy-frontend:
     runs-on: ubuntu-latest
