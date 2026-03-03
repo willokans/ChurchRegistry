@@ -27,6 +27,14 @@ This repository now includes a dedicated Fly.io deployment path for the Spring B
 - `FLY_FRONTEND_APP_NAME` (optional, defaults to `church-registry-staging`)
 - `FLY_ORG` (optional, Fly organization slug used if workflow needs to create the API app)
 
+## Troubleshooting
+
+If the deploy fails with "app is not listening" or health check timeout:
+
+1. **Check startup logs:** `fly logs --app church-registry-api-staging` — look for Liquibase errors, DB connection failures, or OOM.
+2. **Supabase pooler:** Ensure `API_DATABASE_URL` includes `?preferQueryMode=simple&prepareThreshold=0` (prod config sets these via Hikari; URL params also work).
+3. **First deploy:** Liquibase can take 2–3 minutes; health check grace period is 300s.
+
 ## Runtime behavior
 
 - Spring runs with `SPRING_PROFILES_ACTIVE=prod`.

@@ -27,7 +27,7 @@ primary_region = "sin"
     soft_limit = 40
 
   [[http_service.checks]]
-    grace_period = "120s"
+    grace_period = "300s"
     interval = "15s"
     method = "GET"
     path = "/api/health"
