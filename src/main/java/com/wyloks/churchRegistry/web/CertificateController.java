@@ -8,9 +8,11 @@ import com.wyloks.churchRegistry.entity.MarriagePartyLegacy;
 import com.wyloks.churchRegistry.repository.BaptismRepository;
 import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
 import com.wyloks.churchRegistry.repository.MarriagePartyLegacyRepository;
+import com.wyloks.churchRegistry.entity.SacramentAuditLog.SacramentType;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.BaptismService;
 import com.wyloks.churchRegistry.service.RemoteFileService;
+import com.wyloks.churchRegistry.service.SacramentAuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -35,12 +37,16 @@ public class CertificateController {
     private final MarriagePartyLegacyRepository marriagePartyLegacyRepository;
     private final SacramentAuthorizationService authorizationService;
     private final RemoteFileService remoteFileService;
+    private final SacramentAuditService auditService;
 
     @GetMapping("/baptisms/{id}/certificate-data")
     public BaptismCertificateDataResponse getBaptismCertificateData(@PathVariable Long id) {
         authorizationService.findBaptismParishId(id).ifPresent(authorizationService::requireParishAccess);
         BaptismResponse baptism = baptismService.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Baptism not found"));
+
+        Long parishId = baptism.getParishId();
+        auditService.logRead(SacramentType.BAPTISM, id, parishId);
 
         Baptism entity = baptismRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Baptism not found"));
@@ -59,6 +65,8 @@ public class CertificateController {
     @GetMapping("/baptisms/{id}/external-certificate")
     public ResponseEntity<byte[]> getBaptismExternalCertificate(@PathVariable Long id) {
         authorizationService.findBaptismParishId(id).ifPresent(authorizationService::requireParishAccess);
+        Long parishId = authorizationService.findBaptismParishId(id).orElse(null);
+        auditService.logCertificateDownload(SacramentType.BAPTISM, id, parishId, "baptism_external");
         Baptism baptism = baptismRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Baptism not found"));
         // Legacy Next API stored external baptism cert path on communion.baptism_certificate_path,
@@ -87,6 +95,8 @@ public class CertificateController {
     @GetMapping("/communions/{id}/communion-certificate")
     public ResponseEntity<byte[]> getCommunionCertificate(@PathVariable Long id) {
         authorizationService.findCommunionParishId(id).ifPresent(authorizationService::requireParishAccess);
+        Long parishId = authorizationService.findCommunionParishId(id).orElse(null);
+        auditService.logCertificateDownload(SacramentType.COMMUNION, id, parishId, "communion");
         FirstHolyCommunion communion = communionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "First Holy Communion not found"));
         return fileResponse(remoteFileService.download(withBucketIfNeeded(
@@ -102,6 +112,8 @@ public class CertificateController {
             @RequestParam String type
     ) {
         authorizationService.findMarriageParishId(id).ifPresent(authorizationService::requireParishAccess);
+        Long parishId = authorizationService.findMarriageParishId(id).orElse(null);
+        auditService.logCertificateDownload(SacramentType.MARRIAGE, id, parishId, "party_" + type);
         Integer legacyMarriageId = Math.toIntExact(id);
         List<MarriagePartyLegacy> parties = marriagePartyLegacyRepository.findByMarriageId(legacyMarriageId);
         String normalizedRole = role.trim().toUpperCase(Locale.ROOT);

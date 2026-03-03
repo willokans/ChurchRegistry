@@ -2,6 +2,7 @@ package com.wyloks.churchRegistry.config;
 
 import com.wyloks.churchRegistry.security.RlsSessionContext;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -16,16 +17,22 @@ import java.sql.Statement;
 /**
  * Wraps the DataSource to set PostgreSQL session variables (app.parish_ids, app.is_admin)
  * for RLS policies when a connection is obtained. Only active when RLS is enabled.
+ * Creates an explicit raw DataSource to avoid circular reference with Liquibase/JPA.
  */
 @Configuration
 @Profile("!auth-slice")
 @ConditionalOnProperty(name = "app.rls.enabled", havingValue = "true", matchIfMissing = false)
 public class RlsDataSourceConfig {
 
+    @Bean("rawDataSource")
+    public DataSource rawDataSource(DataSourceProperties properties) {
+        return properties.initializeDataSourceBuilder().build();
+    }
+
     @Bean
     @Primary
-    public DataSource rlsDataSource(DataSource dataSource) {
-        return new RlsAwareDataSource(dataSource);
+    public DataSource rlsDataSource(DataSource rawDataSource) {
+        return new RlsAwareDataSource(rawDataSource);
     }
 
     /**

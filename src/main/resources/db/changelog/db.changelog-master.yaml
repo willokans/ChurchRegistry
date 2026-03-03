@@ -201,3 +201,5 @@ databaseChangeLog:
       file: db/changelog/changes/012-reconcile-baptism-parish-links.yaml
   - include:
       file: db/changelog/changes/015-rls-tenant-isolation.yaml
+  - include:
+      file: db/changelog/changes/016-sacrament-audit-log.yaml

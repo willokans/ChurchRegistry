@@ -16,17 +16,18 @@ databaseChangeLog:
             sql: |
               -- Helper: parse app.parish_ids session variable to bigint array (empty array if unset/empty)
               CREATE OR REPLACE FUNCTION app_rls_parish_ids() RETURNS bigint[] AS $$
-                SELECT COALESCE(
-                  (SELECT ARRAY_AGG(x::bigint)
-                   FROM unnest(string_to_array(NULLIF(trim(current_setting('app.parish_ids', true)), ''), ',')) AS t(x)
-                   WHERE x ~ '^[0-9]+$' AND x <> ''),
-                  '{}'::bigint[]
-                );
+              SELECT COALESCE(
+                (SELECT ARRAY_AGG(x::bigint)
+                 FROM unnest(string_to_array(NULLIF(trim(current_setting('app.parish_ids', true)), ''), ',')) AS t(x)
+                 WHERE x ~ '^[0-9]+$' AND x <> ''),
+                '{}'::bigint[]
+              );
               $$ LANGUAGE sql STABLE;
 
               CREATE OR REPLACE FUNCTION app_rls_is_admin() RETURNS boolean AS $$
-                SELECT current_setting('app.is_admin', true) = 'true';
+              SELECT current_setting('app.is_admin', true) = 'true';
               $$ LANGUAGE sql STABLE;
+            splitStatements: false
 
         - sql:
             sql: |

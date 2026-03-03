@@ -1,6 +1,7 @@
 spring:
   datasource:
-    url: jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require
+    # prepareThreshold=0 and preferQueryMode=simple avoid "prepared statement already exists" with Supabase pooler (PgBouncer)
+    url: jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require&preferQueryMode=simple&prepareThreshold=0
     username: postgres.rxaepykghapdwgonvlvi
     password: ${LOCAL_PG_PASSWORD}
     driver-class-name: org.postgresql.Driver

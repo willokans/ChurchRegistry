@@ -4,8 +4,10 @@ import com.wyloks.churchRegistry.dto.MarriageRequest;
 import com.wyloks.churchRegistry.dto.MarriageResponse;
 import com.wyloks.churchRegistry.dto.NoteUpdateRequest;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
+import com.wyloks.churchRegistry.entity.SacramentAuditLog.SacramentType;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.MarriageService;
+import com.wyloks.churchRegistry.service.SacramentAuditService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,18 +24,25 @@ public class MarriageController {
 
     private final MarriageService marriageService;
     private final SacramentAuthorizationService authorizationService;
+    private final SacramentAuditService auditService;
 
     @GetMapping("/parishes/{parishId}/marriages")
     public List<MarriageResponse> getByParish(@PathVariable Long parishId) {
         authorizationService.requireParishAccess(parishId);
-        return marriageService.findByParishId(parishId);
+        List<MarriageResponse> result = marriageService.findByParishId(parishId);
+        auditService.logReadList(SacramentType.MARRIAGE, parishId);
+        return result;
     }
 
     @GetMapping("/marriages/{id}")
     public ResponseEntity<MarriageResponse> getById(@PathVariable Long id) {
         authorizationService.findMarriageParishId(id).ifPresent(authorizationService::requireParishAccess);
         return marriageService.findById(id)
-                .map(ResponseEntity::ok)
+                .map(r -> {
+                    Long parishId = authorizationService.findMarriageParishId(id).orElse(null);
+                    auditService.logRead(SacramentType.MARRIAGE, id, parishId);
+                    return ResponseEntity.ok(r);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -44,18 +53,25 @@ public class MarriageController {
                         "Confirmation not found or has no parish"));
         authorizationService.requireWriteAccessForParish(parishId);
         MarriageResponse created = marriageService.create(request);
+        auditService.logCreate(SacramentType.MARRIAGE, created.getId(), parishId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PatchMapping("/marriages/{id}")
     public ResponseEntity<MarriageResponse> updateNote(@PathVariable Long id, @RequestBody NoteUpdateRequest request) {
         authorizationService.findMarriageParishId(id).ifPresent(authorizationService::requireWriteAccessForParish);
-        return ResponseEntity.ok(marriageService.updateNote(id, request != null ? request.getNote() : null));
+        MarriageResponse updated = marriageService.updateNote(id, request != null ? request.getNote() : null);
+        Long parishId = authorizationService.findMarriageParishId(id).orElse(null);
+        auditService.logUpdate(SacramentType.MARRIAGE, id, parishId, "note");
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/marriages/{id}/notes")
     public List<SacramentNoteResponse> getNoteHistory(@PathVariable Long id) {
         authorizationService.findMarriageParishId(id).ifPresent(authorizationService::requireParishAccess);
-        return marriageService.getNoteHistory(id);
+        List<SacramentNoteResponse> result = marriageService.getNoteHistory(id);
+        Long parishId = authorizationService.findMarriageParishId(id).orElse(null);
+        auditService.logRead(SacramentType.MARRIAGE, id, parishId);
+        return result;
     }
 }

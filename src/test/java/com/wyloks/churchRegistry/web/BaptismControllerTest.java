@@ -6,6 +6,7 @@ import com.wyloks.churchRegistry.dto.BaptismRequest;
 import com.wyloks.churchRegistry.dto.BaptismResponse;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.BaptismService;
+import com.wyloks.churchRegistry.service.SacramentAuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ class BaptismControllerTest {
 
     @MockBean
     SacramentAuthorizationService sacramentAuthorizationService;
+
+    @MockBean
+    SacramentAuditService sacramentAuditService;
 
     @BeforeEach
     void setUp() {

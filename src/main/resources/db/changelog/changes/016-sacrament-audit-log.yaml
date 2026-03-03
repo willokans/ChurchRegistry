@@ -1,0 +1,96 @@
+# Immutable audit log for sacramental data access and mutation events.
+# Append-only: no UPDATE/DELETE allowed (enforced by trigger).
+databaseChangeLog:
+  - changeSet:
+      id: 20
+      author: will_okanumeh
+      comment: Create sacrament_audit_log table for immutable audit trail
+      changes:
+        - createTable:
+            tableName: sacrament_audit_log
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sacrament_type
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: record_id
+                  type: bigint
+              - column:
+                  name: parish_id
+                  type: bigint
+              - column:
+                  name: actor_id
+                  type: bigint
+              - column:
+                  name: actor_name
+                  type: varchar(255)
+              - column:
+                  name: details
+                  type: text
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: sacrament_audit_log
+            indexName: idx_sacrament_audit_log_created_at
+            columns:
+              - column:
+                  name: created_at
+        - createIndex:
+            tableName: sacrament_audit_log
+            indexName: idx_sacrament_audit_log_sacrament_record
+            columns:
+              - column:
+                  name: sacrament_type
+              - column:
+                  name: record_id
+        - createIndex:
+            tableName: sacrament_audit_log
+            indexName: idx_sacrament_audit_log_actor
+            columns:
+              - column:
+                  name: actor_id
+  - changeSet:
+      id: 21
+      author: will_okanumeh
+      comment: Prevent UPDATE and DELETE on sacrament_audit_log (immutable)
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              CREATE OR REPLACE FUNCTION prevent_sacrament_audit_log_mutation()
+              RETURNS TRIGGER AS $$
+              BEGIN
+                IF TG_OP = 'UPDATE' OR TG_OP = 'DELETE' THEN
+                  RAISE EXCEPTION 'sacrament_audit_log is immutable: % not allowed', TG_OP;
+                END IF;
+                RETURN NEW;
+              END;
+              $$ LANGUAGE plpgsql;
+
+              DROP TRIGGER IF EXISTS trg_sacrament_audit_log_immutable ON sacrament_audit_log;
+              CREATE TRIGGER trg_sacrament_audit_log_immutable
+                BEFORE UPDATE OR DELETE ON sacrament_audit_log
+                FOR EACH ROW
+                EXECUTE FUNCTION prevent_sacrament_audit_log_mutation();
+            splitStatements: false

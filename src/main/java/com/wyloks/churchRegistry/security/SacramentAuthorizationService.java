@@ -3,6 +3,7 @@ package com.wyloks.churchRegistry.security;
 import com.wyloks.churchRegistry.repository.BaptismRepository;
 import com.wyloks.churchRegistry.repository.ConfirmationRepository;
 import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
+import com.wyloks.churchRegistry.repository.HolyOrderRepository;
 import com.wyloks.churchRegistry.repository.MarriageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,7 @@ public class SacramentAuthorizationService {
     private final FirstHolyCommunionRepository communionRepository;
     private final ConfirmationRepository confirmationRepository;
     private final MarriageRepository marriageRepository;
+    private final HolyOrderRepository holyOrderRepository;
 
     public void requireParishAccess(Long parishId) {
         CurrentUser user = currentUser();
@@ -84,6 +86,10 @@ public class SacramentAuthorizationService {
 
     public Optional<Long> findMarriageParishIdByConfirmationId(Long confirmationId) {
         return marriageRepository.findParishIdByConfirmationId(confirmationId);
+    }
+
+    public Optional<Long> findHolyOrderParishId(Long holyOrderId) {
+        return holyOrderRepository.findParishIdById(holyOrderId);
     }
 
     public Optional<Long> findBaptismParishIdForCommunionRequest(Long baptismId) {

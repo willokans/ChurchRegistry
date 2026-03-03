@@ -6,6 +6,7 @@ import com.wyloks.churchRegistry.dto.FirstHolyCommunionRequest;
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionResponse;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.FirstHolyCommunionService;
+import com.wyloks.churchRegistry.service.SacramentAuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ class FirstHolyCommunionControllerTest {
 
     @MockBean
     SacramentAuthorizationService sacramentAuthorizationService;
+
+    @MockBean
+    SacramentAuditService sacramentAuditService;
 
     @BeforeEach
     void setUp() {
