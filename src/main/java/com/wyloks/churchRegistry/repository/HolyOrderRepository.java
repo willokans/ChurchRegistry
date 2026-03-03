@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.repository;
 
 import com.wyloks.churchRegistry.entity.HolyOrder;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,7 @@ public interface HolyOrderRepository extends JpaRepository<HolyOrder, Long> {
 
     Optional<HolyOrder> findByConfirmationId(Long confirmationId);
 
+    @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation", "parish"})
     List<HolyOrder> findByBaptismParishId(Long parishId);
 
     @Query("SELECT COALESCE(h.parish.id, h.baptism.parish.id) FROM HolyOrder h WHERE h.id = :id")
