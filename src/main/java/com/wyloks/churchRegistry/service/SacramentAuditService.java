@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
@@ -18,6 +17,7 @@ import java.util.Locale;
 /**
  * Service for appending immutable audit log entries for sacramental data access and mutations.
  * Failures are logged but do not affect the main operation.
+ * Uses same transaction as caller to avoid REQUIRES_NEW commit issues with PgBouncer.
  */
 @Service
 @RequiredArgsConstructor
@@ -26,32 +26,32 @@ public class SacramentAuditService {
 
     private final SacramentAuditLogRepository auditLogRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    @Transactional(readOnly = false)
     public void logRead(SacramentType sacramentType, Long recordId, Long parishId) {
         logEvent(EventType.READ, sacramentType, recordId, parishId, null);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    @Transactional(readOnly = false)
     public void logReadList(SacramentType sacramentType, Long parishId) {
         logEvent(EventType.READ_LIST, sacramentType, null, parishId, null);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    @Transactional(readOnly = false)
     public void logCreate(SacramentType sacramentType, Long recordId, Long parishId) {
         logEvent(EventType.CREATE, sacramentType, recordId, parishId, null);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    @Transactional(readOnly = false)
     public void logUpdate(SacramentType sacramentType, Long recordId, Long parishId, String details) {
         logEvent(EventType.UPDATE, sacramentType, recordId, parishId, details);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    @Transactional(readOnly = false)
     public void logDelete(SacramentType sacramentType, Long recordId, Long parishId) {
         logEvent(EventType.DELETE, sacramentType, recordId, parishId, null);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    @Transactional(readOnly = false)
     public void logCertificateDownload(SacramentType sacramentType, Long recordId, Long parishId, String certificateType) {
         String details = certificateType != null ? "certificate_download:" + certificateType : "certificate_download";
         logEvent(EventType.CERTIFICATE_DOWNLOAD, sacramentType, recordId, parishId, details);
