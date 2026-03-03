@@ -21,7 +21,17 @@ jest.mock('@/context/ParishContext', () => ({
   }),
 }));
 
-const toPage = (arr: unknown[]) => ({ content: arr });
+const toPage = (arr: unknown[], totalElements = arr.length) => ({
+  content: arr,
+  totalElements,
+  totalPages: Math.max(1, Math.ceil(totalElements / 50)),
+  size: 50,
+  number: 0,
+  first: true,
+  last: totalElements <= 50,
+  numberOfElements: arr.length,
+  empty: arr.length === 0,
+});
 jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   getStoredToken: jest.fn(),
@@ -114,6 +124,46 @@ describe('Dashboard page', () => {
     await waitFor(() => {
       expect(screen.getAllByTitle('Holy Communion: 1').length).toBeGreaterThan(0);
     });
+  });
+
+  it('shows accurate counts for parishes with 50+ records (uses totalElements)', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    // Simulate parish with 120 baptisms: first page returns 50 items but totalElements is 120
+    const fiftyBaptisms = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      baptismName: 'John',
+      surname: `Doe${i}`,
+      parishId: 10,
+      dateOfBirth: '2020-01-01',
+    }));
+    api.fetchBaptisms.mockResolvedValue(toPage(fiftyBaptisms, 120));
+    api.fetchCommunions.mockResolvedValue(toPage([], 0));
+    api.fetchConfirmations.mockResolvedValue(toPage([], 0));
+    api.fetchMarriages.mockResolvedValue(toPage([], 0));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('120')).toBeInTheDocument();
+    });
+    const baptismCard = screen.getByText('120').closest('div')?.parentElement?.parentElement;
+    expect(baptismCard).toHaveTextContent(/Baptisms/);
   });
 
   it('renders visible grouped chart bars when monthly values are non-zero', async () => {

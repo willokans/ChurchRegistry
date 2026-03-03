@@ -45,7 +45,7 @@ describe('Holy Orders list page', () => {
   it('when authenticated fetches holy orders and shows list heading', async () => {
     renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
-      expect(fetchHolyOrders).toHaveBeenCalledWith(10);
+      expect(fetchHolyOrders).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /holy order/i })).toBeInTheDocument();
   });

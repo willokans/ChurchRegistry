@@ -45,7 +45,7 @@ describe('Marriages list page', () => {
   it('when authenticated fetches marriages and shows list heading', async () => {
     renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
-      expect(fetchMarriages).toHaveBeenCalledWith(10);
+      expect(fetchMarriages).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /marriage|holy matrimony|matrimony/i })).toBeInTheDocument();
   });

@@ -50,7 +50,7 @@ describe('Confirmations list page', () => {
   it('when authenticated fetches confirmations and shows list heading', async () => {
     renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(fetchConfirmations).toHaveBeenCalledWith(10);
+      expect(fetchConfirmations).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /confirmation/i })).toBeInTheDocument();
   });

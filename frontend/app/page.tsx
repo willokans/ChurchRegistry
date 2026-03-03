@@ -38,6 +38,7 @@ function useDashboardData(parishId: number | null) {
   const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
   const [confirmations, setConfirmations] = useState<ConfirmationResponse[]>([]);
   const [marriages, setMarriages] = useState<MarriageResponse[]>([]);
+  const [counts, setCounts] = useState({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +48,7 @@ function useDashboardData(parishId: number | null) {
       setCommunions([]);
       setConfirmations([]);
       setMarriages([]);
+      setCounts({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0 });
       setLoading(false);
       return;
     }
@@ -66,6 +68,12 @@ function useDashboardData(parishId: number | null) {
           setCommunions(cPage.content);
           setConfirmations(cfPage.content);
           setMarriages(mPage.content);
+          setCounts({
+            baptisms: bPage.totalElements,
+            communions: cPage.totalElements,
+            confirmations: cfPage.totalElements,
+            marriages: mPage.totalElements,
+          });
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard');
@@ -159,7 +167,7 @@ function useDashboardData(parishId: number | null) {
   const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.communions, ...monthly.confirmations, ...monthly.marriages);
 
   return {
-    counts: { baptisms: baptisms.length, communions: communions.length, confirmations: confirmations.length, marriages: marriages.length },
+    counts,
     recent,
     monthly: {
       baptisms: monthly.baptisms,

@@ -45,7 +45,7 @@ describe('Communions list page', () => {
   it('when authenticated fetches communions and shows list heading', async () => {
     renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
-      expect(fetchCommunions).toHaveBeenCalledWith(10);
+      expect(fetchCommunions).toHaveBeenCalledWith(10, 0, 50);
     });
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /first holy communion|holy communion|communions/i })).toBeInTheDocument();
