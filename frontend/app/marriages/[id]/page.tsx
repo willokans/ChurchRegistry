@@ -22,6 +22,7 @@ import {
   type ConfirmationResponse,
   type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -485,19 +486,19 @@ export default function MarriageViewPage() {
   async function handleSaveNotes() {
     const currentMarriage = marriage;
     if (!currentMarriage) return;
-    setNotesError(null);
-    setSavingNotes(true);
-    try {
-      const updated = await updateMarriageNotes(currentMarriage.id, notes);
-      setMarriage(updated);
-      const list = await fetchMarriageNoteHistory(currentMarriage.id);
-      setNoteHistory(list);
-      setNotes('');
-    } catch (e) {
-      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
-    } finally {
-      setSavingNotes(false);
-    }
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: currentMarriage.id,
+      updateNotes: updateMarriageNotes,
+      fetchNoteHistory: fetchMarriageNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setMarriage,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
   }
 
   if (!hasParties) {

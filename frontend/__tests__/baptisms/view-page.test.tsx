@@ -194,6 +194,52 @@ describe('Baptism view page', () => {
     });
     expect(fetchBaptismNoteHistory).toHaveBeenCalledWith(123);
   });
+
+  it('optimistic UI: note appears immediately when saving, then replaced by server data', async () => {
+    const user = userEvent.setup();
+    let resolveUpdate: (value: unknown) => void;
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve;
+    });
+    (updateBaptismNotes as jest.Mock).mockReturnValue(updatePromise);
+    (fetchBaptismNoteHistory as jest.Mock).mockResolvedValue([
+      { id: 1, content: 'Optimistic note', createdAt: '2026-03-03T12:00:00Z', createdBy: 'admin' },
+    ]);
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    const textarea = screen.getByPlaceholderText(/follow-up actions|observations/i);
+    await user.type(textarea, 'Optimistic note');
+    await user.click(screen.getByRole('button', { name: /save notes/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Optimistic note').length).toBeGreaterThanOrEqual(1);
+    });
+    expect(textarea).toHaveValue('');
+    resolveUpdate!({ id: 123, baptismName: 'John', surname: 'Doe', note: 'Optimistic note' });
+    await waitFor(() => {
+      expect(fetchBaptismNoteHistory).toHaveBeenCalledWith(123);
+    });
+  });
+
+  it('optimistic UI: rolls back note and restores input when save fails', async () => {
+    const user = userEvent.setup();
+    (updateBaptismNotes as jest.Mock).mockRejectedValue(new Error('Network error'));
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
+    });
+    const textarea = screen.getByPlaceholderText(/follow-up actions|observations/i);
+    await user.type(textarea, 'Note that will fail');
+    await user.click(screen.getByRole('button', { name: /save notes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/network error/i);
+    });
+    expect(textarea).toHaveValue('Note that will fail');
+    expect(screen.getByText(/no notes saved yet/i)).toBeInTheDocument();
+  });
 });
 
 describe('Baptism view page when baptized in another parish (external certificate)', () => {

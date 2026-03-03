@@ -14,6 +14,7 @@ import {
   type FirstHolyCommunionResponse,
   type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -218,19 +219,19 @@ export default function CommunionViewPage() {
 
   async function handleSaveNotes() {
     if (!communion) return;
-    setNotesError(null);
-    setSavingNotes(true);
-    try {
-      const updated = await updateCommunionNotes(communion.id, notes);
-      setCommunion(updated);
-      const list = await fetchCommunionNoteHistory(communion.id);
-      setNoteHistory(list);
-      setNotes('');
-    } catch (e) {
-      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
-    } finally {
-      setSavingNotes(false);
-    }
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: communion.id,
+      updateNotes: updateCommunionNotes,
+      fetchNoteHistory: fetchCommunionNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setCommunion,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
   }
 
   const handleDownloadCommunionCert = useCallback(async () => {

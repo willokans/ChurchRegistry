@@ -170,6 +170,22 @@ describe('Users page (User Access)', () => {
     });
   });
 
+  it('optimistic UI: rolls back user parish access when save fails', async () => {
+    (replaceUserParishAccess as jest.Mock).mockRejectedValue(new Error('Server error'));
+    render(<UsersPage />);
+    await waitFor(() => {
+      expect(screen.getByText('Fr. John')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: /fr\. john/i }));
+    expect(screen.getByText(/2 parishes/)).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('St John')); // uncheck
+    await userEvent.click(screen.getByRole('button', { name: /save parish access/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/server error|failed to save/i);
+    });
+    expect(screen.getByText(/2 parishes/)).toBeInTheDocument();
+  });
+
   it('shows error when fetch fails', async () => {
     (listUsersWithParishAccess as jest.Mock).mockRejectedValue(new Error('Admin access required'));
     render(<UsersPage />);

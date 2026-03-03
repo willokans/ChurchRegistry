@@ -13,6 +13,7 @@ import {
   type BaptismResponse,
   type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -164,19 +165,19 @@ export default function BaptismViewPage() {
 
   async function handleSaveNotes() {
     if (baptism == null) return;
-    setNotesError(null);
-    setSavingNotes(true);
-    try {
-      const updated = await updateBaptismNotes(baptism.id, notes);
-      setBaptism(updated);
-      const list = await fetchBaptismNoteHistory(baptism.id);
-      setNoteHistory(list);
-      setNotes('');
-    } catch (e) {
-      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
-    } finally {
-      setSavingNotes(false);
-    }
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: baptism.id,
+      updateNotes: updateBaptismNotes,
+      fetchNoteHistory: fetchBaptismNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setBaptism,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
   }
 
   function openEmailModal() {

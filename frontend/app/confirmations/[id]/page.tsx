@@ -17,6 +17,7 @@ import {
   type FirstHolyCommunionResponse,
   type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -352,19 +353,19 @@ export default function ConfirmationViewPage() {
 
   async function handleSaveNotes() {
     if (!confirmation) return;
-    setNotesError(null);
-    setSavingNotes(true);
-    try {
-      const updated = await updateConfirmationNotes(confirmation.id, notes);
-      setConfirmation(updated);
-      const list = await fetchConfirmationNoteHistory(confirmation.id);
-      setNoteHistory(list);
-      setNotes('');
-    } catch (e) {
-      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
-    } finally {
-      setSavingNotes(false);
-    }
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: confirmation.id,
+      updateNotes: updateConfirmationNotes,
+      fetchNoteHistory: fetchConfirmationNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setConfirmation,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
   }
 
   return (

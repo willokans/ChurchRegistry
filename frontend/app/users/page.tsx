@@ -142,8 +142,17 @@ export default function UsersPage() {
               saveError={saveError}
               onSaveError={setSaveError}
               onSave={async (parishIds, defaultParishId) => {
-                setSaving(true);
                 setSaveError(null);
+                setSaving(true);
+                const optimisticUser: UserParishAccessResponse = {
+                  ...selectedUser,
+                  parishAccessIds: parishIds,
+                  defaultParishId: defaultParishId ?? null,
+                };
+                const prevUsers = [...users];
+                setUsers((prev) =>
+                  prev.map((u) => (u.userId === selectedUser.userId ? optimisticUser : u))
+                );
                 try {
                   const updated = await replaceUserParishAccess(selectedUser.userId, {
                     parishIds,
@@ -154,6 +163,7 @@ export default function UsersPage() {
                   );
                   setSelectedUserId(updated.userId);
                 } catch (e) {
+                  setUsers(prevUsers);
                   setSaveError(e instanceof Error ? e.message : 'Failed to save');
                 } finally {
                   setSaving(false);
