@@ -13,7 +13,7 @@ This repository now includes a dedicated Fly.io deployment path for the Spring B
 ### Repository Secrets
 
 - `FLY_API_TOKEN`
-- `API_DATABASE_URL`
+- `API_DATABASE_URL` — full JDBC URL, e.g. `jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require&preferQueryMode=simple&prepareThreshold=0`
 - `API_DATABASE_USERNAME`
 - `API_DATABASE_PASSWORD`
 - `API_JWT_SECRET` (minimum 32 bytes)
