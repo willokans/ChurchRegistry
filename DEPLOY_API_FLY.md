@@ -20,6 +20,7 @@ This repository now includes a dedicated Fly.io deployment path for the Spring B
 - `API_CORS_ALLOWED_ORIGINS` (comma-separated)
 - `API_JWT_EXPIRATION_MS` (optional)
 - `API_JWT_REFRESH_EXPIRATION_MS` (optional)
+- `SUPABASE_SERVICE_ROLE_KEY` — required for certificate uploads and downloads (Holy Communion, Baptism from another parish). Get from Supabase Dashboard → Project Settings → API. Add to GitHub Secrets; the deploy workflow syncs it to Fly.
 
 ### Repository Variables
 

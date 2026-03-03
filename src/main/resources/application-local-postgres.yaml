@@ -1,3 +1,6 @@
+# Certificate upload (Holy Communion, Baptism from another parish) requires:
+# SUPABASE_SERVICE_ROLE_KEY — from Supabase Dashboard → Project Settings → API
+# (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL optional; inferred from datasource username if postgres.xxx)
 spring:
   datasource:
     # prepareThreshold=0 and preferQueryMode=simple avoid "prepared statement already exists" with Supabase pooler (PgBouncer)
