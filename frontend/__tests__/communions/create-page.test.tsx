@@ -43,9 +43,11 @@ describe('Communion create page', () => {
       loading: false,
       error: null,
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
-    ]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
+      ],
+    });
     (createCommunion as jest.Mock).mockResolvedValue({ id: 99, baptismId: 5, communionDate: '2024-05-01' });
     (createCommunionWithCertificate as jest.Mock).mockResolvedValue({ id: 100, baptismId: 50, communionDate: '2024-05-01' });
     (createCommunion as jest.Mock).mockClear();
@@ -128,10 +130,12 @@ describe('Communion create page', () => {
     });
 
     it('typing in search shows filtered results in listbox', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
-        { id: 6, baptismName: 'Bob', otherNames: '', surname: 'Smith', dateOfBirth: '2017-05-15', fathersName: 'Jim', mothersName: 'Ann' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
+          { id: 6, baptismName: 'Bob', otherNames: '', surname: 'Smith', dateOfBirth: '2017-05-15', fathersName: 'Jim', mothersName: 'Ann' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -149,9 +153,11 @@ describe('Communion create page', () => {
     });
 
     it('clicking a result selects baptism and shows selected parishioner box', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -174,9 +180,11 @@ describe('Communion create page', () => {
     });
 
     it('clicking Change clears selection and shows search box again', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -197,9 +205,11 @@ describe('Communion create page', () => {
     });
 
     it('shows no matches message when search matches no baptism records', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -214,9 +224,11 @@ describe('Communion create page', () => {
     });
 
     it('when baptism selected shows Baptism Certificate and Parents & Sponsors sections', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary', sponsorNames: 'T. Walsh' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary', sponsorNames: 'T. Walsh' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {

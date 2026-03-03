@@ -38,7 +38,7 @@ describe('Holy Orders list page', () => {
       parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
       error: null,
     });
-    (fetchHolyOrders as jest.Mock).mockResolvedValue([]);
+    (fetchHolyOrders as jest.Mock).mockResolvedValue({ content: [] });
     (fetchHolyOrders as jest.Mock).mockClear();
   });
 
@@ -59,9 +59,11 @@ describe('Holy Orders list page', () => {
   });
 
   it('shows list of holy orders when data returned', async () => {
-    (fetchHolyOrders as jest.Mock).mockResolvedValue([
-      { id: 1, confirmationId: 7, ordinationDate: '2025-09-01', orderType: 'PRIEST', officiatingBishop: 'Bishop Jones' },
-    ]);
+    (fetchHolyOrders as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, confirmationId: 7, ordinationDate: '2025-09-01', orderType: 'PRIEST', officiatingBishop: 'Bishop Jones' },
+      ],
+    });
     renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();

@@ -99,10 +99,10 @@ export default function ConfirmationCreatePage() {
     let cancelled = false;
     setLoading(true);
     Promise.all([fetchBaptisms(effectiveParishId), fetchCommunions(effectiveParishId)])
-      .then(([baptismList, communionList]) => {
+      .then(([baptismPage, communionPage]) => {
         if (!cancelled) {
-          setBaptisms(baptismList);
-          setCommunions(communionList);
+          setBaptisms(baptismPage.content);
+          setCommunions(communionPage.content);
           const defaultParish = parishes.find((p) => p.id === effectiveParishId);
           setExternalCommunion((prev) => ({
             ...prev,

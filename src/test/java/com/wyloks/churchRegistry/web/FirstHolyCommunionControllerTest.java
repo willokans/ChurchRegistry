@@ -23,11 +23,16 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.wyloks.churchRegistry.config.TestSecurityConfig;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -93,12 +98,15 @@ class FirstHolyCommunionControllerTest {
     }
 
     @Test
-    void getByParish_returnsEmptyList_whenNone() throws Exception {
-        when(communionService.findByParishId(1L)).thenReturn(List.of());
+    void getByParish_returnsEmptyPage_whenNone() throws Exception {
+        when(communionService.findByParishId(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 50), 0));
 
         mvc.perform(get("/api/parishes/1/communions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test

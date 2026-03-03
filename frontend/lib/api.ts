@@ -232,8 +232,28 @@ export async function createParish(dioceseId: number, parishName: string): Promi
   return res.json();
 }
 
-export async function fetchBaptisms(parishId: number): Promise<BaptismResponse[]> {
-  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, { headers: getAuthHeaders() });
+/** Paginated response from sacrament list endpoints. */
+export interface SacramentPageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  numberOfElements: number;
+  empty: boolean;
+}
+
+export async function fetchBaptisms(
+  parishId: number,
+  page = 0,
+  size = 50
+): Promise<SacramentPageResponse<BaptismResponse>> {
+  const res = await fetchWithRetry(
+    `${getBaseUrl()}/api/parishes/${parishId}/baptisms?page=${page}&size=${size}`,
+    { headers: getAuthHeaders() }
+  );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');
   return res.json();
 }
@@ -367,8 +387,15 @@ export interface FirstHolyCommunionRequest {
   baptismCertificatePath?: string;
 }
 
-export async function fetchCommunions(parishId: number): Promise<FirstHolyCommunionResponse[]> {
-  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/communions`, { headers: getAuthHeaders() });
+export async function fetchCommunions(
+  parishId: number,
+  page = 0,
+  size = 50
+): Promise<SacramentPageResponse<FirstHolyCommunionResponse>> {
+  const res = await fetchWithRetry(
+    `${getBaseUrl()}/api/parishes/${parishId}/communions?page=${page}&size=${size}`,
+    { headers: getAuthHeaders() }
+  );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
   return res.json();
 }
@@ -567,8 +594,15 @@ export interface ConfirmationRequest {
   parish?: string;
 }
 
-export async function fetchConfirmations(parishId: number): Promise<ConfirmationResponse[]> {
-  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/confirmations`, { headers: getAuthHeaders() });
+export async function fetchConfirmations(
+  parishId: number,
+  page = 0,
+  size = 50
+): Promise<SacramentPageResponse<ConfirmationResponse>> {
+  const res = await fetchWithRetry(
+    `${getBaseUrl()}/api/parishes/${parishId}/confirmations?page=${page}&size=${size}`,
+    { headers: getAuthHeaders() }
+  );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
   return res.json();
 }
@@ -718,8 +752,15 @@ export interface CreateMarriageWithPartiesRequest {
   witnesses: Array<{ fullName: string; phone?: string; address?: string; sortOrder?: number }>;
 }
 
-export async function fetchMarriages(parishId: number): Promise<MarriageResponse[]> {
-  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/marriages`, { headers: getAuthHeaders() });
+export async function fetchMarriages(
+  parishId: number,
+  page = 0,
+  size = 50
+): Promise<SacramentPageResponse<MarriageResponse>> {
+  const res = await fetchWithRetry(
+    `${getBaseUrl()}/api/parishes/${parishId}/marriages?page=${page}&size=${size}`,
+    { headers: getAuthHeaders() }
+  );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriages');
   return res.json();
 }
@@ -898,8 +939,15 @@ export interface HolyOrderRequest {
   parishId?: number;
 }
 
-export async function fetchHolyOrders(parishId: number): Promise<HolyOrderResponse[]> {
-  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/holy-orders`, { headers: getAuthHeaders() });
+export async function fetchHolyOrders(
+  parishId: number,
+  page = 0,
+  size = 50
+): Promise<SacramentPageResponse<HolyOrderResponse>> {
+  const res = await fetchWithRetry(
+    `${getBaseUrl()}/api/parishes/${parishId}/holy-orders?page=${page}&size=${size}`,
+    { headers: getAuthHeaders() }
+  );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy orders');
   return res.json();
 }

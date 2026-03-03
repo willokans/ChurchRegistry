@@ -13,6 +13,8 @@ import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.FirstHolyCommunionService;
 import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,12 @@ public class FirstHolyCommunionServiceImpl implements FirstHolyCommunionService 
         return communionRepository.findByBaptismParishId(parishId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<FirstHolyCommunionResponse> findByParishId(Long parishId, Pageable pageable) {
+        return communionRepository.findByBaptismParishId(parishId, pageable).map(this::toResponse);
     }
 
     @Override

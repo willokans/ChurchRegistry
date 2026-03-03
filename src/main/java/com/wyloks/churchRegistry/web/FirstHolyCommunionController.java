@@ -18,6 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,9 +44,11 @@ public class FirstHolyCommunionController {
     private static final long MAX_CERTIFICATE_SIZE = 2L * 1024 * 1024;
 
     @GetMapping("/parishes/{parishId}/communions")
-    public List<FirstHolyCommunionResponse> getByParish(@PathVariable Long parishId) {
+    public Page<FirstHolyCommunionResponse> getByParish(
+            @PathVariable Long parishId,
+            @PageableDefault(size = 50) Pageable pageable) {
         authorizationService.requireParishAccess(parishId);
-        List<FirstHolyCommunionResponse> result = communionService.findByParishId(parishId);
+        Page<FirstHolyCommunionResponse> result = communionService.findByParishId(parishId, pageable);
         auditService.logReadList(SacramentType.COMMUNION, parishId);
         return result;
     }

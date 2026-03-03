@@ -135,11 +135,11 @@ export default function MarriageCreatePage() {
       fetchCommunions(effectiveParishId),
       fetchConfirmations(effectiveParishId),
     ])
-      .then(([bList, cList, confList]) => {
+      .then(([bPage, cPage, confPage]) => {
         if (!cancelled) {
-          setBaptisms(bList);
-          setCommunions(cList);
-          setConfirmations(confList);
+          setBaptisms(bPage.content);
+          setCommunions(cPage.content);
+          setConfirmations(confPage.content);
           const parishName = parishes.find((p) => p.id === effectiveParishId)?.parishName ?? '';
           setMarriageDetails((d) => ({ ...d, parish: parishName, churchName: parishName }));
         }

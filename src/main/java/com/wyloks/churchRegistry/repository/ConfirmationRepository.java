@@ -1,6 +1,8 @@
 package com.wyloks.churchRegistry.repository;
 
 import com.wyloks.churchRegistry.entity.Confirmation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +19,9 @@ public interface ConfirmationRepository extends JpaRepository<Confirmation, Long
 
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
     List<Confirmation> findByBaptismParishId(Long parishId);
+
+    @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
+    Page<Confirmation> findByBaptismParishId(Long parishId, Pageable pageable);
 
     @Query("SELECT c.baptism.parish.id FROM Confirmation c WHERE c.id = :id")
     Optional<Long> findParishIdById(@Param("id") Long id);

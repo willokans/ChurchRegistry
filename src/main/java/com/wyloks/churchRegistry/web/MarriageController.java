@@ -12,6 +12,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,9 +30,11 @@ public class MarriageController {
     private final SacramentAuditService auditService;
 
     @GetMapping("/parishes/{parishId}/marriages")
-    public List<MarriageResponse> getByParish(@PathVariable Long parishId) {
+    public Page<MarriageResponse> getByParish(
+            @PathVariable Long parishId,
+            @PageableDefault(size = 50) Pageable pageable) {
         authorizationService.requireParishAccess(parishId);
-        List<MarriageResponse> result = marriageService.findByParishId(parishId);
+        Page<MarriageResponse> result = marriageService.findByParishId(parishId, pageable);
         auditService.logReadList(SacramentType.MARRIAGE, parishId);
         return result;
     }

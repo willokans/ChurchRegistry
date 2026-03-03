@@ -102,8 +102,8 @@ describe('Confirmation create page', () => {
       loading: false,
       error: null,
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue(defaultBaptisms);
-    (fetchCommunions as jest.Mock).mockResolvedValue(defaultCommunions);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: defaultBaptisms });
+    (fetchCommunions as jest.Mock).mockResolvedValue({ content: defaultCommunions });
     (createConfirmation as jest.Mock).mockResolvedValue({ id: 99, communionId: 2, baptismId: 5 });
     (createBaptismWithCertificate as jest.Mock).mockResolvedValue({ id: 50 });
     (createCommunion as jest.Mock).mockResolvedValue({ id: 101, baptismId: 50 });

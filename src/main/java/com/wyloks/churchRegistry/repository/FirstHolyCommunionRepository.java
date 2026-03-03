@@ -1,6 +1,8 @@
 package com.wyloks.churchRegistry.repository;
 
 import com.wyloks.churchRegistry.entity.FirstHolyCommunion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +17,9 @@ public interface FirstHolyCommunionRepository extends JpaRepository<FirstHolyCom
 
     @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
     List<FirstHolyCommunion> findByBaptismParishId(Long parishId);
+
+    @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
+    Page<FirstHolyCommunion> findByBaptismParishId(Long parishId, Pageable pageable);
 
     @Query("SELECT c.baptism.parish.id FROM FirstHolyCommunion c WHERE c.id = :id")
     Optional<Long> findParishIdById(@Param("id") Long id);

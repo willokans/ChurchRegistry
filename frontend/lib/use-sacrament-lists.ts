@@ -22,15 +22,15 @@ const SWR_OPTIONS = {
 
 function useSacramentList<T>(
   key: [string, number] | null,
-  fetcher: (parishId: number) => Promise<T[]>
+  fetcher: (parishId: number) => Promise<{ content: T[] }>
 ): { data: T[]; isLoading: boolean; error: Error | null; mutate: () => void } {
-  const { data, error, isLoading, mutate } = useSWR<T[]>(
+  const { data, error, isLoading, mutate } = useSWR<{ content: T[] }>(
     key,
     key ? ([, parishId]: [string, number]) => fetcher(parishId) : null,
     SWR_OPTIONS
   );
   return {
-    data: data ?? [],
+    data: data?.content ?? [],
     isLoading,
     error: error ?? null,
     mutate,

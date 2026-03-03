@@ -10,6 +10,9 @@ import com.wyloks.churchRegistry.service.BaptismService;
 import com.wyloks.churchRegistry.service.SacramentAuditService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,9 +28,11 @@ public class BaptismController {
     private final SacramentAuditService auditService;
 
     @GetMapping("/api/parishes/{parishId}/baptisms")
-    public List<BaptismResponse> getByParish(@PathVariable Long parishId) {
+    public Page<BaptismResponse> getByParish(
+            @PathVariable Long parishId,
+            @PageableDefault(size = 50) Pageable pageable) {
         authorizationService.requireParishAccess(parishId);
-        List<BaptismResponse> result = baptismService.findByParishId(parishId);
+        Page<BaptismResponse> result = baptismService.findByParishId(parishId, pageable);
         auditService.logReadList(SacramentType.BAPTISM, parishId);
         return result;
     }

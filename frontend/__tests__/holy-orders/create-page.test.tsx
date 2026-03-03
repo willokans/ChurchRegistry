@@ -40,9 +40,11 @@ describe('Holy Order create page', () => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('parishId=10'));
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      { id: 7, baptismId: 5, communionId: 2, confirmationDate: '2025-04-01', officiatingBishop: 'Bishop Jones', parish: 'St Mary' },
-    ]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 7, baptismId: 5, communionId: 2, confirmationDate: '2025-04-01', officiatingBishop: 'Bishop Jones', parish: 'St Mary' },
+      ],
+    });
     (createHolyOrder as jest.Mock).mockResolvedValue({ id: 99, confirmationId: 7, orderType: 'PRIEST' });
   });
 

@@ -21,6 +21,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.wyloks.churchRegistry.config.TestSecurityConfig;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -58,13 +62,15 @@ class BaptismControllerTest {
     }
 
     @Test
-    void getBaptismsByParish_returnsEmptyList_whenNoneExist() throws Exception {
-        when(baptismService.findByParishId(1L)).thenReturn(List.of());
+    void getBaptismsByParish_returnsEmptyPage_whenNoneExist() throws Exception {
+        when(baptismService.findByParishId(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 50), 0));
 
         mvc.perform(get("/api/parishes/1/baptisms"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test

@@ -13,6 +13,8 @@ import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.BaptismService;
 import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,12 @@ public class BaptismServiceImpl implements BaptismService {
         return baptismRepository.findByParishId(parishId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BaptismResponse> findByParishId(Long parishId, Pageable pageable) {
+        return baptismRepository.findByParishId(parishId, pageable).map(this::toResponse);
     }
 
     @Override

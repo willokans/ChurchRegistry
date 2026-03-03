@@ -21,13 +21,14 @@ jest.mock('@/context/ParishContext', () => ({
   }),
 }));
 
+const toPage = (arr: unknown[]) => ({ content: arr });
 jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   getStoredToken: jest.fn(),
-  fetchBaptisms: jest.fn(() => Promise.resolve([])),
-  fetchCommunions: jest.fn(() => Promise.resolve([])),
-  fetchConfirmations: jest.fn(() => Promise.resolve([])),
-  fetchMarriages: jest.fn(() => Promise.resolve([])),
+  fetchBaptisms: jest.fn(() => Promise.resolve(toPage([]))),
+  fetchCommunions: jest.fn(() => Promise.resolve(toPage([]))),
+  fetchConfirmations: jest.fn(() => Promise.resolve(toPage([]))),
+  fetchMarriages: jest.fn(() => Promise.resolve(toPage([]))),
 }));
 
 const mockPush = jest.fn();
@@ -83,13 +84,13 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     });
     api.getStoredToken.mockReturnValue('jwt-123');
-    api.fetchBaptisms.mockResolvedValue([]);
-    api.fetchCommunions.mockResolvedValue([
+    api.fetchBaptisms.mockResolvedValue(toPage([]));
+    api.fetchCommunions.mockResolvedValue(toPage([
       { id: 1, baptismId: 1, communionDate: `${year}-01-10`, officiatingPriest: 'Fr A', parish: 'St Mary' },
       { id: 2, baptismId: 2, communionDate: `${year}-02-11`, officiatingPriest: 'Fr B', parish: 'St Mary' },
-    ]);
-    api.fetchConfirmations.mockResolvedValue([]);
-    api.fetchMarriages.mockResolvedValue([]);
+    ]));
+    api.fetchConfirmations.mockResolvedValue(toPage([]));
+    api.fetchMarriages.mockResolvedValue(toPage([]));
 
     localStorage.setItem('church_registry_token', 'jwt-123');
     localStorage.setItem(
@@ -124,7 +125,7 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     });
     api.getStoredToken.mockReturnValue('jwt-123');
-    api.fetchBaptisms.mockResolvedValue([
+    api.fetchBaptisms.mockResolvedValue(toPage([
       {
         id: 1,
         baptismName: 'John',
@@ -139,10 +140,10 @@ describe('Dashboard page', () => {
         parishId: 10,
         createdAt: `${year}-01-15T12:00:00.000Z`,
       },
-    ]);
-    api.fetchCommunions.mockResolvedValue([]);
-    api.fetchConfirmations.mockResolvedValue([]);
-    api.fetchMarriages.mockResolvedValue([]);
+    ]));
+    api.fetchCommunions.mockResolvedValue(toPage([]));
+    api.fetchConfirmations.mockResolvedValue(toPage([]));
+    api.fetchMarriages.mockResolvedValue(toPage([]));
 
     localStorage.setItem('church_registry_token', 'jwt-123');
     localStorage.setItem(

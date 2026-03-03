@@ -12,6 +12,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -32,9 +35,11 @@ public class ConfirmationController {
     private final SacramentAuditService auditService;
 
     @GetMapping("/parishes/{parishId}/confirmations")
-    public List<ConfirmationResponse> getByParish(@PathVariable Long parishId) {
+    public Page<ConfirmationResponse> getByParish(
+            @PathVariable Long parishId,
+            @PageableDefault(size = 50) Pageable pageable) {
         authorizationService.requireParishAccess(parishId);
-        List<ConfirmationResponse> result = confirmationService.findByParishId(parishId);
+        Page<ConfirmationResponse> result = confirmationService.findByParishId(parishId, pageable);
         auditService.logReadList(SacramentType.CONFIRMATION, parishId);
         return result;
     }

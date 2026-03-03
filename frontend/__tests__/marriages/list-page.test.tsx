@@ -38,7 +38,7 @@ describe('Marriages list page', () => {
       parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
       error: null,
     });
-    (fetchMarriages as jest.Mock).mockResolvedValue([]);
+    (fetchMarriages as jest.Mock).mockResolvedValue({ content: [] });
     (fetchMarriages as jest.Mock).mockClear();
   });
 
@@ -59,9 +59,11 @@ describe('Marriages list page', () => {
   });
 
   it('shows list of marriages when data returned', async () => {
-    (fetchMarriages as jest.Mock).mockResolvedValue([
-      { id: 1, confirmationId: 7, partnersName: 'John & Jane', marriageDate: '2025-06-15', officiatingPriest: 'Fr. Smith', parish: 'St Mary' },
-    ]);
+    (fetchMarriages as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, confirmationId: 7, partnersName: 'John & Jane', marriageDate: '2025-06-15', officiatingPriest: 'Fr. Smith', parish: 'St Mary' },
+      ],
+    });
     renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
@@ -71,10 +73,11 @@ describe('Marriages list page', () => {
   });
 
   it('shows the requested matrimony grid headers on desktop table', async () => {
-    (fetchMarriages as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        partnersName: 'John Okeke & Jane Woods',
+    (fetchMarriages as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          partnersName: 'John Okeke & Jane Woods',
         marriageDate: '2026-06-25',
         officiatingPriest: 'Fr. Smith',
         parish: 'St Mary',
@@ -87,7 +90,8 @@ describe('Marriages list page', () => {
         brideMotherName: 'Ada Woods',
         witnessesDisplay: 'Peter N, Mark O',
       },
-    ]);
+      ],
+    });
     renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
@@ -107,9 +111,10 @@ describe('Marriages list page', () => {
   });
 
   it('shows groom/bride parents, witnesses and civil certificate link', async () => {
-    (fetchMarriages as jest.Mock).mockResolvedValue([
-      {
-        id: 11,
+    (fetchMarriages as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 11,
         partnersName: 'Jacob Lamin & Rebecca Smith',
         marriageDate: '2026-09-14',
         officiatingPriest: 'Fr. Damian',
@@ -123,7 +128,8 @@ describe('Marriages list page', () => {
         brideMotherName: 'Mary Smith',
         witnessesDisplay: 'Peter Nkosi, Felix Obinna',
       },
-    ]);
+      ],
+    });
     renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();

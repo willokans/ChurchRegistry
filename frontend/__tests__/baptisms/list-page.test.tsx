@@ -42,7 +42,7 @@ describe('Baptisms list page', () => {
       parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
       error: null,
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue([]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
     (fetchBaptisms as jest.Mock).mockClear();
   });
 
@@ -63,9 +63,11 @@ describe('Baptisms list page', () => {
   });
 
   it('shows list of baptisms when data returned', async () => {
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      { id: 1, baptismName: 'John', otherNames: '', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'James', mothersName: 'Mary', sponsorNames: '', officiatingPriest: '' },
-    ]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, baptismName: 'John', otherNames: '', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'James', mothersName: 'Mary', sponsorNames: '', officiatingPriest: '' },
+      ],
+    });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('John').length).toBeGreaterThanOrEqual(1);
@@ -115,21 +117,23 @@ describe('Baptisms list page', () => {
   });
 
   it('grid shows BAPTISM NAME, OTHER NAMES, SURNAME and SPONSOR, OFFICIATING PRIEST column headers when baptisms exist', async () => {
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismName: 'John',
-        otherNames: '',
-        surname: 'Doe',
-        dateOfBirth: '2020-01-15',
-        gender: 'MALE',
-        fathersName: 'James',
-        mothersName: 'Mary',
-        sponsorNames: 'Jane Doe',
-        officiatingPriest: 'Fr. Smith',
-        parishId: 10,
-      },
-    ]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismName: 'John',
+          otherNames: '',
+          surname: 'Doe',
+          dateOfBirth: '2020-01-15',
+          gender: 'MALE',
+          fathersName: 'James',
+          mothersName: 'Mary',
+          sponsorNames: 'Jane Doe',
+          officiatingPriest: 'Fr. Smith',
+          parishId: 10,
+        },
+      ],
+    });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getByRole('columnheader', { name: /baptism name/i, hidden: true })).toBeInTheDocument();
@@ -141,21 +145,23 @@ describe('Baptisms list page', () => {
   });
 
   it('grid shows sponsor and officiating priest values in table rows', async () => {
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismName: 'John',
-        otherNames: '',
-        surname: 'Doe',
-        dateOfBirth: '2020-01-15',
-        gender: 'MALE',
-        fathersName: 'James',
-        mothersName: 'Mary',
-        sponsorNames: 'Jane Doe',
-        officiatingPriest: 'Fr. Smith',
-        parishId: 10,
-      },
-    ]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismName: 'John',
+          otherNames: '',
+          surname: 'Doe',
+          dateOfBirth: '2020-01-15',
+          gender: 'MALE',
+          fathersName: 'James',
+          mothersName: 'Mary',
+          sponsorNames: 'Jane Doe',
+          officiatingPriest: 'Fr. Smith',
+          parishId: 10,
+        },
+      ],
+    });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
@@ -164,10 +170,12 @@ describe('Baptisms list page', () => {
   });
 
   it('filtering by year shows only baptisms from that year', async () => {
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-05-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
-      { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2023-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
-    ]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-05-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
+        { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2023-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
+      ],
+    });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
@@ -188,10 +196,12 @@ describe('Baptisms list page', () => {
   });
 
   it('search filters baptisms by name', async () => {
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-01-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
-      { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2024-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
-    ]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-01-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
+        { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2024-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
+      ],
+    });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);

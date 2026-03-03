@@ -52,9 +52,9 @@ describe('Marriage create page', () => {
       loading: false,
       error: null,
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue([]);
-    (fetchCommunions as jest.Mock).mockResolvedValue([]);
-    (fetchConfirmations as jest.Mock).mockResolvedValue([]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchCommunions as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchConfirmations as jest.Mock).mockResolvedValue({ content: [] });
     (createMarriageWithParties as jest.Mock).mockResolvedValue({ id: 99 });
   });
 

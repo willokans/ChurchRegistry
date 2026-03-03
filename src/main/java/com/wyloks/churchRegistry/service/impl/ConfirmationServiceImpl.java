@@ -13,6 +13,8 @@ import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.ConfirmationService;
 import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,12 @@ public class ConfirmationServiceImpl implements ConfirmationService {
         return confirmationRepository.findByBaptismParishId(parishId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ConfirmationResponse> findByParishId(Long parishId, Pageable pageable) {
+        return confirmationRepository.findByBaptismParishId(parishId, pageable).map(this::toResponse);
     }
 
     @Override

@@ -64,9 +64,9 @@ export default function CommunionCreatePage() {
     let cancelled = false;
     setLoadingBaptisms(true);
     fetchBaptisms(effectiveParishId)
-      .then((list) => {
+      .then((page) => {
         if (!cancelled) {
-          setBaptisms(list);
+          setBaptisms(page.content);
           const defaultParish = parishes.find((p) => p.id === effectiveParishId);
           setForm((f) => ({
             ...f,

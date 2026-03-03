@@ -43,7 +43,7 @@ describe('Confirmations list page', () => {
       parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
       error: null,
     });
-    (fetchConfirmations as jest.Mock).mockResolvedValue([]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({ content: [] });
     (fetchConfirmations as jest.Mock).mockClear();
   });
 
@@ -64,22 +64,24 @@ describe('Confirmations list page', () => {
   });
 
   it('shows list of confirmations when data returned', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        parish: 'St Mary',
-        baptismName: 'John',
-        otherNames: 'Paul',
-        surname: 'Doe',
-        gender: 'MALE',
-        fathersName: 'James',
-        mothersName: 'Mary',
-      },
-    ]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          parish: 'St Mary',
+          baptismName: 'John',
+          otherNames: 'Paul',
+          surname: 'Doe',
+          gender: 'MALE',
+          fathersName: 'James',
+          mothersName: 'Mary',
+        },
+      ],
+    });
     renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
@@ -101,18 +103,20 @@ describe('Confirmations list page', () => {
   });
 
   it('grid shows BAPTISM NAME, OTHER NAMES, SURNAME, CONFIRMATION DATE and OFFICIATING BISHOP column headers when confirmations exist', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Smith',
-      },
-    ]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Smith',
+        },
+      ],
+    });
     renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(screen.getByRole('columnheader', { name: /baptism name/i, hidden: true })).toBeInTheDocument();
@@ -124,18 +128,20 @@ describe('Confirmations list page', () => {
   });
 
   it('clicking a table row navigates to confirmation detail', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 99,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Smith',
-      },
-    ]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 99,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Smith',
+        },
+      ],
+    });
     renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(screen.getByRole('grid', { hidden: true })).toHaveTextContent('Jane');
@@ -176,28 +182,30 @@ describe('Confirmations list page', () => {
   });
 
   it('search filters confirmations by name', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Doe',
-      },
-      {
-        id: 2,
-        baptismId: 6,
-        communionId: 3,
-        confirmationDate: '2025-05-01',
-        officiatingBishop: 'Bishop Smith',
-        baptismName: 'Bob',
-        otherNames: 'Paul',
-        surname: 'Smith',
-      },
-    ]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Doe',
+        },
+        {
+          id: 2,
+          baptismId: 6,
+          communionId: 3,
+          confirmationDate: '2025-05-01',
+          officiatingBishop: 'Bishop Smith',
+          baptismName: 'Bob',
+          otherNames: 'Paul',
+          surname: 'Smith',
+        },
+      ],
+    });
     const user = userEvent.setup();
     renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {

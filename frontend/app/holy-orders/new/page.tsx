@@ -28,8 +28,9 @@ export default function HolyOrderCreatePage() {
   useEffect(() => {
     if (parishId === null || Number.isNaN(parishId)) return;
     let cancelled = false;
-    fetchConfirmations(parishId).then((list) => {
+    fetchConfirmations(parishId).then((page) => {
       if (!cancelled) {
+        const list = page.content;
         setConfirmations(list);
         if (list.length > 0 && form.confirmationId === 0) setForm((f) => ({ ...f, confirmationId: list[0].id }));
       }

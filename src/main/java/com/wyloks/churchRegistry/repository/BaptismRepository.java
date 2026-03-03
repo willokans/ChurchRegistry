@@ -1,6 +1,8 @@
 package com.wyloks.churchRegistry.repository;
 
 import com.wyloks.churchRegistry.entity.Baptism;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +12,8 @@ import java.util.List;
 public interface BaptismRepository extends JpaRepository<Baptism, Long> {
 
     List<Baptism> findByParishId(Long parishId);
+
+    Page<Baptism> findByParishId(Long parishId, Pageable pageable);
 
     @Query("SELECT b.parish.id FROM Baptism b WHERE b.id = :id")
     java.util.Optional<Long> findParishIdById(@Param("id") Long id);

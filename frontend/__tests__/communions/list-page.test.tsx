@@ -38,7 +38,7 @@ describe('Communions list page', () => {
       parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
       error: null,
     });
-    (fetchCommunions as jest.Mock).mockResolvedValue([]);
+    (fetchCommunions as jest.Mock).mockResolvedValue({ content: [] });
     (fetchCommunions as jest.Mock).mockClear();
   });
 
@@ -61,18 +61,20 @@ describe('Communions list page', () => {
   });
 
   it('shows list of communions when data returned', async () => {
-    (fetchCommunions as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionDate: '2024-05-01',
-        officiatingPriest: 'Fr. Smith',
-        parish: 'St Mary',
-        baptismName: 'John',
-        otherNames: 'Paul',
-        surname: 'Doe',
-      },
-    ]);
+    (fetchCommunions as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionDate: '2024-05-01',
+          officiatingPriest: 'Fr. Smith',
+          parish: 'St Mary',
+          baptismName: 'John',
+          otherNames: 'Paul',
+          surname: 'Doe',
+        },
+      ],
+    });
     renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       expect(screen.getAllByText('John').length).toBeGreaterThanOrEqual(1);
@@ -94,18 +96,20 @@ describe('Communions list page', () => {
   });
 
   it('grid shows BAPTISM NAME, OTHER NAMES, SURNAME and COMMUNION DATE column headers when communions exist', async () => {
-    (fetchCommunions as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionDate: '2024-05-01',
-        officiatingPriest: 'Fr. Smith',
-        parish: 'St Mary',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Smith',
-      },
-    ]);
+    (fetchCommunions as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionDate: '2024-05-01',
+          officiatingPriest: 'Fr. Smith',
+          parish: 'St Mary',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Smith',
+        },
+      ],
+    });
     renderWithSWR(<CommunionsPage />);
     await waitFor(() => {
       // Table is hidden on mobile (hidden md:block); include hidden elements for jsdom

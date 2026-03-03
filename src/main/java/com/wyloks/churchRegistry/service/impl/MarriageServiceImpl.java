@@ -22,6 +22,9 @@ import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.MarriageService;
 import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -50,6 +53,18 @@ public class MarriageServiceImpl implements MarriageService {
     @Transactional(readOnly = true)
     public List<MarriageResponse> findByParishId(Long parishId) {
         List<Marriage> marriages = marriageRepository.findByBaptismParishId(parishId);
+        return mapMarriagesToResponses(marriages);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MarriageResponse> findByParishId(Long parishId, Pageable pageable) {
+        Page<Marriage> page = marriageRepository.findByBaptismParishId(parishId, pageable);
+        List<MarriageResponse> content = mapMarriagesToResponses(page.getContent());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
+    }
+
+    private List<MarriageResponse> mapMarriagesToResponses(List<Marriage> marriages) {
         if (marriages.isEmpty()) {
             return List.of();
         }

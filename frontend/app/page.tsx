@@ -55,17 +55,17 @@ function useDashboardData(parishId: number | null) {
     setError(null);
     (async () => {
       try {
-        const [b, c, cf, m] = await Promise.all([
+        const [bPage, cPage, cfPage, mPage] = await Promise.all([
           fetchBaptisms(parishId),
           fetchCommunions(parishId),
           fetchConfirmations(parishId),
           fetchMarriages(parishId),
         ]);
         if (!cancelled) {
-          setBaptisms(b);
-          setCommunions(c);
-          setConfirmations(cf);
-          setMarriages(m);
+          setBaptisms(bPage.content);
+          setCommunions(cPage.content);
+          setConfirmations(cfPage.content);
+          setMarriages(mPage.content);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard');
