@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.repository;
 
 import com.wyloks.churchRegistry.entity.Confirmation;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,7 @@ public interface ConfirmationRepository extends JpaRepository<Confirmation, Long
 
     Optional<Confirmation> findByFirstHolyCommunionId(Long communionId);
 
+    @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
     List<Confirmation> findByBaptismParishId(Long parishId);
 
     @Query("SELECT c.baptism.parish.id FROM Confirmation c WHERE c.id = :id")
