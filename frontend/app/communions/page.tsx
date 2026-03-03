@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { PaginationControls } from '@/components/PaginationControls';
 import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
 import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
@@ -37,10 +38,15 @@ function DotsVerticalIcon({ className }: { className?: string }) {
 export default function CommunionsListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const { data: communions, isLoading: loading, error } = useCommunions(parishId);
+  const [page, setPage] = useState(0);
+  const { data: communions, totalElements, totalPages, size, isLoading: loading, error } = useCommunions(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    setPage(0);
+  }, [parishId]);
 
   const years = useMemo(() => {
     const set = new Set<string>();
@@ -179,6 +185,15 @@ export default function CommunionsListPage() {
           </>
         ) : (
           <>
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              size={size}
+              onPageChange={setPage}
+              isLoading={loading}
+              ariaLabel="communions"
+            />
             {/* Mobile: card list with name, date, parents, edit/menu icons */}
             <div className="md:hidden">
               <VirtualizedCardList

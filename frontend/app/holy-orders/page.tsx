@@ -1,15 +1,22 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { PaginationControls } from '@/components/PaginationControls';
 import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useHolyOrders } from '@/lib/use-sacrament-lists';
 
 export default function HolyOrdersListPage() {
   const { parishId, loading: parishLoading } = useParish();
-  const { data: holyOrders, isLoading: loading, error } = useHolyOrders(parishId);
+  const [page, setPage] = useState(0);
+  const { data: holyOrders, totalElements, totalPages, size, isLoading: loading, error } = useHolyOrders(parishId, page);
+
+  useEffect(() => {
+    setPage(0);
+  }, [parishId]);
 
   const isLoading = parishLoading || (parishId !== null && loading);
 
@@ -64,6 +71,15 @@ export default function HolyOrdersListPage() {
         </div>
       ) : (
         <div className="mt-6">
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            size={size}
+            onPageChange={setPage}
+            isLoading={loading}
+            ariaLabel="holy orders"
+          />
           <VirtualizedCardList
             items={holyOrders}
             getItemKey={(h) => String(h.id)}

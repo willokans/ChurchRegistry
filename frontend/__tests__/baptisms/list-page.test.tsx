@@ -49,7 +49,7 @@ describe('Baptisms list page', () => {
   it('when authenticated fetches baptisms and shows list heading', async () => {
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
-      expect(fetchBaptisms).toHaveBeenCalledWith(10);
+        expect(fetchBaptisms).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /baptisms/i })).toBeInTheDocument();
   });
@@ -212,6 +212,116 @@ describe('Baptisms list page', () => {
     expect(screen.queryByText('Bob')).not.toBeInTheDocument();
   });
 
+  it('shows pagination controls when multiple pages exist', async () => {
+    const page1Items = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      baptismName: `Baptism${i + 1}`,
+      otherNames: '',
+      surname: 'Test',
+      dateOfBirth: '2020-01-01',
+      gender: 'MALE',
+      fathersName: 'Father',
+      mothersName: 'Mother',
+      sponsorNames: '',
+      officiatingPriest: '',
+      parishId: 10,
+    }));
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: page1Items,
+      totalElements: 125,
+      totalPages: 3,
+      number: 0,
+      size: 50,
+      first: true,
+      last: false,
+    });
+    renderWithSWR(<BaptismsPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/showing 1–50 of 125/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/page 1 of 3/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /previous page/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /next page/i })).toBeEnabled();
+  });
+
+  it('fetches next page when Next is clicked', async () => {
+    const page1Items = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      baptismName: `Baptism${i + 1}`,
+      otherNames: '',
+      surname: 'Test',
+      dateOfBirth: '2020-01-01',
+      gender: 'MALE',
+      fathersName: 'Father',
+      mothersName: 'Mother',
+      sponsorNames: '',
+      officiatingPriest: '',
+      parishId: 10,
+    }));
+    const page2Items = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 51,
+      baptismName: `Baptism${i + 51}`,
+      otherNames: '',
+      surname: 'Test',
+      dateOfBirth: '2020-01-01',
+      gender: 'MALE',
+      fathersName: 'Father',
+      mothersName: 'Mother',
+      sponsorNames: '',
+      officiatingPriest: '',
+      parishId: 10,
+    }));
+    (fetchBaptisms as jest.Mock)
+      .mockResolvedValueOnce({
+        content: page1Items,
+        totalElements: 125,
+        totalPages: 3,
+        number: 0,
+        size: 50,
+        first: true,
+        last: false,
+      })
+      .mockResolvedValueOnce({
+        content: page2Items,
+        totalElements: 125,
+        totalPages: 3,
+        number: 1,
+        size: 50,
+        first: false,
+        last: false,
+      });
+    renderWithSWR(<BaptismsPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/showing 1–50 of 125/i)).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: /next page/i }));
+    await waitFor(() => {
+      expect(fetchBaptisms).toHaveBeenCalledWith(10, 1, 50);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/showing 51–100 of 125/i)).toBeInTheDocument();
+    });
+  });
+
+  it('hides pagination when single page or fewer items than page size', async () => {
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [{ id: 1, baptismName: 'John', otherNames: '', surname: 'Doe', dateOfBirth: '2020-01-15', gender: 'MALE', fathersName: 'J', mothersName: 'M', sponsorNames: '', officiatingPriest: '', parishId: 10 }],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 50,
+      first: true,
+      last: true,
+    });
+    renderWithSWR(<BaptismsPage />);
+    await waitFor(() => {
+      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText(/showing.*of \d+/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /previous page/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /next page/i })).not.toBeInTheDocument();
+  });
+
   it('loads and displays page when 500+ baptisms (virtualized)', async () => {
     const baptisms = Array.from({ length: 600 }, (_, i) => ({
       id: i + 1,
@@ -229,7 +339,7 @@ describe('Baptisms list page', () => {
     (fetchBaptisms as jest.Mock).mockResolvedValue({ content: baptisms });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
-      expect(fetchBaptisms).toHaveBeenCalledWith(10);
+        expect(fetchBaptisms).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /baptisms/i })).toBeInTheDocument();
     expect(screen.queryByText(/no baptism records/i)).not.toBeInTheDocument();

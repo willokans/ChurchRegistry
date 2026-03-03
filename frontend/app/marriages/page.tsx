@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { PaginationControls } from '@/components/PaginationControls';
 import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
 import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
@@ -156,6 +157,15 @@ export default function MarriagesListPage() {
           </>
         ) : (
           <>
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              size={size}
+              onPageChange={setPage}
+              isLoading={loading}
+              ariaLabel="marriages"
+            />
             <div className="md:hidden">
               <VirtualizedCardList
                 items={filteredMarriages}
