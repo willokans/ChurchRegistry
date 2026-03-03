@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
-import { fetchConfirmations, type ConfirmationResponse } from '@/lib/api';
+import { useConfirmations } from '@/lib/use-sacrament-lists';
+import type { ConfirmationResponse } from '@/lib/api';
 
 function fullName(c: ConfirmationResponse): string {
   return [c.baptismName, c.otherNames, c.surname].filter(Boolean).join(' ');
@@ -34,33 +35,10 @@ function DotsVerticalIcon({ className }: { className?: string }) {
 export default function ConfirmationsListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const [confirmations, setConfirmations] = useState<ConfirmationResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: confirmations, isLoading: loading, error } = useConfirmations(parishId);
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    if (parishId === null) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const list = await fetchConfirmations(parishId);
-        if (!cancelled) setConfirmations(list);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [parishId]);
 
   const years = useMemo(() => {
     const set = new Set<string>();
@@ -96,7 +74,7 @@ export default function ConfirmationsListPage() {
   if (error) {
     return (
       <AuthenticatedLayout>
-        <p role="alert" className="text-red-600">{error}</p>
+        <p role="alert" className="text-red-600">{error.message}</p>
       </AuthenticatedLayout>
     );
   }

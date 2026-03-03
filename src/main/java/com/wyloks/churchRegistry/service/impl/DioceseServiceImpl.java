@@ -2,7 +2,10 @@ package com.wyloks.churchRegistry.service.impl;
 
 import com.wyloks.churchRegistry.dto.DioceseRequest;
 import com.wyloks.churchRegistry.dto.DioceseResponse;
+import com.wyloks.churchRegistry.dto.DioceseWithParishesResponse;
+import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.entity.Diocese;
+import com.wyloks.churchRegistry.entity.Parish;
 import com.wyloks.churchRegistry.repository.DioceseRepository;
 import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.DioceseService;
@@ -13,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,6 +38,22 @@ public class DioceseServiceImpl implements DioceseService {
 
         return dioceses.stream()
                 .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DioceseWithParishesResponse> findDiocesesWithParishes() {
+        CurrentUserAccessService.CurrentUserAccess currentUser = currentUserAccessService.currentUser();
+        List<Diocese> dioceses = currentUser.isAdmin()
+                ? dioceseRepository.findAllWithParishes()
+                : currentUser.parishIds().isEmpty()
+                    ? List.of()
+                    : dioceseRepository.findDistinctByParishesIdIn(currentUser.parishIds());
+
+        Set<Long> allowedParishIds = currentUser.isAdmin() ? null : currentUser.parishIds();
+        return dioceses.stream()
+                .map(d -> toResponseWithParishes(d, allowedParishIds))
                 .collect(Collectors.toList());
     }
 
@@ -65,6 +85,31 @@ public class DioceseServiceImpl implements DioceseService {
                 .dioceseName(e.getDioceseName())
                 .code(e.getCode())
                 .description(e.getDescription())
+                .build();
+    }
+
+    private DioceseWithParishesResponse toResponseWithParishes(Diocese e, Set<Long> allowedParishIds) {
+        List<ParishResponse> parishes = e.getParishes() != null
+                ? e.getParishes().stream()
+                        .filter(p -> allowedParishIds == null || (p != null && p.getId() != null && allowedParishIds.contains(p.getId())))
+                        .map(this::toParishResponse)
+                        .collect(Collectors.toList())
+                : List.of();
+        return DioceseWithParishesResponse.builder()
+                .id(e.getId())
+                .dioceseName(e.getDioceseName())
+                .code(e.getCode())
+                .description(e.getDescription())
+                .parishes(parishes)
+                .build();
+    }
+
+    private ParishResponse toParishResponse(Parish p) {
+        return ParishResponse.builder()
+                .id(p.getId())
+                .parishName(p.getParishName())
+                .dioceseId(p.getDiocese() != null ? p.getDiocese().getId() : null)
+                .description(p.getDescription())
                 .build();
     }
 }

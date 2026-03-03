@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
-import { fetchBaptisms, type BaptismResponse } from '@/lib/api';
+import { useBaptisms } from '@/lib/use-sacrament-lists';
+import type { BaptismResponse } from '@/lib/api';
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -34,33 +35,10 @@ function DotsVerticalIcon({ className }: { className?: string }) {
 export default function BaptismsListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const [baptisms, setBaptisms] = useState<BaptismResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: baptisms, isLoading: loading, error } = useBaptisms(parishId);
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    if (parishId === null) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const list = await fetchBaptisms(parishId);
-        if (!cancelled) setBaptisms(list);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [parishId]);
 
   const years = useMemo(() => {
     const set = new Set<string>();
@@ -96,7 +74,7 @@ export default function BaptismsListPage() {
   if (error) {
     return (
       <AuthenticatedLayout>
-        <p role="alert" className="text-red-600">{error}</p>
+        <p role="alert" className="text-red-600">{error.message}</p>
       </AuthenticatedLayout>
     );
   }

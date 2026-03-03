@@ -2,7 +2,7 @@
 # Create app once (or let CI create it): fly apps create church-registry-api-staging
 
 app = "church-registry-api-staging"
-primary_region = "sin"
+primary_region = "jnb"  # Johannesburg - closest to Nigeria
 
 [vm]
   cpu_kind = "shared"

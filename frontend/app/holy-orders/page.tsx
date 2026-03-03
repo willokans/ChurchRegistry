@@ -1,38 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
-import { fetchHolyOrders, type HolyOrderResponse } from '@/lib/api';
+import { useHolyOrders } from '@/lib/use-sacrament-lists';
 
 export default function HolyOrdersListPage() {
   const { parishId, loading: parishLoading } = useParish();
-  const [holyOrders, setHolyOrders] = useState<HolyOrderResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (parishId === null) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const list = await fetchHolyOrders(parishId);
-        if (!cancelled) setHolyOrders(list);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [parishId]);
+  const { data: holyOrders, isLoading: loading, error } = useHolyOrders(parishId);
 
   const isLoading = parishLoading || (parishId !== null && loading);
 
@@ -47,7 +23,7 @@ export default function HolyOrdersListPage() {
   if (error) {
     return (
       <AuthenticatedLayout>
-        <p role="alert" className="text-red-600">{error}</p>
+        <p role="alert" className="text-red-600">{error.message}</p>
       </AuthenticatedLayout>
     );
   }

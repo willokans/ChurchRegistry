@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.repository;
 
 import com.wyloks.churchRegistry.entity.FirstHolyCommunion;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,7 @@ public interface FirstHolyCommunionRepository extends JpaRepository<FirstHolyCom
 
     Optional<FirstHolyCommunion> findByBaptismId(Long baptismId);
 
+    @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
     List<FirstHolyCommunion> findByBaptismParishId(Long parishId);
 
     @Query("SELECT c.baptism.parish.id FROM FirstHolyCommunion c WHERE c.id = :id")

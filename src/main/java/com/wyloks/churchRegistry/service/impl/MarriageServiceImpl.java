@@ -29,7 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,8 +49,29 @@ public class MarriageServiceImpl implements MarriageService {
     @Override
     @Transactional(readOnly = true)
     public List<MarriageResponse> findByParishId(Long parishId) {
-        return marriageRepository.findByBaptismParishId(parishId).stream()
-                .map(this::toResponse)
+        List<Marriage> marriages = marriageRepository.findByBaptismParishId(parishId);
+        if (marriages.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> marriageIds = marriages.stream()
+                .map(m -> Math.toIntExact(m.getId()))
+                .collect(Collectors.toList());
+        List<MarriagePartyLegacy> allParties = marriagePartyLegacyRepository.findByMarriageIdIn(marriageIds);
+        List<MarriageWitnessLegacy> allWitnesses = marriageWitnessLegacyRepository.findByMarriageIdInOrderByMarriageIdAscSortOrderAsc(marriageIds);
+        Set<Long> baptismIds = allParties.stream()
+                .filter(p -> p.getBaptismId() != null)
+                .map(b -> b.getBaptismId().longValue())
+                .collect(Collectors.toSet());
+        Map<Long, Baptism> baptismById = baptismIds.isEmpty()
+                ? Map.of()
+                : baptismRepository.findAllById(baptismIds).stream()
+                        .collect(Collectors.toMap(Baptism::getId, b -> b));
+        Map<Integer, List<MarriagePartyLegacy>> partiesByMarriage = allParties.stream()
+                .collect(Collectors.groupingBy(MarriagePartyLegacy::getMarriageId));
+        Map<Integer, List<MarriageWitnessLegacy>> witnessesByMarriage = allWitnesses.stream()
+                .collect(Collectors.groupingBy(MarriageWitnessLegacy::getMarriageId));
+        return marriages.stream()
+                .map(m -> toResponse(m, partiesByMarriage, witnessesByMarriage, baptismById))
                 .collect(Collectors.toList());
     }
 
@@ -123,13 +146,26 @@ public class MarriageServiceImpl implements MarriageService {
     }
 
     private MarriageResponse toResponse(Marriage e) {
+        return toResponse(e, null, null, null);
+    }
+
+    private MarriageResponse toResponse(Marriage e,
+            Map<Integer, List<MarriagePartyLegacy>> partiesByMarriage,
+            Map<Integer, List<MarriageWitnessLegacy>> witnessesByMarriage,
+            Map<Long, Baptism> baptismById) {
         Integer legacyMarriageId = toIntId(e.getId());
-        List<MarriagePartyLegacy> legacyParties = legacyMarriageId == null
-                ? List.of()
-                : marriagePartyLegacyRepository.findByMarriageId(legacyMarriageId);
-        List<MarriageWitnessLegacy> legacyWitnesses = legacyMarriageId == null
-                ? List.of()
-                : marriageWitnessLegacyRepository.findByMarriageIdOrderBySortOrderAsc(legacyMarriageId);
+        List<MarriagePartyLegacy> legacyParties;
+        List<MarriageWitnessLegacy> legacyWitnesses;
+        if (partiesByMarriage != null && witnessesByMarriage != null && legacyMarriageId != null) {
+            legacyParties = partiesByMarriage.getOrDefault(legacyMarriageId, List.of());
+            legacyWitnesses = witnessesByMarriage.getOrDefault(legacyMarriageId, List.of());
+        } else if (legacyMarriageId != null) {
+            legacyParties = marriagePartyLegacyRepository.findByMarriageId(legacyMarriageId);
+            legacyWitnesses = marriageWitnessLegacyRepository.findByMarriageIdOrderBySortOrderAsc(legacyMarriageId);
+        } else {
+            legacyParties = List.of();
+            legacyWitnesses = List.of();
+        }
 
         List<MarriagePartyResponse> parties = legacyParties.stream()
                 .map(this::toPartyResponse)
@@ -147,12 +183,18 @@ public class MarriageServiceImpl implements MarriageService {
                 .findFirst()
                 .orElse(null);
 
-        Baptism groomBaptism = groom != null && groom.getBaptismId() != null
-                ? baptismRepository.findById(groom.getBaptismId().longValue()).orElse(null)
-                : null;
-        Baptism brideBaptism = bride != null && bride.getBaptismId() != null
-                ? baptismRepository.findById(bride.getBaptismId().longValue()).orElse(null)
-                : null;
+        Baptism groomBaptism = null;
+        Baptism brideBaptism = null;
+        if (groom != null && groom.getBaptismId() != null && baptismById != null) {
+            groomBaptism = baptismById.get(groom.getBaptismId().longValue());
+        } else if (groom != null && groom.getBaptismId() != null) {
+            groomBaptism = baptismRepository.findById(groom.getBaptismId().longValue()).orElse(null);
+        }
+        if (bride != null && bride.getBaptismId() != null && baptismById != null) {
+            brideBaptism = baptismById.get(bride.getBaptismId().longValue());
+        } else if (bride != null && bride.getBaptismId() != null) {
+            brideBaptism = baptismRepository.findById(bride.getBaptismId().longValue()).orElse(null);
+        }
 
         return MarriageResponse.builder()
                 .id(e.getId())

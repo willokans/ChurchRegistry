@@ -1,43 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
-import { fetchMarriages, type MarriageResponse } from '@/lib/api';
+import { useMarriages } from '@/lib/use-sacrament-lists';
+import type { MarriageResponse } from '@/lib/api';
 
 export default function MarriagesListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const [marriages, setMarriages] = useState<MarriageResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: marriages, isLoading: loading, error } = useMarriages(parishId);
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    if (parishId === null) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const list = await fetchMarriages(parishId);
-        if (!cancelled) setMarriages(list);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [parishId]);
 
   const isLoading = parishLoading || (parishId !== null && loading);
   const years = useMemo(() => {
@@ -80,7 +58,7 @@ export default function MarriagesListPage() {
   if (error) {
     return (
       <AuthenticatedLayout>
-        <p role="alert" className="text-red-600">{error}</p>
+        <p role="alert" className="text-red-600">{error.message}</p>
       </AuthenticatedLayout>
     );
   }

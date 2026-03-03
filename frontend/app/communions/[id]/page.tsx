@@ -100,11 +100,13 @@ export default function CommunionViewPage() {
   const { parishId } = useParish();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const [communion, setCommunion] = useState<FirstHolyCommunionResponse | null | undefined>(undefined);
+  const [baptismCertExpanded, setBaptismCertExpanded] = useState(false);
   const [baptismCertUrl, setBaptismCertUrl] = useState<string | null>(null);
   const [baptismCertIsPdf, setBaptismCertIsPdf] = useState(true);
   const baptismCertUrlRef = useRef<string | null>(null);
   const [baptismCertLoading, setBaptismCertLoading] = useState(false);
   const [baptismCertError, setBaptismCertError] = useState<string | null>(null);
+  const [communionCertExpanded, setCommunionCertExpanded] = useState(false);
   const [communionCertUrl, setCommunionCertUrl] = useState<string | null>(null);
   const [communionCertIsPdf, setCommunionCertIsPdf] = useState(true);
   const communionCertUrlRef = useRef<string | null>(null);
@@ -151,7 +153,7 @@ export default function CommunionViewPage() {
   }, [id, communion?.id]);
 
   useEffect(() => {
-    if (!communion?.baptismCertificatePath || Number.isNaN(communion.baptismId)) return;
+    if (!baptismCertExpanded || !communion?.baptismCertificatePath || Number.isNaN(communion.baptismId)) return;
     let cancelled = false;
     setBaptismCertLoading(true);
     setBaptismCertError(null);
@@ -178,12 +180,12 @@ export default function CommunionViewPage() {
       }
       setBaptismCertUrl(null);
     };
-  }, [communion?.baptismId, communion?.baptismCertificatePath]);
+  }, [baptismCertExpanded, communion?.baptismId, communion?.baptismCertificatePath]);
 
   const hasBaptismCert = Boolean(communion?.baptismCertificatePath);
 
   useEffect(() => {
-    if (!communion?.communionCertificatePath || Number.isNaN(id)) return;
+    if (!communionCertExpanded || !communion?.communionCertificatePath || Number.isNaN(id)) return;
     let cancelled = false;
     setCommunionCertLoading(true);
     setCommunionCertError(null);
@@ -210,7 +212,7 @@ export default function CommunionViewPage() {
       }
       setCommunionCertUrl(null);
     };
-  }, [id, communion?.communionCertificatePath]);
+  }, [communionCertExpanded, id, communion?.communionCertificatePath]);
 
   const hasCommunionCert = Boolean(communion?.communionCertificatePath);
 
@@ -379,44 +381,59 @@ export default function CommunionViewPage() {
             </h2>
             {hasBaptismCert ? (
                 <>
-                  <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-                    {baptismCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
-                    {baptismCertError && <p className="text-red-600 text-sm p-4">{baptismCertError}</p>}
-                    {!baptismCertLoading && !baptismCertError && baptismCertUrl && (
-                      baptismCertIsPdf ? (
-                        <iframe
-                          src={`${baptismCertUrl}#view=FitH`}
-                          title="Baptism certificate"
-                          className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-                        />
-                      ) : (
-                        <img
-                          src={baptismCertUrl}
-                          alt="Baptism certificate"
-                          className="w-full h-full object-contain border-0 rounded"
-                        />
-                      )
-                    )}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link
-                      href={`/baptisms/${communion.baptismId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      <ExpandIcon className="h-4 w-4" />
-                      View Fullscreen
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={handleDownloadBaptismCert}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      <DownloadIcon className="h-4 w-4" />
-                      Download PDF
-                    </button>
-                  </div>
+                  {!baptismCertExpanded ? (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setBaptismCertExpanded(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExpandIcon className="h-4 w-4" />
+                        View certificate
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                        {baptismCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
+                        {baptismCertError && <p className="text-red-600 text-sm p-4">{baptismCertError}</p>}
+                        {!baptismCertLoading && !baptismCertError && baptismCertUrl && (
+                          baptismCertIsPdf ? (
+                            <iframe
+                              src={`${baptismCertUrl}#view=FitH`}
+                              title="Baptism certificate"
+                              className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                            />
+                          ) : (
+                            <img
+                              src={baptismCertUrl}
+                              alt="Baptism certificate"
+                              className="w-full h-full object-contain border-0 rounded"
+                            />
+                          )
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Link
+                          href={`/baptisms/${communion.baptismId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          <ExpandIcon className="h-4 w-4" />
+                          View Fullscreen
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={handleDownloadBaptismCert}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          <DownloadIcon className="h-4 w-4" />
+                          Download PDF
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </>
               ) : (
                 <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -488,45 +505,60 @@ export default function CommunionViewPage() {
                 <p className="mt-1 text-sm text-gray-600">
                   Original certificate received and uploaded (Communion in another church).
                 </p>
-                <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-                  {communionCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
-                  {communionCertError && <p className="text-red-600 text-sm p-4">{communionCertError}</p>}
-                  {!communionCertLoading && !communionCertError && communionCertUrl && (
-                    communionCertIsPdf ? (
-                      <iframe
-                        src={`${communionCertUrl}#view=FitH`}
-                        title="First Holy Communion certificate (uploaded)"
-                        className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-                      />
-                    ) : (
-                      <img
-                        src={communionCertUrl}
-                        alt="First Holy Communion certificate (uploaded)"
-                        className="w-full h-full object-contain border-0 rounded"
-                      />
-                    )
-                  )}
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (communionCertUrl) window.open(communionCertUrl, '_blank', 'noopener');
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <ExpandIcon className="h-4 w-4" />
-                    View Fullscreen
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadCommunionCert}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
-                  >
-                    <DownloadIcon className="h-4 w-4" />
-                    Download PDF
-                  </button>
-                </div>
+                {!communionCertExpanded ? (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setCommunionCertExpanded(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ExpandIcon className="h-4 w-4" />
+                      View certificate
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                      {communionCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
+                      {communionCertError && <p className="text-red-600 text-sm p-4">{communionCertError}</p>}
+                      {!communionCertLoading && !communionCertError && communionCertUrl && (
+                        communionCertIsPdf ? (
+                          <iframe
+                            src={`${communionCertUrl}#view=FitH`}
+                            title="First Holy Communion certificate (uploaded)"
+                            className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                          />
+                        ) : (
+                          <img
+                            src={communionCertUrl}
+                            alt="First Holy Communion certificate (uploaded)"
+                            className="w-full h-full object-contain border-0 rounded"
+                          />
+                        )
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (communionCertUrl) window.open(communionCertUrl, '_blank', 'noopener');
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExpandIcon className="h-4 w-4" />
+                        View Fullscreen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadCommunionCert}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                        Download PDF
+                      </button>
+                    </div>
+                  </>
+                )}
                 <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 flex gap-2">
                   <InfoIcon className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-900">

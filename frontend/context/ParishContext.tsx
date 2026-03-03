@@ -10,8 +10,7 @@ import {
 import { usePathname } from 'next/navigation';
 import {
   clearAuth,
-  fetchDioceses,
-  fetchParishes,
+  fetchDiocesesWithParishes,
   getStoredParishId,
   getStoredToken,
   setStoredParishId,
@@ -62,19 +61,9 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
     }, 15000);
     (async () => {
       try {
-        const dioceses = await fetchDioceses();
+        const dioceses = await fetchDiocesesWithParishes();
         if (cancelled) return;
-        if (dioceses.length === 0) {
-          setParishes([]);
-          setLoading(false);
-          return;
-        }
-        const allParishes: ParishResponse[] = [];
-        for (const diocese of dioceses) {
-          const list = await fetchParishes(diocese.id);
-          if (cancelled) return;
-          allParishes.push(...list);
-        }
+        const allParishes: ParishResponse[] = dioceses.flatMap((d) => d.parishes ?? []);
         setParishes(allParishes);
         const stored = getStoredParishId();
         if (stored !== null && allParishes.some((p) => p.id === stored)) {

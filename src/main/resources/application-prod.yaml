@@ -1,5 +1,8 @@
 server:
   address: 0.0.0.0  # Required for Fly.io: listen on all interfaces
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
 
 spring:
   datasource:

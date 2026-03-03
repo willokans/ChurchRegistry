@@ -16,7 +16,7 @@ function getBaseUrl(): string {
 }
 
 export async function login(username: string, password: string) {
-  const res = await fetch(`${getBaseUrl()}/api/auth/login`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
@@ -78,6 +78,31 @@ function getAuthHeaders(): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   return headers;
+}
+
+/** Fetch with retry for transient failures on unstable connections (e.g. low-bandwidth). */
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  const maxRetries = 2;
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return res;
+      if (res.status >= 500 && attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 500));
+        continue;
+      }
+      return res;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 500));
+      } else {
+        throw lastError;
+      }
+    }
+  }
+  throw lastError ?? new Error('Request failed');
 }
 
 /** Parse error response text; prefer 'error' or 'message' from JSON when present. */
@@ -145,7 +170,7 @@ export interface DioceseResponse {
 }
 
 export async function fetchDioceses(): Promise<DioceseResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/dioceses`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/dioceses`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch dioceses');
   const raw = await res.json();
   if (!Array.isArray(raw)) return [];
@@ -160,14 +185,29 @@ export async function fetchDioceses(): Promise<DioceseResponse[]> {
   }).filter((d) => d.id > 0);
 }
 
+export interface DioceseWithParishesResponse {
+  id: number;
+  dioceseName: string;
+  code?: string;
+  description?: string;
+  parishes: ParishResponse[];
+}
+
+/** Fetches all dioceses with their parishes in one request. Use for ParishContext to avoid N+1 round-trips. */
+export async function fetchDiocesesWithParishes(): Promise<DioceseWithParishesResponse[]> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/dioceses/with-parishes`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch dioceses');
+  return res.json();
+}
+
 export async function fetchParishes(dioceseId: number): Promise<ParishResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/dioceses/${dioceseId}/parishes`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/dioceses/${dioceseId}/parishes`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch parishes');
   return res.json();
 }
 
 export async function createDiocese(name: string): Promise<DioceseResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/dioceses`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/dioceses`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ dioceseName: name }),
@@ -180,7 +220,7 @@ export async function createDiocese(name: string): Promise<DioceseResponse> {
 }
 
 export async function createParish(dioceseId: number, parishName: string): Promise<ParishResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ parishName, dioceseId }),
@@ -193,13 +233,13 @@ export async function createParish(dioceseId: number, parishName: string): Promi
 }
 
 export async function fetchBaptisms(parishId: number): Promise<BaptismResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');
   return res.json();
 }
 
 export async function fetchBaptism(id: number): Promise<BaptismResponse | null> {
-  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptism');
   return res.json();
@@ -207,7 +247,7 @@ export async function fetchBaptism(id: number): Promise<BaptismResponse | null> 
 
 /** Fetch external baptism certificate file (when baptized in another parish). Returns blob for view/download. */
 export async function fetchBaptismExternalCertificate(baptismId: number): Promise<Blob> {
-  const res = await fetch(`${getBaseUrl()}/api/baptisms/${baptismId}/external-certificate`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${baptismId}/external-certificate`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) throw new Error('No external certificate for this baptism');
@@ -216,7 +256,7 @@ export async function fetchBaptismExternalCertificate(baptismId: number): Promis
 }
 
 export async function createBaptism(parishId: number, body: BaptismRequest): Promise<BaptismResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ ...body, parishId }),
@@ -235,7 +275,7 @@ export async function createBaptism(parishId: number, body: BaptismRequest): Pro
 }
 
 export async function updateBaptismNotes(id: number, note: string): Promise<BaptismResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${id}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify({ note }),
@@ -254,7 +294,7 @@ export interface BaptismCertificateData {
 }
 
 export async function fetchBaptismCertificateData(id: number): Promise<BaptismCertificateData> {
-  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/certificate-data`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${id}/certificate-data`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) throw new Error('Baptism not found');
@@ -270,7 +310,7 @@ export interface BaptismNoteResponse {
 }
 
 export async function fetchBaptismNoteHistory(baptismId: number): Promise<BaptismNoteResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/baptisms/${baptismId}/notes`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${baptismId}/notes`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) return [];
@@ -279,7 +319,7 @@ export async function fetchBaptismNoteHistory(baptismId: number): Promise<Baptis
 }
 
 export async function emailBaptismCertificate(id: number, to: string): Promise<void> {
-  const res = await fetch(`${getBaseUrl()}/api/baptisms/${id}/email-certificate`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${id}/email-certificate`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ to }),
@@ -328,13 +368,13 @@ export interface FirstHolyCommunionRequest {
 }
 
 export async function fetchCommunions(parishId: number): Promise<FirstHolyCommunionResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/communions`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/communions`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
   return res.json();
 }
 
 export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResponse | null> {
-  const res = await fetch(`${getBaseUrl()}/api/communions/${id}`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communion');
   return res.json();
@@ -342,7 +382,7 @@ export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResp
 
 /** Fetches the uploaded communion certificate file (when communion was received in another church). */
 export async function fetchCommunionCertificate(communionId: number): Promise<Blob> {
-  const res = await fetch(`${getBaseUrl()}/api/communions/${communionId}/communion-certificate`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${communionId}/communion-certificate`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) throw new Error('No uploaded communion certificate for this record');
@@ -351,7 +391,7 @@ export async function fetchCommunionCertificate(communionId: number): Promise<Bl
 }
 
 export async function createCommunion(body: FirstHolyCommunionRequest): Promise<FirstHolyCommunionResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/communions`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -395,7 +435,7 @@ export async function createBaptismWithCertificate(
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${getBaseUrl()}/api/baptisms`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms`, {
     method: 'POST',
     headers,
     body: formData,
@@ -441,7 +481,7 @@ export async function createCommunionWithCertificate(
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   // Do not set Content-Type; browser sets multipart/form-data with boundary
 
-  const res = await fetch(`${getBaseUrl()}/api/communions`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions`, {
     method: 'POST',
     headers,
     body: formData,
@@ -481,7 +521,7 @@ export async function createCommunionWithCommunionCertificate(
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${getBaseUrl()}/api/communions`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions`, {
     method: 'POST',
     headers,
     body: formData,
@@ -528,20 +568,20 @@ export interface ConfirmationRequest {
 }
 
 export async function fetchConfirmations(parishId: number): Promise<ConfirmationResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/confirmations`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/confirmations`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
   return res.json();
 }
 
 export async function fetchConfirmation(id: number): Promise<ConfirmationResponse | null> {
-  const res = await fetch(`${getBaseUrl()}/api/confirmations/${id}`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmation');
   return res.json();
 }
 
 export async function createConfirmation(body: ConfirmationRequest): Promise<ConfirmationResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/confirmations`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -679,20 +719,20 @@ export interface CreateMarriageWithPartiesRequest {
 }
 
 export async function fetchMarriages(parishId: number): Promise<MarriageResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/marriages`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/marriages`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriages');
   return res.json();
 }
 
 export async function fetchMarriage(id: number): Promise<MarriageResponse | null> {
-  const res = await fetch(`${getBaseUrl()}/api/marriages/${id}`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriage');
   return res.json();
 }
 
 export async function updateCommunionNotes(id: number, note: string): Promise<FirstHolyCommunionResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/communions/${id}`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${id}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify({ note }),
@@ -705,7 +745,7 @@ export async function updateCommunionNotes(id: number, note: string): Promise<Fi
 }
 
 export async function fetchCommunionNoteHistory(communionId: number): Promise<BaptismNoteResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/communions/${communionId}/notes`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${communionId}/notes`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) return [];
@@ -714,7 +754,7 @@ export async function fetchCommunionNoteHistory(communionId: number): Promise<Ba
 }
 
 export async function updateConfirmationNotes(id: number, note: string): Promise<ConfirmationResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/confirmations/${id}`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations/${id}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify({ note }),
@@ -727,7 +767,7 @@ export async function updateConfirmationNotes(id: number, note: string): Promise
 }
 
 export async function fetchConfirmationNoteHistory(confirmationId: number): Promise<BaptismNoteResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/confirmations/${confirmationId}/notes`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations/${confirmationId}/notes`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) return [];
@@ -736,7 +776,7 @@ export async function fetchConfirmationNoteHistory(confirmationId: number): Prom
 }
 
 export async function updateMarriageNotes(id: number, note: string): Promise<MarriageResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/marriages/${id}`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages/${id}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify({ note }),
@@ -749,7 +789,7 @@ export async function updateMarriageNotes(id: number, note: string): Promise<Mar
 }
 
 export async function fetchMarriageNoteHistory(marriageId: number): Promise<BaptismNoteResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/marriages/${marriageId}/notes`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages/${marriageId}/notes`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) return [];
@@ -758,7 +798,7 @@ export async function fetchMarriageNoteHistory(marriageId: number): Promise<Bapt
 }
 
 export async function createMarriage(body: MarriageRequest): Promise<MarriageResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/marriages`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -771,7 +811,7 @@ export async function createMarriage(body: MarriageRequest): Promise<MarriageRes
 }
 
 export async function createMarriageWithParties(body: CreateMarriageWithPartiesRequest): Promise<MarriageResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/marriages`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -806,7 +846,7 @@ export async function uploadMarriageCertificate(
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `${getBaseUrl()}/api/parishes/${parishId}/marriages/upload-certificate`,
     { method: 'POST', headers, body: formData }
   );
@@ -830,7 +870,7 @@ export async function fetchMarriagePartyCertificate(
   role: 'groom' | 'bride',
   type: 'baptism' | 'communion' | 'confirmation'
 ): Promise<Blob> {
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `${getBaseUrl()}/api/marriages/${marriageId}/party-certificate?role=${role}&type=${type}`,
     { headers: getAuthHeaders() }
   );
@@ -859,20 +899,20 @@ export interface HolyOrderRequest {
 }
 
 export async function fetchHolyOrders(parishId: number): Promise<HolyOrderResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/parishes/${parishId}/holy-orders`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/holy-orders`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy orders');
   return res.json();
 }
 
 export async function fetchHolyOrder(id: number): Promise<HolyOrderResponse | null> {
-  const res = await fetch(`${getBaseUrl()}/api/holy-orders/${id}`, { headers: getAuthHeaders() });
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/holy-orders/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy order');
   return res.json();
 }
 
 export async function createHolyOrder(body: HolyOrderRequest): Promise<HolyOrderResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/holy-orders`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/holy-orders`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -900,7 +940,7 @@ export interface ReplaceUserParishAccessRequest {
 }
 
 export async function listUsersWithParishAccess(): Promise<UserParishAccessResponse[]> {
-  const res = await fetch(`${getBaseUrl()}/api/admin/users/parish-access`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/admin/users/parish-access`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -922,7 +962,7 @@ export async function listUsersWithParishAccess(): Promise<UserParishAccessRespo
 }
 
 export async function getUserParishAccess(userId: number): Promise<UserParishAccessResponse> {
-  const res = await fetch(`${getBaseUrl()}/api/admin/users/${userId}/parish-access`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/admin/users/${userId}/parish-access`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -951,7 +991,7 @@ export async function replaceUserParishAccess(
   if (request.defaultParishId != null && request.defaultParishId > 0) {
     body.defaultParishId = request.defaultParishId;
   }
-  const res = await fetch(`${getBaseUrl()}/api/admin/users/${userId}/parish-access`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/admin/users/${userId}/parish-access`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),

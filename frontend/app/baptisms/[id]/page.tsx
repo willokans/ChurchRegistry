@@ -102,7 +102,7 @@ export default function BaptismViewPage() {
   }, [id, baptism?.id]);
 
   useEffect(() => {
-    if (!isExternalBaptism || Number.isNaN(id)) return;
+    if (!certificateModalOpen || !isExternalBaptism || Number.isNaN(id)) return;
     let cancelled = false;
     setCertificateLoading(true);
     setCertificateError(null);
@@ -129,7 +129,7 @@ export default function BaptismViewPage() {
       }
       setCertificateObjectUrl(null);
     };
-  }, [id, isExternalBaptism]);
+  }, [id, isExternalBaptism, certificateModalOpen]);
 
   const handleDownloadCertificate = useCallback(async (format: 'pdf' | 'image' = 'pdf') => {
     if (!id || !isExternalBaptism || !baptism) return;
