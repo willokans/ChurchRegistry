@@ -11,6 +11,8 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
+      maximum-pool-size: 10   # Tuned for Fly.io 1GB VM
+      minimum-idle: 2
       data-source-properties:
         preferQueryMode: simple
         prepareThreshold: 0
