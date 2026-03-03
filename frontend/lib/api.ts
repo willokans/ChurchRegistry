@@ -258,6 +258,21 @@ export async function fetchBaptisms(
   return res.json();
 }
 
+/** Server-side search for baptisms by name or address. Use when search query is present. */
+export async function fetchBaptismsSearch(
+  parishId: number,
+  query: string,
+  page = 0,
+  size = 50
+): Promise<SacramentPageResponse<BaptismResponse>> {
+  const res = await fetchWithRetry(
+    `${getBaseUrl()}/api/parishes/${parishId}/baptisms/search?q=${encodeURIComponent(query)}&page=${page}&size=${size}`,
+    { headers: getAuthHeaders() }
+  );
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to search baptisms');
+  return res.json();
+}
+
 export async function fetchBaptism(id: number): Promise<BaptismResponse | null> {
   const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${id}`, { headers: getAuthHeaders() });
   if (res.status === 404) return null;

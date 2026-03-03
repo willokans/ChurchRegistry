@@ -9,8 +9,10 @@ import { PaginationControls } from '@/components/PaginationControls';
 import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
 import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
-import { useBaptisms } from '@/lib/use-sacrament-lists';
+import { useBaptismsWithSearch } from '@/lib/use-sacrament-lists';
 import type { BaptismResponse } from '@/lib/api';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -39,14 +41,27 @@ export default function BaptismsListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
   const [page, setPage] = useState(0);
-  const { data: baptisms, totalElements, totalPages, size, isLoading: loading, error } = useBaptisms(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   useEffect(() => {
     setPage(0);
-  }, [parishId]);
+  }, [parishId, debouncedSearch]);
+
+  const { data: baptisms, totalElements, totalPages, size, isLoading: loading, error } = useBaptismsWithSearch(
+    parishId,
+    page,
+    debouncedSearch
+  );
+
+  const isSearchMode = debouncedSearch.trim().length > 0;
 
   const years = useMemo(() => {
     const set = new Set<string>();
@@ -60,14 +75,9 @@ export default function BaptismsListPage() {
     return baptisms.filter((b) => {
       if (yearFilter !== 'all' && (!b.dateOfBirth || b.dateOfBirth.slice(0, 4) !== yearFilter)) return false;
       if (genderFilter !== 'all' && b.gender !== genderFilter) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.trim().toLowerCase();
-      const name = fullName(b).toLowerCase();
-      const father = (b.fathersName ?? '').toLowerCase();
-      const mother = (b.mothersName ?? '').toLowerCase();
-      return name.includes(q) || father.includes(q) || mother.includes(q);
+      return true;
     });
-  }, [baptisms, yearFilter, genderFilter, searchQuery]);
+  }, [baptisms, yearFilter, genderFilter]);
 
   const isLoading = parishLoading || (parishId !== null && loading);
 
@@ -166,7 +176,9 @@ export default function BaptismsListPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm text-center">
               <p className="text-gray-600">
                 {baptisms.length === 0
-                  ? 'No baptism records yet.'
+                  ? isSearchMode
+                    ? 'No baptisms match the search.'
+                    : 'No baptism records yet.'
                   : 'No baptisms match the current filters.'}
               </p>
               {baptisms.length === 0 && (

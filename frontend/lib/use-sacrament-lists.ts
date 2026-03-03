@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import {
   fetchBaptisms,
+  fetchBaptismsSearch,
   fetchCommunions,
   fetchConfirmations,
   fetchMarriages,
@@ -63,6 +64,48 @@ export function useBaptisms(parishId: number | null, page = 0) {
     parishId != null ? ['baptisms', parishId, page] : null,
     fetchBaptisms
   );
+}
+
+/** Baptism list with optional server-side search. When query is non-empty, uses search API; otherwise uses list API. */
+export function useBaptismsWithSearch(
+  parishId: number | null,
+  page: number,
+  searchQuery: string
+) {
+  const trimmedQuery = searchQuery.trim();
+  const isSearchMode = trimmedQuery.length > 0;
+
+  const listResult = useSacramentList<BaptismResponse>(
+    parishId != null && !isSearchMode ? ['baptisms', parishId, page] : null,
+    fetchBaptisms
+  );
+
+  const searchKey: [string, number, string, number] | null =
+    parishId != null && isSearchMode ? ['baptisms-search', parishId, trimmedQuery, page] : null;
+  const { data: searchData, error: searchError, isLoading: searchLoading, mutate: searchMutate } = useSWR(
+    searchKey,
+    searchKey
+      ? ([, pid, q, p]: [string, number, string, number]) =>
+          fetchBaptismsSearch(pid, q, p, PAGE_SIZE)
+      : null,
+    SWR_OPTIONS
+  );
+
+  if (isSearchMode) {
+    return {
+      data: searchData?.content ?? [],
+      totalElements: searchData?.totalElements ?? 0,
+      totalPages: searchData?.totalPages ?? 0,
+      page: searchData?.number ?? 0,
+      size: searchData?.size ?? PAGE_SIZE,
+      first: searchData?.first ?? true,
+      last: searchData?.last ?? true,
+      isLoading: searchLoading,
+      error: searchError ?? null,
+      mutate: searchMutate,
+    };
+  }
+  return listResult;
 }
 
 export function useCommunions(parishId: number | null, page = 0) {

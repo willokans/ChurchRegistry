@@ -9,7 +9,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import BaptismsPage from '@/app/baptisms/page';
-import { getStoredToken, getStoredUser, fetchBaptisms } from '@/lib/api';
+import { getStoredToken, getStoredUser, fetchBaptisms, fetchBaptismsSearch } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { renderWithSWR } from '../test-utils';
 
@@ -21,6 +21,7 @@ jest.mock('@/lib/api', () => ({
   getStoredToken: jest.fn(),
   getStoredUser: jest.fn(),
   fetchBaptisms: jest.fn(),
+  fetchBaptismsSearch: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -44,6 +45,8 @@ describe('Baptisms list page', () => {
     });
     (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
     (fetchBaptisms as jest.Mock).mockClear();
+    (fetchBaptismsSearch as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchBaptismsSearch as jest.Mock).mockClear();
   });
 
   it('when authenticated fetches baptisms and shows list heading', async () => {
@@ -195,12 +198,21 @@ describe('Baptisms list page', () => {
     });
   });
 
-  it('search filters baptisms by name', async () => {
+  it('search filters baptisms by name (server-side search)', async () => {
     (fetchBaptisms as jest.Mock).mockResolvedValue({
       content: [
         { id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-01-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 },
         { id: 2, baptismName: 'Bob', otherNames: '', surname: 'B', dateOfBirth: '2024-01-01', gender: 'MALE', fathersName: 'B', mothersName: 'B', sponsorNames: '', officiatingPriest: '', parishId: 10 },
       ],
+    });
+    (fetchBaptismsSearch as jest.Mock).mockResolvedValue({
+      content: [{ id: 1, baptismName: 'Alice', otherNames: '', surname: 'A', dateOfBirth: '2024-01-01', gender: 'FEMALE', fathersName: 'A', mothersName: 'A', sponsorNames: '', officiatingPriest: '', parishId: 10 }],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 50,
+      first: true,
+      last: true,
     });
     renderWithSWR(<BaptismsPage />);
     await waitFor(() => {
@@ -208,8 +220,14 @@ describe('Baptisms list page', () => {
     });
     const search = screen.getByRole('searchbox', { name: /search baptisms/i });
     await userEvent.type(search, 'Alice');
-    expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText('Bob')).not.toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(fetchBaptismsSearch).toHaveBeenCalledWith(10, 'Alice', 0, 50);
+        expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
+        expect(screen.queryByText('Bob')).not.toBeInTheDocument();
+      },
+      { timeout: 500 }
+    );
   });
 
   it('shows pagination controls when multiple pages exist', async () => {
