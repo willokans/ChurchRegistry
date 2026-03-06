@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -448,11 +449,15 @@ export default function BaptismViewPage() {
                       className="w-full h-full min-w-0 min-h-0 border-0 rounded"
                     />
                   ) : (
-                    <img
-                      src={certificateObjectUrl}
-                      alt="External baptism certificate"
-                      className="w-full h-full object-contain border-0 rounded"
-                    />
+                    <div className="relative w-full h-full min-h-[200px]">
+                      <Image
+                        src={certificateObjectUrl}
+                        alt="External baptism certificate"
+                        fill
+                        className="object-contain border-0 rounded"
+                        unoptimized
+                      />
+                    </div>
                   )
                 )}
               </div>
@@ -636,11 +641,15 @@ function CertificatePopupModal({
                 className="w-full h-full min-h-[60vh] rounded border border-gray-200 bg-white"
               />
             ) : (
-              <img
-                src={certificateObjectUrl}
-                alt="External baptism certificate"
-                className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded border border-gray-200 bg-white"
-              />
+              <div className="relative w-full max-w-4xl h-[70vh] min-h-[200px]">
+                <Image
+                  src={certificateObjectUrl}
+                  alt="External baptism certificate"
+                  fill
+                  className="object-contain rounded border border-gray-200 bg-white"
+                  unoptimized
+                />
+              </div>
             )
           )}
         </div>

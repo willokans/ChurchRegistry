@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -406,11 +407,15 @@ export default function CommunionViewPage() {
                               className="w-full h-full min-w-0 min-h-0 border-0 rounded"
                             />
                           ) : (
-                            <img
-                              src={baptismCertUrl}
-                              alt="Baptism certificate"
-                              className="w-full h-full object-contain border-0 rounded"
-                            />
+                            <div className="relative w-full h-full min-h-[200px]">
+                              <Image
+                                src={baptismCertUrl}
+                                alt="Baptism certificate"
+                                fill
+                                className="object-contain border-0 rounded"
+                                unoptimized
+                              />
+                            </div>
                           )
                         )}
                       </div>
@@ -530,11 +535,15 @@ export default function CommunionViewPage() {
                             className="w-full h-full min-w-0 min-h-0 border-0 rounded"
                           />
                         ) : (
-                          <img
-                            src={communionCertUrl}
-                            alt="First Holy Communion certificate (uploaded)"
-                            className="w-full h-full object-contain border-0 rounded"
-                          />
+                          <div className="relative w-full h-full min-h-[200px]">
+                            <Image
+                              src={communionCertUrl}
+                              alt="First Holy Communion certificate (uploaded)"
+                              fill
+                              className="object-contain border-0 rounded"
+                              unoptimized
+                            />
+                          </div>
                         )
                       )}
                     </div>
