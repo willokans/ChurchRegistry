@@ -43,7 +43,7 @@ describe('Login page', () => {
     expect(screen.getByRole('button', { name: /sign in|login/i })).toBeInTheDocument();
   });
 
-  it('on successful login stores token and redirects to home', async () => {
+  it('on successful login stores token and redirects to dashboard', async () => {
     const user = userEvent.setup();
     const mockResponse = {
       token: 'jwt-123',
@@ -75,7 +75,7 @@ describe('Login page', () => {
     await waitFor(() => {
       expect(localStorage.getItem('church_registry_token')).toBe('jwt-123');
       expect(localStorage.getItem('church_registry_refresh_token')).toBe('refresh-456');
-      expect(locationHref).toBe('/');
+      expect(locationHref).toBe('/dashboard');
     });
   });
 

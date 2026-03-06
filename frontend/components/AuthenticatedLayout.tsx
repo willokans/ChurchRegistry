@@ -225,7 +225,7 @@ export default function AuthenticatedLayout({
             <nav className="flex-1 p-4">
               <ul className="space-y-1">
                 {[
-                  { href: '/', label: 'Dashboard' },
+                  { href: '/dashboard', label: 'Dashboard' },
                   ...(isAdmin
                     ? [
                         { href: '/parishes', label: 'Dioceses & Parishes' },
@@ -337,7 +337,7 @@ export default function AuthenticatedLayout({
           <ul className="space-y-1">
             <li>
               <Link
-                href="/"
+                href="/dashboard"
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Dashboard

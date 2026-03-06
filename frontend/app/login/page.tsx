@@ -74,7 +74,7 @@ export default function LoginPage() {
       const defaultParishId = res?.defaultParishId != null ? Number(res.defaultParishId) : null;
       setStoredParishId(defaultParishId);
       // Full page navigation so home loads with auth in localStorage
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setSubmitting(false);
@@ -171,13 +171,13 @@ export default function LoginPage() {
         </form>
 
         {/* Links */}
-        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
           <Link href="/login/forgot-password" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
             Forgot password?
           </Link>
-          <a href="#" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
-            Create account
-          </a>
+          <p className="mt-3 text-xs text-gray-500">
+            Account access is by invitation only. Contact your parish administrator to request access.
+          </p>
         </div>
       </div>
     </main>

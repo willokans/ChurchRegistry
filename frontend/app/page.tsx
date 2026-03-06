@@ -1,425 +1,229 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { getStoredUser } from '@/lib/api';
-import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { useParish } from '@/context/ParishContext';
-import { getChurchBranding } from '@/lib/church-branding';
-import {
-  fetchBaptisms,
-  fetchCommunions,
-  fetchConfirmations,
-  fetchDashboardCounts,
-  fetchMarriages,
-  type BaptismResponse,
-  type FirstHolyCommunionResponse,
-  type ConfirmationResponse,
-  type MarriageResponse,
-} from '@/lib/api';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { getStoredToken, getStoredUser } from '@/lib/api';
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+function CrossIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 32" fill="currentColor" aria-hidden>
+      <path d="M9 0L15 0 14 4 14 11 20 11 22 12 22 14 20 15 14 15 14 28 15 32 9 32 10 28 10 15 4 15 2 14 2 12 4 11 10 11 10 4z" />
+    </svg>
+  );
 }
 
-const currentYear = new Date().getFullYear();
+function ChaliceIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2c-.5 0-1 .2-1.4.6L8.5 4.7c-.4.4-.6.9-.6 1.4v2.5c0 .8.3 1.6.8 2.2l2.5 2.8V18h-2v2h6v-2h-2v-4.4l2.5-2.8c.5-.6.8-1.4.8-2.2V6.1c0-.5-.2-1-.6-1.4l-2.1-2.1C13 2.2 12.5 2 12 2zm-2 4h4v1.5l-2 2.2-2-2.2V6z" />
+    </svg>
+  );
+}
 
-type RecentItem = {
-  type: 'baptism' | 'communion' | 'confirmation' | 'marriage';
-  label: string;
-  date: string;
-  id: number;
-  href: string;
-};
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
 
-function useDashboardData(parishId: number | null) {
-  const [baptisms, setBaptisms] = useState<BaptismResponse[]>([]);
-  const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
-  const [confirmations, setConfirmations] = useState<ConfirmationResponse[]>([]);
-  const [marriages, setMarriages] = useState<MarriageResponse[]>([]);
-  const [counts, setCounts] = useState({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function CertificateIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M16 13H8" />
+      <path d="M16 17H8" />
+      <path d="M10 9H8" />
+    </svg>
+  );
+}
+
+function ChurchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2L2 8v2h2v10h6v-6h4v6h6V10h2V8L12 2zm0 2.5l6 4v1.5h-2V20h-2v-6h-4v6H8v-10H6V8.5l6-4z" />
+    </svg>
+  );
+}
+
+const features = [
+  {
+    title: 'Register Sacraments',
+    description: 'Record baptisms, confirmations, marriages, holy communion, and holy orders in a secure, structured format.',
+    Icon: ChaliceIcon,
+  },
+  {
+    title: 'Search Parish Records',
+    description: 'Quickly find records by name, address, parents, or sacrament type.',
+    Icon: SearchIcon,
+  },
+  {
+    title: 'Generate Certificates',
+    description: 'Automatically generate official sacramental certificates with one click.',
+    Icon: CertificateIcon,
+  },
+  {
+    title: 'Multi-Parish Access',
+    description: 'Records are organized by diocese and parish with secure access control.',
+    Icon: ChurchIcon,
+  },
+];
+
+function DashboardPreview() {
+  return (
+    <div className="relative w-full max-w-md">
+      <div className="rounded-lg border-2 border-gray-300 bg-white shadow-xl overflow-hidden">
+        <Image
+          src="/images/dashboard-preview.png"
+          alt="Church Registry dashboard showing sacrament records, quick actions, and parish management"
+          width={800}
+          height={600}
+          className="w-full h-auto object-cover"
+          priority
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  const router = useRouter();
 
   useEffect(() => {
-    if (!parishId) {
-      setBaptisms([]);
-      setCommunions([]);
-      setConfirmations([]);
-      setMarriages([]);
-      setCounts({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0 });
-      setLoading(false);
-      return;
+    const token = getStoredToken();
+    const user = getStoredUser();
+    if (token && user) {
+      router.replace('/dashboard');
     }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const [countsPromise, bPage, cPage, cfPage, mPage] = await Promise.all([
-          fetchDashboardCounts(parishId).catch(() => null),
-          fetchBaptisms(parishId),
-          fetchCommunions(parishId),
-          fetchConfirmations(parishId),
-          fetchMarriages(parishId),
-        ]);
-        if (!cancelled) {
-          setBaptisms(bPage.content);
-          setCommunions(cPage.content);
-          setConfirmations(cfPage.content);
-          setMarriages(mPage.content);
-          if (countsPromise) {
-            setCounts({
-              baptisms: countsPromise.baptisms,
-              communions: countsPromise.communions,
-              confirmations: countsPromise.confirmations,
-              marriages: countsPromise.marriages,
-            });
-          } else {
-            setCounts({
-              baptisms: bPage.totalElements,
-              communions: cPage.totalElements,
-              confirmations: cfPage.totalElements,
-              marriages: mPage.totalElements,
-            });
-          }
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [parishId]);
-
-  const recentItems: RecentItem[] = [];
-  [...baptisms]
-    .sort((a, b) => b.id - a.id)
-    .slice(0, 15)
-    .forEach((r) => {
-      recentItems.push({
-        type: 'baptism',
-        label: `${r.baptismName} ${r.otherNames ? r.otherNames + ' ' : ''}${r.surname}`.trim(),
-        date: r.dateOfBirth,
-        id: r.id,
-        href: `/baptisms/${r.id}`,
-      });
-    });
-  communions.slice(0, 15).forEach((r) => {
-    recentItems.push({
-      type: 'communion',
-      label: 'Holy Communion',
-      date: r.communionDate,
-      id: r.id,
-      href: `/communions/${r.id}`,
-    });
-  });
-  confirmations.slice(0, 15).forEach((r) => {
-    recentItems.push({
-      type: 'confirmation',
-      label: 'Confirmation',
-      date: r.confirmationDate,
-      id: r.id,
-      href: `/confirmations/${r.id}`,
-    });
-  });
-  marriages.slice(0, 15).forEach((r) => {
-    recentItems.push({
-      type: 'marriage',
-      label: r.partnersName,
-      date: r.marriageDate,
-      id: r.id,
-      href: `/marriages/${r.id}`,
-    });
-  });
-  recentItems.sort((a, b) => b.date.localeCompare(a.date));
-  const recent = recentItems.slice(0, 8);
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthly = {
-    baptisms: new Array(12).fill(0),
-    communions: new Array(12).fill(0),
-    confirmations: new Array(12).fill(0),
-    marriages: new Array(12).fill(0),
-  };
-  const getMonthIndex = (primaryDate?: string, fallbackDate?: string): number | null => {
-    const source = primaryDate || fallbackDate;
-    if (!source) return null;
-    const isoLike = source.match(/^(\d{4})-(\d{2})/);
-    if (isoLike) {
-      const month = Number.parseInt(isoLike[2], 10) - 1;
-      return month >= 0 && month < 12 ? month : null;
-    }
-    const d = new Date(source);
-    if (Number.isNaN(d.getTime())) return null;
-    const month = d.getMonth();
-    return month >= 0 && month < 12 ? month : null;
-  };
-
-  baptisms.forEach((r) => {
-    const m = getMonthIndex(r.createdAt, r.dateOfBirth);
-    if (m !== null) monthly.baptisms[m]++;
-  });
-  confirmations.forEach((r) => {
-    const m = getMonthIndex(r.createdAt, r.confirmationDate);
-    if (m !== null) monthly.confirmations[m]++;
-  });
-  communions.forEach((r) => {
-    const m = getMonthIndex(r.createdAt, r.communionDate);
-    if (m !== null) monthly.communions[m]++;
-  });
-  marriages.forEach((r) => {
-    const m = getMonthIndex(r.createdAt, r.marriageDate);
-    if (m !== null) monthly.marriages[m]++;
-  });
-  const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.communions, ...monthly.confirmations, ...monthly.marriages);
-
-  return {
-    counts,
-    recent,
-    monthly: {
-      baptisms: monthly.baptisms,
-      communions: monthly.communions,
-      confirmations: monthly.confirmations,
-      marriages: monthly.marriages,
-    },
-    monthNames,
-    maxBar,
-    loading,
-    error,
-  };
-}
-
-export default function DashboardPage() {
-  const user = getStoredUser();
-  const { parishId, parishes } = useParish();
-  const { counts, recent, monthly, monthNames, maxBar, loading, error } = useDashboardData(parishId ?? null);
-
-  const parish = parishId ? parishes.find((p) => p.id === parishId) : undefined;
-  const parishName = parish?.parishName ?? null;
-  const churchBranding = getChurchBranding(parishName);
-  const welcomeTitle = churchBranding?.appTitle ?? (parishName ? `${parishName} Parish Registry` : null);
-  const greeting = getGreeting();
-  const displayName = user?.displayName || user?.username || '…';
+  }, [router]);
 
   return (
-    <AuthenticatedLayout>
-      <div className="space-y-6">
-        {/* Welcome + Year */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-serif font-semibold text-sancta-maroon">
-              {greeting}, {displayName}
+    <div className="min-h-screen bg-pattern flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2">
+            <CrossIcon className="h-8 w-8 text-sancta-gold shrink-0" />
+            <span className="font-serif text-xl font-semibold text-sancta-maroon">Church Registry</span>
+          </Link>
+          <nav className="flex items-center gap-6">
+            <a href="#features" className="text-sm font-medium text-gray-600 hover:text-sancta-maroon transition-colors">
+              Features
+            </a>
+            <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-sancta-maroon transition-colors">
+              How it works
+            </a>
+            <Link
+              href="/login"
+              className="rounded-lg bg-sancta-maroon px-4 py-2.5 text-sm font-medium text-white hover:bg-sancta-maroon-dark transition-colors"
+            >
+              Sign in
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="flex-1 px-4 py-16 sm:px-6 sm:py-24">
+        <div className="mx-auto max-w-6xl flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+          <div className="flex-1 text-left">
+            <h1 className="font-serif text-3xl font-semibold text-sancta-maroon sm:text-4xl md:text-5xl">
+              Sacramental Record Management for Catholic Parishes
             </h1>
-            <p className="mt-1 text-gray-600">
-              {welcomeTitle ? `Welcome to ${welcomeTitle}` : 'Select a parish in the sidebar'}
+            <p className="mt-4 text-lg text-gray-600 sm:text-xl">
+              Church Registry helps priests and parish staff securely manage baptism, communion, confirmation, marriage, and holy orders records.
             </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-6 py-3.5 text-base font-medium text-white hover:bg-sancta-maroon-dark transition-colors min-h-[44px]"
+              >
+                Sign in
+              </Link>
+              <a
+                href="#features"
+                className="inline-flex items-center justify-center rounded-lg border-2 border-sancta-maroon bg-white px-6 py-3.5 text-base font-medium text-sancta-maroon hover:bg-sancta-maroon/5 transition-colors min-h-[44px]"
+              >
+                Learn more
+              </a>
+            </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-            <span>Year {currentYear}</span>
+          <div className="flex-1 flex justify-center lg:justify-end w-full">
+            <DashboardPreview />
           </div>
         </div>
+      </section>
 
-        {error && (
-          <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700" role="alert">
-            {error}
+      {/* Features */}
+      <section id="features" className="border-t border-gray-200/80 bg-white/60 px-4 py-16 sm:px-6 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="font-serif text-2xl font-semibold text-gray-800 sm:text-3xl text-center mb-12">
+            Everything a parish needs to manage sacramental records.
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map(({ title, description, Icon }) => (
+              <div
+                key={title}
+                className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <Icon className="h-10 w-10 text-sancta-gold" aria-hidden />
+                <h3 className="mt-3 font-semibold text-sancta-maroon">{title}</h3>
+                <p className="mt-2 text-sm text-gray-600">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Access */}
+      <section id="how-it-works" className="border-t border-gray-200/80 bg-white/60 px-4 py-16 sm:px-6 sm:py-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-serif text-2xl font-semibold text-sancta-maroon sm:text-3xl">
+            Access is by invitation only
+          </h2>
+          <p className="mt-4 text-gray-600">
+            Church Registry is available to Catholic parishes and dioceses. Contact your parish office or diocesan administrator to request access.
           </p>
-        )}
+          <Link
+            href="/login"
+            className="mt-8 inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-6 py-3.5 text-base font-medium text-white hover:bg-sancta-maroon-dark transition-colors min-h-[44px]"
+          >
+            Sign in
+          </Link>
+        </div>
+      </section>
 
-        {parishId && (
-          <>
-            {/* Summary cards */}
-            {!loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>💧</span>
-                    <span className="font-medium">Baptisms</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.baptisms}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>🍞</span>
-                    <span className="font-medium">Holy Communion</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.communions}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>✝</span>
-                    <span className="font-medium">Confirmations</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.confirmations}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>💒</span>
-                    <span className="font-medium">Marriages</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.marriages}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Actions */}
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h2>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href={`/baptisms/new?parishId=${parishId}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-sancta-maroon px-4 py-3 text-white font-medium hover:bg-sancta-maroon-dark min-h-[44px]"
-                >
-                  <span aria-hidden>+</span>
-                  Register Baptism
-                </Link>
-                <Link
-                  href={`/communions/new?parishId=${parishId}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-purple-700 px-4 py-3 text-white font-medium hover:bg-purple-800 min-h-[44px]"
-                >
-                  <span aria-hidden>+</span>
-                  Register Holy Communion
-                </Link>
-                <Link
-                  href={`/confirmations/new?parishId=${parishId}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-700 px-4 py-3 text-white font-medium hover:bg-indigo-800 min-h-[44px]"
-                >
-                  <span aria-hidden>+</span>
-                  Register Confirmation
-                </Link>
-                <Link
-                  href={`/marriages/new?parishId=${parishId}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-3 text-white font-medium hover:bg-amber-800 min-h-[44px]"
-                >
-                  <span aria-hidden>+</span>
-                  Register Marriage
-                </Link>
-                <Link
-                  href="/baptisms"
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 min-h-[44px]"
-                >
-                  Search Records
-                </Link>
-              </div>
-            </div>
-
-            {/* Sacraments overview grouped (clustered) bar chart */}
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-800 mb-1">Sacraments overview by month</h2>
-              <p className="text-xs text-gray-500 mb-3">All records grouped by month of creation</p>
-              <div className="overflow-x-auto pb-1">
-                <div className="flex items-end gap-2 h-56 min-w-[780px] border-b border-gray-100">
-                  {monthNames.map((name, i) => (
-                    <div key={name} className="w-14 h-full flex flex-col items-center justify-end gap-1">
-                      <div className="w-full h-44 flex gap-0.5 items-end justify-center">
-                        <div
-                          className="w-full rounded-t bg-sancta-maroon"
-                          style={{ height: monthly.baptisms[i] > 0 ? `${Math.max(6, (monthly.baptisms[i] / maxBar) * 100)}%` : '0%' }}
-                          title={`Baptisms: ${monthly.baptisms[i]}`}
-                        />
-                        <div
-                          className="w-full rounded-t bg-indigo-600"
-                          style={{ height: monthly.confirmations[i] > 0 ? `${Math.max(6, (monthly.confirmations[i] / maxBar) * 100)}%` : '0%' }}
-                          title={`Confirmations: ${monthly.confirmations[i]}`}
-                        />
-                        <div
-                          className="w-full rounded-t bg-purple-700"
-                          style={{ height: monthly.communions[i] > 0 ? `${Math.max(6, (monthly.communions[i] / maxBar) * 100)}%` : '0%' }}
-                          title={`Holy Communion: ${monthly.communions[i]}`}
-                        />
-                        <div
-                          className="w-full rounded-t bg-amber-700"
-                          style={{ height: monthly.marriages[i] > 0 ? `${Math.max(6, (monthly.marriages[i] / maxBar) * 100)}%` : '0%' }}
-                          title={`Marriages: ${monthly.marriages[i]}`}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500">{name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-gray-100">
-                <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-sancta-maroon" /> Baptisms
-                </span>
-                <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-indigo-600" /> Confirmations
-                </span>
-                <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-purple-700" /> Holy Communion
-                </span>
-                <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="w-3 h-3 rounded bg-amber-700" /> Marriages
-                </span>
-              </div>
-            </section>
-
-            {/* Sacraments overview + Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-800 mb-3">Latest sacrament records</h2>
-                {recent.length === 0 ? (
-                  <p className="text-sm text-gray-500">No recent records yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {recent.slice(0, 5).map((item) => (
-                      <li key={`${item.type}-${item.id}`}>
-                        <Link
-                          href={item.href}
-                          className="flex items-center gap-2 rounded-lg py-2 px-2 -mx-2 hover:bg-gray-50 text-gray-800"
-                        >
-                          <span className="text-sancta-gold font-medium capitalize">{item.type}</span>
-                          <span className="truncate">{item.label}</span>
-                          <span className="text-xs text-gray-500 ml-auto shrink-0">{item.date}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-              <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
-                  <Link href="/baptisms" className="text-sm text-sancta-maroon hover:underline">
-                    View all
-                  </Link>
-                </div>
-                {recent.length === 0 ? (
-                  <p className="text-sm text-gray-500">No recent activity.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {recent.slice(0, 5).map((item) => (
-                      <li key={`activity-${item.type}-${item.id}`} className="flex items-center gap-3">
-                        <span className="w-8 h-8 rounded-full bg-sancta-maroon/10 flex items-center justify-center text-sancta-maroon text-xs font-medium shrink-0">
-                          {item.type.charAt(0).toUpperCase()}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <Link href={item.href} className="font-medium text-gray-800 hover:text-sancta-maroon truncate block">
-                            {item.label}
-                          </Link>
-                          <p className="text-xs text-gray-500">{item.date}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            </div>
-          </>
-        )}
-
-        {!parishId && parishes.length === 0 && !loading && (
-          <p className="text-gray-600">Add a diocese and parish to see the dashboard (admin only).</p>
-        )}
-      </div>
-    </AuthenticatedLayout>
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-white px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-6xl text-center">
+          <div className="flex items-center justify-center gap-2">
+            <CrossIcon className="h-6 w-6 text-sancta-gold shrink-0" />
+            <span className="font-serif text-lg font-semibold text-sancta-maroon">Church Registry</span>
+          </div>
+          <p className="mt-3 text-sm text-gray-600">
+            Sacramental Record Management System
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-6">
+            <Link href="/login" className="text-sm font-medium text-sancta-maroon hover:underline">
+              Sign in
+            </Link>
+            <a href="mailto:churchregistry@example.com" className="text-sm text-gray-600 hover:text-sancta-maroon">
+              Support
+            </a>
+            <a href="#" className="text-sm text-gray-600 hover:text-sancta-maroon">
+              Documentation
+            </a>
+          </div>
+          <p className="mt-6 text-sm text-gray-500">
+            Support: churchregistry@example.com
+          </p>
+        </div>
+      </footer>
+    </div>
   );
 }

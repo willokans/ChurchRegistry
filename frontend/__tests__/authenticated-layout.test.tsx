@@ -84,6 +84,16 @@ describe('AuthenticatedLayout', () => {
     expect(screen.getByText('Dashboard content')).toBeInTheDocument();
   });
 
+  it('Dashboard link points to /dashboard', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    expect(dashboardLink).toHaveAttribute('href', '/dashboard');
+  });
+
   it('redirects to /login when no token', () => {
     (getStoredToken as jest.Mock).mockReturnValue(null);
     render(
