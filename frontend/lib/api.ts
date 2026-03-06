@@ -249,6 +249,23 @@ export async function fetchDashboardCounts(parishId: number): Promise<DashboardC
   return res.json();
 }
 
+/** Consolidated dashboard: counts + recent records in one call. */
+export interface DashboardResponse {
+  counts: DashboardCountsResponse;
+  baptisms: BaptismResponse[];
+  communions: FirstHolyCommunionResponse[];
+  confirmations: ConfirmationResponse[];
+  marriages: MarriageResponse[];
+}
+
+export async function fetchDashboard(parishId: number): Promise<DashboardResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/dashboard`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch dashboard');
+  return res.json();
+}
+
 /** Paginated response from sacrament list endpoints. */
 export interface SacramentPageResponse<T> {
   content: T[];

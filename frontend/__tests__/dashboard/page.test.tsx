@@ -21,27 +21,34 @@ jest.mock('@/context/ParishContext', () => ({
   }),
 }));
 
-const toPage = (arr: unknown[], totalElements = arr.length) => ({
-  content: arr,
-  totalElements,
-  totalPages: Math.max(1, Math.ceil(totalElements / 50)),
-  size: 50,
-  number: 0,
-  first: true,
-  last: totalElements <= 50,
-  numberOfElements: arr.length,
-  empty: arr.length === 0,
-});
+function toDashboard(
+  counts: { baptisms: number; communions: number; confirmations: number; marriages: number },
+  baptisms: unknown[] = [],
+  communions: unknown[] = [],
+  confirmations: unknown[] = [],
+  marriages: unknown[] = []
+) {
+  return {
+    counts: { ...counts, holyOrders: 0 },
+    baptisms,
+    communions,
+    confirmations,
+    marriages,
+  };
+}
+
 jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   getStoredToken: jest.fn(),
-  fetchDashboardCounts: jest.fn(() =>
-    Promise.resolve({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0, holyOrders: 0 })
+  fetchDashboard: jest.fn(() =>
+    Promise.resolve({
+      counts: { baptisms: 0, communions: 0, confirmations: 0, marriages: 0, holyOrders: 0 },
+      baptisms: [],
+      communions: [],
+      confirmations: [],
+      marriages: [],
+    })
   ),
-  fetchBaptisms: jest.fn(() => Promise.resolve(toPage([]))),
-  fetchCommunions: jest.fn(() => Promise.resolve(toPage([]))),
-  fetchConfirmations: jest.fn(() => Promise.resolve(toPage([]))),
-  fetchMarriages: jest.fn(() => Promise.resolve(toPage([]))),
 }));
 
 const mockReplace = jest.fn();
@@ -98,13 +105,16 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     });
     api.getStoredToken.mockReturnValue('jwt-123');
-    api.fetchBaptisms.mockResolvedValue(toPage([]));
-    api.fetchCommunions.mockResolvedValue(toPage([
-      { id: 1, baptismId: 1, communionDate: `${year}-01-10`, officiatingPriest: 'Fr A', parish: 'St Mary' },
-      { id: 2, baptismId: 2, communionDate: `${year}-02-11`, officiatingPriest: 'Fr B', parish: 'St Mary' },
-    ]));
-    api.fetchConfirmations.mockResolvedValue(toPage([]));
-    api.fetchMarriages.mockResolvedValue(toPage([]));
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 0, communions: 2, confirmations: 0, marriages: 0 },
+      [],
+      [
+        { id: 1, baptismId: 1, communionDate: `${year}-01-10`, officiatingPriest: 'Fr A', parish: 'St Mary' },
+        { id: 2, baptismId: 2, communionDate: `${year}-02-11`, officiatingPriest: 'Fr B', parish: 'St Mary' },
+      ],
+      [],
+      []
+    ));
 
     localStorage.setItem('church_registry_token', 'jwt-123');
     localStorage.setItem(
@@ -130,7 +140,7 @@ describe('Dashboard page', () => {
     });
   });
 
-  it('shows accurate counts for parishes with 50+ records (uses dashboard-counts endpoint)', async () => {
+  it('shows accurate counts for parishes with 50+ records (uses consolidated dashboard endpoint)', async () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue({
       username: 'admin',
@@ -138,14 +148,6 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     });
     api.getStoredToken.mockReturnValue('jwt-123');
-    // Dashboard counts endpoint returns accurate totals regardless of pagination
-    api.fetchDashboardCounts.mockResolvedValue({
-      baptisms: 120,
-      communions: 0,
-      confirmations: 0,
-      marriages: 0,
-      holyOrders: 0,
-    });
     const fiftyBaptisms = Array.from({ length: 50 }, (_, i) => ({
       id: i + 1,
       baptismName: 'John',
@@ -153,10 +155,13 @@ describe('Dashboard page', () => {
       parishId: 10,
       dateOfBirth: '2020-01-01',
     }));
-    api.fetchBaptisms.mockResolvedValue(toPage(fiftyBaptisms, 120));
-    api.fetchCommunions.mockResolvedValue(toPage([], 0));
-    api.fetchConfirmations.mockResolvedValue(toPage([], 0));
-    api.fetchMarriages.mockResolvedValue(toPage([], 0));
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 120, communions: 0, confirmations: 0, marriages: 0 },
+      fiftyBaptisms,
+      [],
+      [],
+      []
+    ));
 
     localStorage.setItem('church_registry_token', 'jwt-123');
     localStorage.setItem(
@@ -186,25 +191,28 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     });
     api.getStoredToken.mockReturnValue('jwt-123');
-    api.fetchBaptisms.mockResolvedValue(toPage([
-      {
-        id: 1,
-        baptismName: 'John',
-        otherNames: '',
-        surname: 'Doe',
-        gender: 'MALE',
-        dateOfBirth: '2020-01-10',
-        fathersName: 'Father',
-        mothersName: 'Mother',
-        sponsorNames: 'Sponsor',
-        officiatingPriest: 'Fr A',
-        parishId: 10,
-        createdAt: `${year}-01-15T12:00:00.000Z`,
-      },
-    ]));
-    api.fetchCommunions.mockResolvedValue(toPage([]));
-    api.fetchConfirmations.mockResolvedValue(toPage([]));
-    api.fetchMarriages.mockResolvedValue(toPage([]));
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 1, communions: 0, confirmations: 0, marriages: 0 },
+      [
+        {
+          id: 1,
+          baptismName: 'John',
+          otherNames: '',
+          surname: 'Doe',
+          gender: 'MALE',
+          dateOfBirth: '2020-01-10',
+          fathersName: 'Father',
+          mothersName: 'Mother',
+          sponsorNames: 'Sponsor',
+          officiatingPriest: 'Fr A',
+          parishId: 10,
+          createdAt: `${year}-01-15T12:00:00.000Z`,
+        },
+      ],
+      [],
+      [],
+      []
+    ));
 
     localStorage.setItem('church_registry_token', 'jwt-123');
     localStorage.setItem(

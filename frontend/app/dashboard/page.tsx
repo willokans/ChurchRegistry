@@ -7,17 +7,7 @@ import { getStoredToken, getStoredUser } from '@/lib/api';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { useParish } from '@/context/ParishContext';
 import { getChurchBranding } from '@/lib/church-branding';
-import {
-  fetchBaptisms,
-  fetchCommunions,
-  fetchConfirmations,
-  fetchDashboardCounts,
-  fetchMarriages,
-  type BaptismResponse,
-  type FirstHolyCommunionResponse,
-  type ConfirmationResponse,
-  type MarriageResponse,
-} from '@/lib/api';
+import { fetchDashboard, type BaptismResponse, type FirstHolyCommunionResponse, type ConfirmationResponse, type MarriageResponse } from '@/lib/api';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -60,33 +50,18 @@ function useDashboardData(parishId: number | null) {
     setError(null);
     (async () => {
       try {
-        const [countsPromise, bPage, cPage, cfPage, mPage] = await Promise.all([
-          fetchDashboardCounts(parishId).catch(() => null),
-          fetchBaptisms(parishId),
-          fetchCommunions(parishId),
-          fetchConfirmations(parishId),
-          fetchMarriages(parishId),
-        ]);
+        const data = await fetchDashboard(parishId);
         if (!cancelled) {
-          setBaptisms(bPage.content);
-          setCommunions(cPage.content);
-          setConfirmations(cfPage.content);
-          setMarriages(mPage.content);
-          if (countsPromise) {
-            setCounts({
-              baptisms: countsPromise.baptisms,
-              communions: countsPromise.communions,
-              confirmations: countsPromise.confirmations,
-              marriages: countsPromise.marriages,
-            });
-          } else {
-            setCounts({
-              baptisms: bPage.totalElements,
-              communions: cPage.totalElements,
-              confirmations: cfPage.totalElements,
-              marriages: mPage.totalElements,
-            });
-          }
+          setBaptisms(data.baptisms);
+          setCommunions(data.communions);
+          setConfirmations(data.confirmations);
+          setMarriages(data.marriages);
+          setCounts({
+            baptisms: data.counts.baptisms,
+            communions: data.counts.communions,
+            confirmations: data.counts.confirmations,
+            marriages: data.counts.marriages,
+          });
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard');
