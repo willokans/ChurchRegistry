@@ -1,7 +1,7 @@
 /**
  * TDD: Holy Order list page.
  * - When authenticated, fetches holy orders for parish and shows list or empty state
- * - Shows link to add new holy order
+ * - Add holy order button disabled (coming soon)
  * - When no parish available, shows message
  */
 import { screen, waitFor, within } from '@testing-library/react';
@@ -72,15 +72,13 @@ describe('Holy Orders list page', () => {
     expect(screen.getByRole('main')).toHaveTextContent('PRIEST');
   });
 
-  it('shows link to add new holy order', async () => {
+  it('shows add holy order button disabled (coming soon)', async () => {
     renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
-    const main = screen.getByRole('main');
-    const addLinks = within(main).getAllByRole('link', { name: /add holy order/i });
-    expect(addLinks.length).toBeGreaterThanOrEqual(1);
-    expect(addLinks[0].getAttribute('href')).toMatch(/holy-orders\/new/);
+    const comingSoon = screen.getAllByText(/add holy order \(coming soon\)/i);
+    expect(comingSoon.length).toBeGreaterThanOrEqual(1);
   });
 
   it('when no parishes shows message and no fetch to holy orders', async () => {

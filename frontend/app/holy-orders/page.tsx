@@ -71,12 +71,12 @@ export default function HolyOrdersListPage() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Holy Order</h1>
-          <Link
-            href={`/holy-orders/new?parishId=${parishId}`}
-            className="hidden md:inline-flex items-center justify-center gap-2 rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
+          <span
+            className="hidden md:inline-flex items-center justify-center gap-2 rounded-lg bg-gray-300 px-4 py-3 min-h-[44px] text-gray-500 font-medium cursor-not-allowed"
+            title="Feature coming soon"
           >
-            Add holy order
-          </Link>
+            Add holy order (coming soon)
+          </span>
         </div>
 
         {/* Filters row */}
@@ -126,12 +126,12 @@ export default function HolyOrdersListPage() {
             {holyOrders.length === 0 ? 'No holy order records yet.' : 'No holy orders match the current filters.'}
           </p>
           {holyOrders.length === 0 && (
-            <Link
-              href={`/holy-orders/new?parishId=${parishId}`}
-              className="mt-4 hidden md:inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
+            <span
+              className="mt-4 hidden md:inline-flex items-center justify-center rounded-lg bg-gray-300 px-4 py-3 min-h-[44px] text-gray-500 font-medium cursor-not-allowed"
+              title="Feature coming soon"
             >
-              Add holy order
-            </Link>
+              Add holy order (coming soon)
+            </span>
           )}
         </div>
       ) : (

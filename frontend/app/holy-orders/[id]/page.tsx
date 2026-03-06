@@ -62,12 +62,12 @@ export default function HolyOrderViewPage() {
           ← Back to holy orders
         </Link>
         {parishId != null && (
-          <Link
-            href={`/holy-orders/new?parishId=${parishId}`}
-            className="rounded-lg bg-sancta-maroon px-4 py-2 text-white font-medium hover:bg-sancta-maroon-dark text-sm"
+          <span
+            className="rounded-lg bg-gray-300 px-4 py-2 text-gray-500 font-medium text-sm cursor-not-allowed"
+            title="Feature coming soon"
           >
-            Add holy order
-          </Link>
+            Add holy order (coming soon)
+          </span>
         )}
       </div>
       <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
