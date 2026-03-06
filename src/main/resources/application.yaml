@@ -38,4 +38,14 @@ app:
   refresh-token:
     # Cron for expired refresh token cleanup (default: hourly at minute 0)
     cleanup-cron: ${REFRESH_TOKEN_CLEANUP_CRON:0 0 * * * ?}
+  rate-limit:
+    login:
+      limit: 5
+      period-minutes: 1
+    refresh:
+      limit: 15
+      period-minutes: 1
+    api:
+      limit: 300
+      period-minutes: 1
 
