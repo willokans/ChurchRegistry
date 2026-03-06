@@ -1,13 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { useParish } from '@/context/ParishContext';
 import { getChurchBranding } from '@/lib/church-branding';
 import { fetchDashboard, type BaptismResponse, type FirstHolyCommunionResponse, type ConfirmationResponse, type MarriageResponse } from '@/lib/api';
+
+const DASHBOARD_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  dedupingInterval: 60_000,
+  revalidateOnReconnect: true,
+};
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -27,50 +34,21 @@ type RecentItem = {
 };
 
 function useDashboardData(parishId: number | null) {
-  const [baptisms, setBaptisms] = useState<BaptismResponse[]>([]);
-  const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
-  const [confirmations, setConfirmations] = useState<ConfirmationResponse[]>([]);
-  const [marriages, setMarriages] = useState<MarriageResponse[]>([]);
-  const [counts, setCounts] = useState({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error: swrError, isLoading } = useSWR(
+    parishId ? ['dashboard', parishId] : null,
+    parishId ? () => fetchDashboard(parishId) : null,
+    DASHBOARD_SWR_OPTIONS
+  );
 
-  useEffect(() => {
-    if (!parishId) {
-      setBaptisms([]);
-      setCommunions([]);
-      setConfirmations([]);
-      setMarriages([]);
-      setCounts({ baptisms: 0, communions: 0, confirmations: 0, marriages: 0 });
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const data = await fetchDashboard(parishId);
-        if (!cancelled) {
-          setBaptisms(data.baptisms);
-          setCommunions(data.communions);
-          setConfirmations(data.confirmations);
-          setMarriages(data.marriages);
-          setCounts({
-            baptisms: data.counts.baptisms,
-            communions: data.counts.communions,
-            confirmations: data.counts.confirmations,
-            marriages: data.counts.marriages,
-          });
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [parishId]);
+  const baptisms = data?.baptisms ?? [];
+  const communions = data?.communions ?? [];
+  const confirmations = data?.confirmations ?? [];
+  const marriages = data?.marriages ?? [];
+  const counts = data?.counts
+    ? { baptisms: data.counts.baptisms, communions: data.counts.communions, confirmations: data.counts.confirmations, marriages: data.counts.marriages }
+    : { baptisms: 0, communions: 0, confirmations: 0, marriages: 0 };
+  const loading = isLoading;
+  const error = swrError ? (swrError instanceof Error ? swrError.message : 'Failed to load dashboard') : null;
 
   const recentItems: RecentItem[] = [];
   [...baptisms]

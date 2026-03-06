@@ -5,7 +5,16 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
+import { SWRConfig } from 'swr';
 import DashboardPage from '@/app/dashboard/page';
+
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <SWRConfig value={{ provider: () => new Map() }}>
+      {children}
+    </SWRConfig>
+  );
+}
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -65,7 +74,7 @@ describe('Dashboard page', () => {
   });
 
   it('when not authenticated redirects to login', async () => {
-    render(<DashboardPage />);
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/login');
     });
@@ -86,7 +95,7 @@ describe('Dashboard page', () => {
       role: 'ADMIN',
     }));
 
-    render(<DashboardPage />);
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
       expect(screen.getByText(/welcome to st mary parish registry/i)).toBeInTheDocument();
@@ -126,7 +135,7 @@ describe('Dashboard page', () => {
       })
     );
 
-    render(<DashboardPage />);
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
       expect(screen.getAllByText(/^Holy Communion$/i).length).toBeGreaterThan(0);
@@ -173,7 +182,7 @@ describe('Dashboard page', () => {
       })
     );
 
-    render(<DashboardPage />);
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
       expect(screen.getByText('120')).toBeInTheDocument();
@@ -224,7 +233,7 @@ describe('Dashboard page', () => {
       })
     );
 
-    render(<DashboardPage />);
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     const baptismBar = await waitFor(() => screen.getByTitle('Baptisms: 1'));
     expect(baptismBar).toHaveStyle('height: 100%');
