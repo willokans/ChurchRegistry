@@ -10,6 +10,7 @@ import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/Vi
 import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useBaptismsWithSearch } from '@/lib/use-sacrament-lists';
+import { MONTH_LABELS, monthOptions, dayOptions } from '@/lib/date-filters';
 import type { BaptismResponse } from '@/lib/api';
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -42,6 +43,8 @@ export default function BaptismsListPage() {
   const { parishId, loading: parishLoading } = useParish();
   const [page, setPage] = useState(0);
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [dayFilter, setDayFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -74,10 +77,12 @@ export default function BaptismsListPage() {
   const filteredBaptisms = useMemo(() => {
     return baptisms.filter((b) => {
       if (yearFilter !== 'all' && (!b.dateOfBirth || b.dateOfBirth.slice(0, 4) !== yearFilter)) return false;
+      if (monthFilter !== 'all' && (!b.dateOfBirth || b.dateOfBirth.length < 7 || b.dateOfBirth.slice(5, 7) !== monthFilter)) return false;
+      if (dayFilter !== 'all' && (!b.dateOfBirth || b.dateOfBirth.length < 10 || b.dateOfBirth.slice(8, 10) !== dayFilter)) return false;
       if (genderFilter !== 'all' && b.gender !== genderFilter) return false;
       return true;
     });
-  }, [baptisms, yearFilter, genderFilter]);
+  }, [baptisms, yearFilter, monthFilter, dayFilter, genderFilter]);
 
   const isInitialLoading = parishLoading || (parishId === null && loading);
   const isContentLoading = parishId !== null && loading;
@@ -130,11 +135,33 @@ export default function BaptismsListPage() {
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
             className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
-            aria-label="Filter by year"
+            aria-label="Filter by year of birth"
           >
             <option value="all">All Years</option>
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter by month of birth"
+          >
+            <option value="all">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>{MONTH_LABELS[m] ?? m}</option>
+            ))}
+          </select>
+          <select
+            value={dayFilter}
+            onChange={(e) => setDayFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter by day of birth"
+          >
+            <option value="all">All Days</option>
+            {dayOptions.map((d) => (
+              <option key={d} value={d}>{Number.parseInt(d, 10)}</option>
             ))}
           </select>
           <select

@@ -10,6 +10,7 @@ import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/Vi
 import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
 import { useCommunions } from '@/lib/use-sacrament-lists';
+import { MONTH_LABELS, monthOptions, dayOptions } from '@/lib/date-filters';
 import type { FirstHolyCommunionResponse } from '@/lib/api';
 
 function fullName(c: FirstHolyCommunionResponse): string {
@@ -41,6 +42,8 @@ export default function CommunionsListPage() {
   const [page, setPage] = useState(0);
   const { data: communions, totalElements, totalPages, size, isLoading: loading, error } = useCommunions(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [dayFilter, setDayFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -59,6 +62,8 @@ export default function CommunionsListPage() {
   const filteredCommunions = useMemo(() => {
     return communions.filter((c) => {
       if (yearFilter !== 'all' && (!c.communionDate || c.communionDate.slice(0, 4) !== yearFilter)) return false;
+      if (monthFilter !== 'all' && (!c.communionDate || c.communionDate.length < 7 || c.communionDate.slice(5, 7) !== monthFilter)) return false;
+      if (dayFilter !== 'all' && (!c.communionDate || c.communionDate.length < 10 || c.communionDate.slice(8, 10) !== dayFilter)) return false;
       if (genderFilter !== 'all' && c.gender !== genderFilter) return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.trim().toLowerCase();
@@ -67,7 +72,7 @@ export default function CommunionsListPage() {
       const mother = (c.mothersName ?? '').toLowerCase();
       return name.includes(q) || father.includes(q) || mother.includes(q);
     });
-  }, [communions, yearFilter, genderFilter, searchQuery]);
+  }, [communions, yearFilter, monthFilter, dayFilter, genderFilter, searchQuery]);
 
   const isLoading = parishLoading || (parishId !== null && loading);
 
@@ -124,6 +129,28 @@ export default function CommunionsListPage() {
             <option value="all">All Years</option>
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter by month"
+          >
+            <option value="all">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>{MONTH_LABELS[m] ?? m}</option>
+            ))}
+          </select>
+          <select
+            value={dayFilter}
+            onChange={(e) => setDayFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter by day"
+          >
+            <option value="all">All Days</option>
+            {dayOptions.map((d) => (
+              <option key={d} value={d}>{Number.parseInt(d, 10)}</option>
             ))}
           </select>
           <select
