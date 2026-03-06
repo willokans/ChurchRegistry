@@ -4,6 +4,13 @@ server:
     enabled: true
     mime-types: application/json,application/xml,text/html,text/plain
 
+# Disable Swagger UI and API docs in production (security: avoid exposing API structure)
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL}
