@@ -80,7 +80,7 @@ function DashboardPreview() {
       <div className="rounded-lg border-2 border-gray-300 bg-white shadow-xl overflow-hidden">
         <Image
           src="/images/dashboard-preview.png"
-          alt="Church Registry dashboard showing sacrament records, quick actions, and parish management"
+          alt="Parish Registry dashboard showing sacrament records, quick actions, and parish management"
           width={800}
           height={600}
           className="w-full h-auto object-cover"
@@ -109,7 +109,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <CrossIcon className="h-8 w-8 text-sancta-gold shrink-0" />
-            <span className="font-serif text-xl font-semibold text-sancta-maroon">Church Registry</span>
+            <span className="font-serif text-xl font-semibold text-sancta-maroon">Parish Registry</span>
           </Link>
           <nav className="flex items-center gap-6">
             <a href="#features" className="text-sm font-medium text-gray-600 hover:text-sancta-maroon transition-colors">
@@ -136,7 +136,7 @@ export default function LandingPage() {
               Sacramental Record Management for Catholic Parishes
             </h1>
             <p className="mt-4 text-lg text-gray-600 sm:text-xl">
-              Church Registry helps priests and parish staff securely manage baptism, communion, confirmation, marriage, and holy orders records.
+              Parish Registry helps priests and parish staff securely manage baptism, communion, confirmation, marriage, and holy orders records.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
@@ -187,7 +187,7 @@ export default function LandingPage() {
             Access is by invitation only
           </h2>
           <p className="mt-4 text-gray-600">
-            Church Registry is available to Catholic parishes and dioceses. Contact your parish office or diocesan administrator to request access.
+            Parish Registry is available to Catholic parishes and dioceses. Contact your parish office or diocesan administrator to request access.
           </p>
           <Link
             href="/login"
@@ -203,7 +203,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl text-center">
           <div className="flex items-center justify-center gap-2">
             <CrossIcon className="h-6 w-6 text-sancta-gold shrink-0" />
-            <span className="font-serif text-lg font-semibold text-sancta-maroon">Church Registry</span>
+            <span className="font-serif text-lg font-semibold text-sancta-maroon">Parish Registry</span>
           </div>
           <p className="mt-3 text-sm text-gray-600">
             Sacramental Record Management System
@@ -212,7 +212,7 @@ export default function LandingPage() {
             <Link href="/login" className="text-sm font-medium text-sancta-maroon hover:underline">
               Sign in
             </Link>
-            <a href="mailto:churchregistry@example.com" className="text-sm text-gray-600 hover:text-sancta-maroon">
+            <a href="mailto:parishregistry@example.com" className="text-sm text-gray-600 hover:text-sancta-maroon">
               Support
             </a>
             <a href="#" className="text-sm text-gray-600 hover:text-sancta-maroon">
@@ -220,7 +220,7 @@ export default function LandingPage() {
             </a>
           </div>
           <p className="mt-6 text-sm text-gray-500">
-            Support: churchregistry@example.com
+            Support: parishregistry@example.com
           </p>
         </div>
       </footer>

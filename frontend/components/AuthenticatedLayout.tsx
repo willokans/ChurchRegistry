@@ -68,7 +68,7 @@ export default function AuthenticatedLayout({
 
   function handleLogout() {
     clearAuth();
-    router.push('/login');
+    router.push('/');
   }
 
   if (!mounted) {
@@ -111,7 +111,7 @@ export default function AuthenticatedLayout({
           <div className="flex items-center gap-2">
             <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
             <span className="font-serif font-semibold text-sancta-maroon text-xl">
-              Church Registry
+              Parish Registry
             </span>
           </div>
           {churchBranding ? (
@@ -150,7 +150,7 @@ export default function AuthenticatedLayout({
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
-                  <span className="font-serif font-semibold text-sancta-maroon text-lg">Church Registry</span>
+                  <span className="font-serif font-semibold text-sancta-maroon text-lg">Parish Registry</span>
                 </div>
                 {churchBranding && (
                   <div className="mt-1 w-[180px] h-11 flex items-center">
@@ -272,7 +272,7 @@ export default function AuthenticatedLayout({
           <div className="flex items-center gap-2">
             <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
             <span className="font-serif font-semibold text-sancta-maroon text-lg">
-              Church Registry
+              Parish Registry
             </span>
           </div>
           {churchBranding && (

@@ -1,6 +1,6 @@
 /**
  * TDD: Authenticated layout tests.
- * - When authenticated: renders header with Church Registry branding and cross, sidebar, and children
+ * - When authenticated: renders header with Parish Registry branding and cross, sidebar, and children
  * - When not authenticated: redirects to /login and does not render layout content
  */
 import { render, screen, within } from '@testing-library/react';
@@ -46,13 +46,13 @@ describe('AuthenticatedLayout', () => {
     (useParish as jest.Mock).mockReturnValue(defaultParishContext);
   });
 
-  it('renders header with Church Registry branding when authenticated', () => {
+  it('renders header with Parish Registry branding when authenticated', () => {
     render(
       <AuthenticatedLayout>
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    expect(screen.getAllByText('Church Registry').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Parish Registry').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders a cross in the header when authenticated', () => {
@@ -61,7 +61,7 @@ describe('AuthenticatedLayout', () => {
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    const brandingHeader = screen.getAllByText('Church Registry')[0].closest('header');
+    const brandingHeader = screen.getAllByText('Parish Registry')[0].closest('header');
     expect(brandingHeader).toBeInTheDocument();
     expect(brandingHeader?.querySelector('svg')).toBeInTheDocument();
   });
@@ -102,7 +102,7 @@ describe('AuthenticatedLayout', () => {
       </AuthenticatedLayout>
     );
     expect(mockPush).toHaveBeenCalledWith('/login');
-    expect(screen.queryByText('Church Registry')).not.toBeInTheDocument();
+    expect(screen.queryByText('Parish Registry')).not.toBeInTheDocument();
   });
 
   it('redirects to /login when no user', () => {

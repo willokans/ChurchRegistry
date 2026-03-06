@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
     <main className="min-h-screen bg-pattern flex flex-col items-center justify-center px-4 pt-4 pb-8 sm:py-12">
       <header className="text-center mb-4 sm:mb-8">
         <CrossIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-sancta-gold mb-2" />
-        <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Church Registry</h1>
+        <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Parish Registry</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-1">Growing in faith together.</p>
       </header>
 

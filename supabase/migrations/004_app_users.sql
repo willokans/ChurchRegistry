@@ -1,4 +1,4 @@
--- App users for Church Registry login (Priest, Secretary, Admin only).
+-- App users for Parish Registry login (Priest, Secretary, Admin only).
 -- Passwords stored as bcrypt hashes; use a seed migration or script to insert users.
 
 CREATE TABLE app_users (
