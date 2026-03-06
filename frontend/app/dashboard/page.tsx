@@ -300,10 +300,10 @@ export default function DashboardPage() {
             <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-800 mb-1">Sacraments overview by month</h2>
               <p className="text-xs text-gray-500 mb-3">All records grouped by month of creation</p>
-              <div className="overflow-x-auto pb-1">
-                <div className="flex items-end gap-2 h-56 min-w-[780px] border-b border-gray-100">
+              <div className="w-full overflow-x-auto pb-1">
+                <div className="flex items-end gap-2 h-56 w-full min-w-0 border-b border-gray-100">
                   {monthNames.map((name, i) => (
-                    <div key={name} className="w-14 h-full flex flex-col items-center justify-end gap-1">
+                    <div key={name} className="flex-1 min-w-[2rem] h-full flex flex-col items-center justify-end gap-1">
                       <div className="w-full h-44 flex gap-0.5 items-end justify-center">
                         <div
                           className="w-full rounded-t bg-sancta-maroon"
