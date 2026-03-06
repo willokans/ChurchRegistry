@@ -88,7 +88,7 @@ export function useBaptismsWithSearch(
       ? ([, pid, q, p]: [string, number, string, number]) =>
           fetchBaptismsSearch(pid, q, p, PAGE_SIZE)
       : null,
-    SWR_OPTIONS
+    { ...SWR_OPTIONS, keepPreviousData: true }
   );
 
   if (isSearchMode) {

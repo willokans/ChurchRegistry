@@ -12,7 +12,7 @@ import { useParish } from '@/context/ParishContext';
 import { useBaptismsWithSearch } from '@/lib/use-sacrament-lists';
 import type { BaptismResponse } from '@/lib/api';
 
-const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 400;
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -79,9 +79,10 @@ export default function BaptismsListPage() {
     });
   }, [baptisms, yearFilter, genderFilter]);
 
-  const isLoading = parishLoading || (parishId !== null && loading);
+  const isInitialLoading = parishLoading || (parishId === null && loading);
+  const isContentLoading = parishId !== null && loading;
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <AuthenticatedLayout>
         <p className="text-gray-600">Loading…</p>
@@ -171,7 +172,11 @@ export default function BaptismsListPage() {
         </div>
 
         {/* Content */}
-        {filteredBaptisms.length === 0 ? (
+        {isContentLoading && filteredBaptisms.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm text-center">
+            <p className="text-gray-600">Loading…</p>
+          </div>
+        ) : filteredBaptisms.length === 0 ? (
           <>
             <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm text-center">
               <p className="text-gray-600">
