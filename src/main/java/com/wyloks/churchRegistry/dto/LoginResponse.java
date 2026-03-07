@@ -18,4 +18,7 @@ public class LoginResponse {
     private String role;
     /** Default parish for this user (app_user.parish_id). Shown when user logs in. */
     private Long defaultParishId;
+
+    /** When true, frontend should redirect to reset-password page (first-login flow). */
+    private boolean mustResetPassword;
 }

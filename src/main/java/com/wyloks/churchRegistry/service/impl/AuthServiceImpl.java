@@ -1,16 +1,21 @@
 package com.wyloks.churchRegistry.service.impl;
 
+import com.wyloks.churchRegistry.dto.ForgotPasswordResponse;
 import com.wyloks.churchRegistry.dto.LoginResponse;
 import com.wyloks.churchRegistry.entity.AppUser;
+import com.wyloks.churchRegistry.entity.PasswordResetToken;
 import com.wyloks.churchRegistry.entity.RefreshToken;
 import com.wyloks.churchRegistry.repository.AppUserRepository;
+import com.wyloks.churchRegistry.repository.PasswordResetTokenRepository;
 import com.wyloks.churchRegistry.repository.RefreshTokenRepository;
 import com.wyloks.churchRegistry.security.JwtService;
 import com.wyloks.churchRegistry.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,18 +30,22 @@ public class AuthServiceImpl implements AuthService {
 
     private final AppUserRepository appUserRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     @Value("${app.jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
 
+    @Value("${app.password-reset-token.expiration-ms:3600000}")
+    private long passwordResetTokenExpirationMs;
+
     @Override
     @Transactional
     public LoginResponse login(String username, String password) {
         final AppUser user;
         try {
-            user = appUserRepository.findByUsername(username)
+            user = appUserRepository.findByUsernameOrEmail(username)
                     .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         } catch (BadCredentialsException e) {
             throw e;
@@ -68,6 +77,7 @@ public class AuthServiceImpl implements AuthService {
                 .displayName(user.getDisplayName())
                 .role(user.getRole())
                 .defaultParishId(user.getParish() != null ? user.getParish().getId() : null)
+                .mustResetPassword(user.isMustResetPassword())
                 .build();
     }
 
@@ -97,6 +107,7 @@ public class AuthServiceImpl implements AuthService {
                 .displayName(user.getDisplayName())
                 .role(user.getRole())
                 .defaultParishId(user.getParish() != null ? user.getParish().getId() : null)
+                .mustResetPassword(user.isMustResetPassword())
                 .build();
     }
 
@@ -111,5 +122,64 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         refreshTokenRepository.save(token);
         return value;
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String username, String newPassword) {
+        AppUser user = appUserRepository.findByUsernameOrEmail(username)
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustResetPassword(false);
+        appUserRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public ForgotPasswordResponse forgotPassword(String identifier) {
+        String trimmed = identifier != null ? identifier.trim() : "";
+        if (trimmed.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email or username is required.");
+        }
+        // When identifier contains @, try email first (user likely entered email; prefer user who has that email).
+        // Otherwise try username first. Use case-insensitive lookups throughout.
+        java.util.Optional<AppUser> userOpt = trimmed.contains("@")
+                ? appUserRepository.findByEmailIgnoreCase(trimmed).or(() -> appUserRepository.findByUsernameIgnoreCase(trimmed))
+                : appUserRepository.findByUsernameIgnoreCase(trimmed).or(() -> appUserRepository.findByEmailIgnoreCase(trimmed));
+        AppUser user = userOpt.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No account found with that email or username."));
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This username does not have an email address attached to it. Please contact the administrator to reset your password.");
+        }
+        passwordResetTokenRepository.deleteByUser(user);
+        Instant now = Instant.now();
+        String tokenValue = UUID.randomUUID().toString().replace("-", "");
+        PasswordResetToken token = PasswordResetToken.builder()
+                .user(user)
+                .tokenValue(tokenValue)
+                .expiresAt(now.plusMillis(passwordResetTokenExpirationMs))
+                .createdAt(now)
+                .build();
+        passwordResetTokenRepository.save(token);
+        return ForgotPasswordResponse.builder()
+                .token(tokenValue)
+                .expiresAt(token.getExpiresAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void resetPasswordByToken(String tokenValue, String newPassword) {
+        PasswordResetToken token = passwordResetTokenRepository.findByTokenValue(tokenValue)
+                .orElseThrow(() -> new BadCredentialsException("Invalid or expired reset token"));
+        if (token.getExpiresAt().isBefore(Instant.now())) {
+            passwordResetTokenRepository.delete(token);
+            throw new BadCredentialsException("Invalid or expired reset token");
+        }
+        AppUser user = token.getUser();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustResetPassword(false);
+        appUserRepository.save(user);
+        passwordResetTokenRepository.delete(token);
     }
 }

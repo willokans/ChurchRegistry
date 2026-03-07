@@ -1,10 +1,13 @@
 package com.wyloks.churchRegistry.web;
 
+import com.wyloks.churchRegistry.dto.CreateUserRequest;
 import com.wyloks.churchRegistry.dto.ReplaceUserParishAccessRequest;
 import com.wyloks.churchRegistry.dto.UserParishAccessResponse;
+import com.wyloks.churchRegistry.service.AdminUserService;
 import com.wyloks.churchRegistry.service.UserParishAccessService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +19,13 @@ import java.util.List;
 public class UserAccessController {
 
     private final UserParishAccessService userParishAccessService;
+    private final AdminUserService adminUserService;
+
+    @PostMapping
+    public ResponseEntity<UserParishAccessResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
+        UserParishAccessResponse created = adminUserService.createUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
 
     @GetMapping("/parish-access")
     public List<UserParishAccessResponse> listUsersWithParishAccess() {

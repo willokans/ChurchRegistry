@@ -1,23 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { login, storeAuth, setStoredParishId } from '@/lib/api';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getStoredToken, resetPassword, resetPasswordByToken } from '@/lib/api';
 
 function CrossIcon({ className }: { className?: string }) {
-  // Latin cross with subtly flared ends, solid fill (matches Sancta reference)
   return (
     <svg className={className} viewBox="0 0 24 32" fill="currentColor" aria-hidden>
       <path d="M9 0L15 0 14 4 14 11 20 11 22 12 22 14 20 15 14 15 14 28 15 32 9 32 10 28 10 15 4 15 2 14 2 12 4 11 10 11 10 4z" />
-    </svg>
-  );
-}
-
-function EnvelopeIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-      <path d="M2.5 6.5h15v10h-15v-10z" />
-      <path d="M2.5 6.5l7.5 5 7.5-5" />
     </svg>
   );
 }
@@ -48,94 +39,115 @@ function EyeOffIcon({ className }: { className?: string }) {
   );
 }
 
-export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+export default function ResetPasswordPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isRequired = searchParams.get('required') === '1';
+  const tokenFromUrl = searchParams.get('token');
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const isTokenFlow = Boolean(tokenFromUrl);
+  const isFirstLoginFlow = isRequired && !isTokenFlow;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (isTokenFlow) return;
+    if (isFirstLoginFlow) {
+      const jwt = getStoredToken();
+      if (!jwt) router.push('/login');
+    } else {
+      router.push('/login');
+    }
+  }, [mounted, router, isTokenFlow, isFirstLoginFlow]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await login(username, password);
-      const token = res?.token;
-      const refreshToken = res?.refreshToken;
-      const user = res?.user ?? (res && 'username' in res
-        ? { username: res.username, displayName: res.displayName ?? null, role: res.role ?? null }
-        : null);
-      if (!token || !user) {
-        throw new Error('Invalid response from server');
+      if (isTokenFlow && tokenFromUrl) {
+        await resetPasswordByToken(tokenFromUrl, newPassword);
+        window.location.href = '/login';
+      } else {
+        await resetPassword(newPassword);
+        window.location.href = '/dashboard';
       }
-      storeAuth(token, refreshToken, user);
-      // Set default parish so ParishContext shows it on first load
-      const defaultParishId = res?.defaultParishId != null ? Number(res.defaultParishId) : null;
-      setStoredParishId(defaultParishId);
-      // First-login: must reset password before accessing the app
-      if (res?.mustResetPassword) {
-        window.location.href = '/reset-password?required=1';
-        return;
-      }
-      // Full page navigation so home loads with auth in localStorage
-      window.location.href = '/dashboard';
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Failed to reset password');
       setSubmitting(false);
     }
   }
 
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-pattern flex flex-col items-center justify-center px-4 pt-4 pb-8 sm:py-12">
+        <p className="text-gray-600">Loading…</p>
+      </main>
+    );
+  }
+
+  if (!isTokenFlow && !getStoredToken()) {
+    return (
+      <main className="min-h-screen bg-pattern flex flex-col items-center justify-center px-4 pt-4 pb-8 sm:py-12">
+        <p className="text-gray-600">Redirecting to login…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-pattern flex flex-col items-center justify-center px-4 pt-4 pb-8 sm:py-12">
-      {/* Header: cross, title, tagline */}
       <header className="text-center mb-4 sm:mb-8">
         <CrossIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-sancta-gold mb-2" />
         <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Parish Registry</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-1">Growing in faith together.</p>
       </header>
 
-      {/* Card */}
       <div className="w-full max-w-md bg-white/95 rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
         <div className="mb-6 text-center">
-          <h2 className="text-xl font-semibold text-sancta-maroon">Welcome back</h2>
-          <p className="text-sm text-gray-600 mt-0.5">Sign in to continue your journey.</p>
+          <h2 className="text-xl font-semibold text-sancta-maroon">
+            {isFirstLoginFlow ? 'Set password' : 'Reset password'}
+          </h2>
+          <p className="text-sm text-gray-600 mt-0.5">
+            {isFirstLoginFlow
+              ? 'You must set a new password before continuing.'
+              : 'Enter your new password below.'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email or Phone number */}
           <div>
-            <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
-              <EnvelopeIcon className="w-4 h-4 text-gray-500" />
-              Email or Phone number
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoComplete="username"
-              placeholder="e.g. 0801 234 5678 or name@parish.org"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-500"
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
+            <label htmlFor="newPassword" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
               <LockIcon className="w-4 h-4 text-gray-500" />
-              Password
+              New password
             </label>
             <div className="relative">
               <input
-                id="password"
+                id="newPassword"
                 type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 required
-                autoComplete="current-password"
-                placeholder="Enter your password"
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
                 className="w-full px-4 py-3 pr-14 sm:pr-12 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-500"
               />
               <button
@@ -147,6 +159,24 @@ export default function LoginPage() {
                 {showPassword ? <EyeOffIcon className="w-6 h-6 sm:w-5 sm:h-5" /> : <EyeIcon className="w-6 h-6 sm:w-5 sm:h-5" />}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="confirmPassword" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
+              <LockIcon className="w-4 h-4 text-gray-500" />
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              type={showPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="Confirm your new password"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-500"
+            />
           </div>
 
           {error && (
@@ -166,30 +196,18 @@ export default function LoginPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             )}
-            {submitting ? 'Signing in…' : 'Sign In'}
+            {submitting ? 'Setting password…' : 'Set password'}
           </button>
-
-          <p className="flex items-center justify-center gap-2 text-xs text-gray-500 mt-3" role="status">
-            <LockIcon className="w-3.5 h-3.5 text-sancta-gold shrink-0" aria-hidden />
-            Records are securely stored and access is audited.
-          </p>
         </form>
 
-        {/* Links */}
-        <div className="mt-6 pt-4 border-t border-gray-100 text-center space-y-2">
-          <p>
-            <Link href="/" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
-              Home
-            </Link>
-            <span className="mx-2 text-gray-300">·</span>
-            <Link href="/login/forgot-password" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
-              Forgot password?
-            </Link>
-          </p>
-          <p className="mt-3 text-xs text-gray-500">
-            Account access is by invitation only. Contact your parish administrator to request access.
-          </p>
-        </div>
+        <p className="text-center mt-6">
+          <Link
+            href="/login"
+            className="text-sm text-sancta-maroon font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded py-2 min-h-[44px] inline-flex items-center justify-center"
+          >
+            Back to Sign In
+          </Link>
+        </p>
       </div>
     </main>
   );

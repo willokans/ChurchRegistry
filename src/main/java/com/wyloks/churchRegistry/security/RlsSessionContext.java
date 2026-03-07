@@ -49,7 +49,7 @@ public final class RlsSessionContext {
             return new RlsValues(Collections.emptySet(), false);
         }
         String role = details.getRole();
-        boolean isAdmin = role != null && "ADMIN".equals(role.toUpperCase());
+        boolean isAdmin = role != null && ("ADMIN".equals(role.toUpperCase()) || "SUPER_ADMIN".equals(role.toUpperCase()));
         Set<Long> parishIds = details.getParishAccessIds();
         return new RlsValues(parishIds != null ? parishIds : Collections.emptySet(), isAdmin);
     }

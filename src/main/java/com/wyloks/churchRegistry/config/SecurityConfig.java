@@ -51,9 +51,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+                        "/api/auth/forgot-password", "/api/auth/reset-password-by-token").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/users").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.POST,
                                 "/api/parishes/*/baptisms",
                                 "/api/communions",

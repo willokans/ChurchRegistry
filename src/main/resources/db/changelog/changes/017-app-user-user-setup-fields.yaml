@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: will_okanumeh
+      changes:
+        - addColumn:
+            tableName: app_user
+            columns:
+              - column:
+                  name: first_name
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_name
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: title
+                  type: varchar(20)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: email
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+                    unique: true
+                    uniqueConstraintName: uk_app_user_email
+              - column:
+                  name: must_reset_password
+                  type: boolean
+                  constraints:
+                    nullable: true
+                  defaultValueBoolean: false

@@ -128,7 +128,7 @@ public class SacramentAuthorizationService {
 
     private record CurrentUser(String role, Set<Long> parishIds) {
         boolean isAdmin() {
-            return "ADMIN".equals(role);
+            return "ADMIN".equals(role) || "SUPER_ADMIN".equals(role);
         }
     }
 }

@@ -156,6 +156,34 @@ describe('AuthenticatedLayout', () => {
     expect(screen.getByText('No parish assigned. Contact admin.')).toBeInTheDocument();
   });
 
+  it('SUPER_ADMIN sees User Setup link in sidebar', () => {
+    (getStoredUser as jest.Mock).mockReturnValue({
+      username: 'superadmin',
+      displayName: 'Super Administrator',
+      role: 'SUPER_ADMIN',
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    expect(screen.getByRole('link', { name: 'User Setup' })).toHaveAttribute('href', '/users/setup');
+  });
+
+  it('ADMIN does not see User Setup link', () => {
+    (getStoredUser as jest.Mock).mockReturnValue({
+      username: 'admin',
+      displayName: 'Admin',
+      role: 'ADMIN',
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    expect(screen.queryByRole('link', { name: 'User Setup' })).not.toBeInTheDocument();
+  });
+
   it('no-assigned-parish state: admin sees "No parish selected" and Add diocese link', () => {
     (useParish as jest.Mock).mockReturnValue({
       ...defaultParishContext,

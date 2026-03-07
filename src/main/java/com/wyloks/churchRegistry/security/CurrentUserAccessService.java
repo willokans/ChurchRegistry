@@ -28,7 +28,23 @@ public class CurrentUserAccessService {
             throw forbidden("Role is required");
         }
 
-        return new CurrentUserAccess(role, userDetails.getParishAccessIds());
+        return new CurrentUserAccess(userDetails.getUsername(), role, userDetails.getParishAccessIds());
+    }
+
+    /**
+     * Returns the username of the currently authenticated user.
+     * @throws ResponseStatusException 403 if not authenticated
+     */
+    public String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw forbidden("Authentication required");
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AppUserDetails userDetails)) {
+            throw forbidden("Invalid authentication principal");
+        }
+        return userDetails.getUsername();
     }
 
     private String normalizeRole(String role) {
@@ -42,9 +58,14 @@ public class CurrentUserAccessService {
         return new ResponseStatusException(HttpStatus.FORBIDDEN, message);
     }
 
-    public record CurrentUserAccess(String role, Set<Long> parishIds) {
+    public record CurrentUserAccess(String username, String role, Set<Long> parishIds) {
+        /** True for ADMIN or SUPER_ADMIN. Used for diocese/parish visibility and sacrament access. */
         public boolean isAdmin() {
-            return "ADMIN".equals(role);
+            return "ADMIN".equals(role) || "SUPER_ADMIN".equals(role);
+        }
+
+        public boolean isSuperAdmin() {
+            return "SUPER_ADMIN".equals(role);
         }
     }
 }

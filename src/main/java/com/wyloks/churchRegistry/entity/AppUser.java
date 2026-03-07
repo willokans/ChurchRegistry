@@ -43,4 +43,20 @@ public class AppUser {
 
     @Column(name = "role", length = 50)
     private String role;
+
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
+    @Column(name = "last_name", length = 100)
+    private String lastName;
+
+    @Column(name = "title", length = 20)
+    private String title;
+
+    @Column(name = "email", length = 255, unique = true)
+    private String email;
+
+    @Column(name = "must_reset_password", nullable = false)
+    @Builder.Default
+    private boolean mustResetPassword = false;
 }

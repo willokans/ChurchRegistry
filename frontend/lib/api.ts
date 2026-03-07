@@ -57,6 +57,46 @@ export function clearAuth() {
   localStorage.removeItem('church_registry_user');
 }
 
+/** Request password reset by email or username. Returns token (MVP: no email sent; share token with user). Uses Next.js proxy to avoid CORS. */
+export async function forgotPassword(identifier: string): Promise<{ token: string; expiresAt: string }> {
+  const res = await fetchWithRetry('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: identifier.trim() }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseErrorResponse(text, 'Failed to request password reset'));
+  }
+  return res.json();
+}
+
+/** Reset password using token from forgot-password. No JWT required. Uses Next.js proxy. */
+export async function resetPasswordByToken(token: string, newPassword: string): Promise<void> {
+  const res = await fetchWithRetry('/api/auth/reset-password-by-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseErrorResponse(text, 'Invalid or expired reset token'));
+  }
+}
+
+/** Reset password for authenticated user (first-login flow). Requires valid JWT. */
+export async function resetPassword(newPassword: string): Promise<void> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ newPassword }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseErrorResponse(text, 'Failed to reset password'));
+  }
+}
+
 const PARISH_STORAGE_KEY = 'church_registry_parish_id';
 
 export function getStoredParishId(): number | null {
@@ -108,8 +148,10 @@ async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response
 /** Parse error response text; prefer 'error' or 'message' from JSON when present. */
 function parseErrorResponse(text: string, fallback: string): string {
   try {
-    const j = JSON.parse(text) as { error?: string; message?: string };
-    return (j.error ?? j.message ?? fallback).trim() || fallback;
+    const j = JSON.parse(text) as { detail?: string; message?: string; error?: string };
+    // Prefer detail (RFC 9457) or message (specific reason); error is often generic e.g. "Bad Request"
+    const msg = (j.detail ?? j.message ?? j.error ?? fallback).trim();
+    return msg || fallback;
   } catch {
     return text.trim() || fallback;
   }
@@ -1099,6 +1141,58 @@ export async function getUserParishAccess(userId: number): Promise<UserParishAcc
     if (res.status === 403) throw new Error('Admin access required');
     if (res.status === 404) throw new Error('User not found');
     throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch user');
+  }
+  const u = await res.json();
+  return {
+    userId: Number(u.userId),
+    username: String(u.username ?? ''),
+    displayName: u.displayName ?? null,
+    role: u.role ?? null,
+    defaultParishId: u.defaultParishId != null ? Number(u.defaultParishId) : null,
+    parishAccessIds: Array.isArray(u.parishAccessIds)
+      ? u.parishAccessIds.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n) && n > 0)
+      : [],
+  };
+}
+
+export interface CreateUserRequest {
+  username: string;
+  email?: string;
+  firstName: string;
+  lastName: string;
+  title?: string;
+  role: string;
+  defaultParishId?: number | null;
+  parishIds: number[];
+  defaultPassword: string;
+}
+
+export async function createUser(request: CreateUserRequest): Promise<UserParishAccessResponse> {
+  const body: Record<string, unknown> = {
+    username: request.username,
+    firstName: request.firstName,
+    lastName: request.lastName,
+    role: request.role,
+    parishIds: request.parishIds,
+    defaultPassword: request.defaultPassword,
+  };
+  if (request.email != null && request.email.trim() !== '') {
+    body.email = request.email.trim();
+  }
+  if (request.title != null && request.title.trim() !== '') {
+    body.title = request.title.trim();
+  }
+  if (request.defaultParishId != null && request.defaultParishId > 0) {
+    body.defaultParishId = request.defaultParishId;
+  }
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/admin/users`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseErrorResponse(text, 'Failed to create user'));
   }
   const u = await res.json();
   return {

@@ -10,6 +10,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/api/')) return NextResponse.next();
   if (pathname === '/api/health') return NextResponse.next();
+  if (pathname === '/api/auth/forgot-password' || pathname === '/api/auth/reset-password-by-token') return NextResponse.next();
   if (!internalApiRoutesDisabled()) return NextResponse.next();
 
   return NextResponse.json(

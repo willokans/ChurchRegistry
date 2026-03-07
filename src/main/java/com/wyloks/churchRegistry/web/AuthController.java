@@ -1,8 +1,13 @@
 package com.wyloks.churchRegistry.web;
 
+import com.wyloks.churchRegistry.dto.ForgotPasswordRequest;
+import com.wyloks.churchRegistry.dto.ForgotPasswordResponse;
 import com.wyloks.churchRegistry.dto.LoginRequest;
 import com.wyloks.churchRegistry.dto.LoginResponse;
 import com.wyloks.churchRegistry.dto.RefreshRequest;
+import com.wyloks.churchRegistry.dto.ResetPasswordByTokenRequest;
+import com.wyloks.churchRegistry.dto.ResetPasswordRequest;
+import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final CurrentUserAccessService currentUserAccessService;
 
     @Operation(summary = "Login", description = "Authenticate with username and password. Returns access token (JWT) and refresh token. Use the access token in Authorization header for other API calls.")
     @ApiResponse(responseCode = "401", description = "Invalid credentials")
@@ -43,6 +49,31 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
         authService.logout(request.getRefreshToken());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Reset password", description = "Set a new password for the authenticated user. Clears must_reset_password (first-login flow). Requires valid JWT in Authorization header.")
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        String username = currentUserAccessService.getCurrentUsername();
+        authService.resetPassword(username, request.getNewPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Forgot password", description = "Request a password reset token by email or username. MVP: no email sent; returns the token for Super Admin to share with the user. Use the token with POST /api/auth/reset-password-by-token. If user found by username has no email, returns 400.")
+    @ApiResponse(responseCode = "400", description = "No account found, or username has no email attached")
+    @SecurityRequirements
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request.getIdentifier()));
+    }
+
+    @Operation(summary = "Reset password by token", description = "Set a new password using a valid password reset token from forgot-password. Token is invalidated after use.")
+    @ApiResponse(responseCode = "401", description = "Invalid or expired reset token")
+    @SecurityRequirements
+    @PostMapping("/reset-password-by-token")
+    public ResponseEntity<Void> resetPasswordByToken(@Valid @RequestBody ResetPasswordByTokenRequest request) {
+        authService.resetPasswordByToken(request.getToken(), request.getNewPassword());
         return ResponseEntity.noContent().build();
     }
 

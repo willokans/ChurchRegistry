@@ -203,3 +203,9 @@ databaseChangeLog:
       file: db/changelog/changes/015-rls-tenant-isolation.yaml
   - include:
       file: db/changelog/changes/016-sacrament-audit-log.yaml
+  - include:
+      file: db/changelog/changes/017-app-user-user-setup-fields.yaml
+  - include:
+      file: db/changelog/changes/018-password-reset-token.yaml
+  - include:
+      file: db/changelog/changes/019-seed-super-admin.yaml

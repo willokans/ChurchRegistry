@@ -1,8 +1,10 @@
 package com.wyloks.churchRegistry.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wyloks.churchRegistry.dto.CreateUserRequest;
 import com.wyloks.churchRegistry.dto.ReplaceUserParishAccessRequest;
 import com.wyloks.churchRegistry.dto.UserParishAccessResponse;
+import com.wyloks.churchRegistry.service.AdminUserService;
 import com.wyloks.churchRegistry.service.UserParishAccessService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +44,9 @@ class UserAccessControllerTest {
 
     @MockBean
     UserParishAccessService userParishAccessService;
+
+    @MockBean
+    AdminUserService adminUserService;
 
     @Test
     void listUsersWithParishAccess_returns200AndData() throws Exception {
@@ -104,5 +110,39 @@ class UserAccessControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value(11))
                 .andExpect(jsonPath("$.defaultParishId").value(8));
+    }
+
+    @Test
+    void createUser_returns201AndCreatedUser() throws Exception {
+        CreateUserRequest request = CreateUserRequest.builder()
+                .username("newuser")
+                .firstName("John")
+                .lastName("Smith")
+                .title("Fr.")
+                .role("PRIEST")
+                .parishIds(Set.of(2L))
+                .defaultParishId(2L)
+                .defaultPassword("password123")
+                .build();
+        UserParishAccessResponse response = UserParishAccessResponse.builder()
+                .userId(99L)
+                .username("newuser")
+                .displayName("Fr. John Smith")
+                .role("PRIEST")
+                .defaultParishId(2L)
+                .parishAccessIds(Set.of(2L))
+                .build();
+        when(adminUserService.createUser(any(CreateUserRequest.class))).thenReturn(response);
+
+        mvc.perform(post("/api/admin/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.userId").value(99))
+                .andExpect(jsonPath("$.username").value("newuser"))
+                .andExpect(jsonPath("$.displayName").value("Fr. John Smith"))
+                .andExpect(jsonPath("$.role").value("PRIEST"))
+                .andExpect(jsonPath("$.defaultParishId").value(2))
+                .andExpect(jsonPath("$.parishAccessIds.length()").value(1));
     }
 }
