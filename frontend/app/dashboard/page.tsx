@@ -284,28 +284,28 @@ export default function DashboardPage() {
                   href={`/baptisms/new?parishId=${parishId}`}
                   className="inline-flex items-center gap-2 rounded-lg bg-sancta-maroon px-4 py-3 text-white font-medium hover:bg-sancta-maroon-dark min-h-[44px]"
                 >
-                  <span aria-hidden>+</span>
+                  <span aria-hidden>💧</span>
                   Register Baptism
                 </Link>
                 <Link
                   href={`/communions/new?parishId=${parishId}`}
                   className="inline-flex items-center gap-2 rounded-lg bg-purple-700 px-4 py-3 text-white font-medium hover:bg-purple-800 min-h-[44px]"
                 >
-                  <span aria-hidden>+</span>
+                  <span aria-hidden>🍞</span>
                   Register Holy Communion
                 </Link>
                 <Link
                   href={`/confirmations/new?parishId=${parishId}`}
                   className="inline-flex items-center gap-2 rounded-lg bg-indigo-700 px-4 py-3 text-white font-medium hover:bg-indigo-800 min-h-[44px]"
                 >
-                  <span aria-hidden>+</span>
+                  <span aria-hidden>✝</span>
                   Register Confirmation
                 </Link>
                 <Link
                   href={`/marriages/new?parishId=${parishId}`}
                   className="inline-flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-3 text-white font-medium hover:bg-amber-800 min-h-[44px]"
                 >
-                  <span aria-hidden>+</span>
+                  <span aria-hidden>💍</span>
                   Register Marriage
                 </Link>
                 <Link
