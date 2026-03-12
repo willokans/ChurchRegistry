@@ -94,6 +94,17 @@ describe('AuthenticatedLayout', () => {
     expect(dashboardLink).toHaveAttribute('href', '/dashboard');
   });
 
+  it('Help link points to /help in sidebar', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    const helpLink = within(nav).getByRole('link', { name: 'Help' });
+    expect(helpLink).toHaveAttribute('href', '/help');
+  });
+
   it('redirects to /login when no token', () => {
     (getStoredToken as jest.Mock).mockReturnValue(null);
     render(
