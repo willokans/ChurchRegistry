@@ -202,7 +202,22 @@ describe('Users page (User Access)', () => {
     });
   });
 
-  it('redirects non-admin to dashboard', async () => {
+  it('allows SUPER_ADMIN to access and fetch users', async () => {
+    (getStoredUser as jest.Mock).mockReturnValue({
+      username: 'superadmin',
+      displayName: 'Super Admin',
+      role: 'SUPER_ADMIN',
+    });
+    render(<UsersPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /user parish access/i })).toBeInTheDocument();
+    });
+    expect(listUsersWithParishAccess).toHaveBeenCalled();
+    expect(fetchDioceses).toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('redirects non-admin to home', async () => {
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'priest',
       displayName: 'Priest',

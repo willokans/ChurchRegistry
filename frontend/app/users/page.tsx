@@ -14,6 +14,10 @@ import {
   type ParishResponse,
 } from '@/lib/api';
 
+function isAdminOrSuperAdmin(role: string | null | undefined): boolean {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN';
+}
+
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserParishAccessResponse[]>([]);
@@ -30,7 +34,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     const user = getStoredUser();
-    if (user && user.role !== 'ADMIN') {
+    if (user && !isAdminOrSuperAdmin(user.role)) {
       router.replace('/');
     }
   }, [router]);
@@ -60,12 +64,12 @@ export default function UsersPage() {
 
   useEffect(() => {
     const user = getStoredUser();
-    if (user?.role !== 'ADMIN') return;
+    if (!isAdminOrSuperAdmin(user?.role)) return;
     loadData();
   }, [loadData]);
 
   const user = getStoredUser();
-  if (user && user.role !== 'ADMIN') {
+  if (user && !isAdminOrSuperAdmin(user.role)) {
     return (
       <AuthenticatedLayout>
         <p className="text-gray-600">Redirecting…</p>

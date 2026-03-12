@@ -130,8 +130,8 @@ public class UserParishAccessServiceImpl implements UserParishAccessService {
             throw forbidden("Invalid authentication principal");
         }
         String role = normalizeRole(userDetails.getRole());
-        if (!"ADMIN".equals(role)) {
-            throw forbidden("Admin role required");
+        if (!"ADMIN".equals(role) && !"SUPER_ADMIN".equals(role)) {
+            throw forbidden("Admin or Super Admin role required");
         }
     }
 

@@ -48,6 +48,26 @@ class AdminUserAccessSecurityIntegrationTest {
     }
 
     @Test
+    void superAdminUser_canAccessAdminUserParishEndpoints() throws Exception {
+        String superAdminToken = loginAndGetToken("superadmin", "password");
+
+        String listResponse = mvc.perform(get("/api/admin/users/parish-access")
+                        .header("Authorization", "Bearer " + superAdminToken))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode users = objectMapper.readTree(listResponse);
+        if (users.size() > 0) {
+            Long firstUserId = users.get(0).get("userId").asLong();
+            mvc.perform(get("/api/admin/users/{id}/parish-access", firstUserId)
+                            .header("Authorization", "Bearer " + superAdminToken))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
     void nonAdminUser_cannotAccessAdminUserParishEndpoints() throws Exception {
         String priestToken = loginAndGetToken("priest@church_registry.com", "password");
 
