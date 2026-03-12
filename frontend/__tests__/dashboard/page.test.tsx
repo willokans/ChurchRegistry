@@ -185,9 +185,9 @@ describe('Dashboard page', () => {
     render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
-      expect(screen.getByText('120')).toBeInTheDocument();
+      expect(screen.getByText(/120 records/)).toBeInTheDocument();
     });
-    const baptismCard = screen.getByText('120').closest('div')?.parentElement?.parentElement;
+    const baptismCard = screen.getByText(/120 records/).closest('div')?.parentElement?.parentElement;
     expect(baptismCard).toHaveTextContent(/Baptisms/);
   });
 
@@ -237,5 +237,80 @@ describe('Dashboard page', () => {
 
     const baptismBar = await waitFor(() => screen.getByTitle('Baptisms: 1'));
     expect(baptismBar).toHaveStyle('height: 100%');
+  });
+
+  it('shows empty state with guidance and Register button when sacrament has 0 records', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 0, communions: 0, confirmations: 0, marriages: 0 }
+    ));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Start by registering your first baptism/)).toBeInTheDocument();
+    });
+    const baptismLinks = screen.getAllByRole('link', { name: /Register Baptism/ });
+    expect(baptismLinks.some((el) => el.getAttribute('href') === '/baptisms/new?parishId=10')).toBe(true);
+    expect(screen.getByText(/Start by registering your first communion/)).toBeInTheDocument();
+    const communionLinks = screen.getAllByRole('link', { name: /Register Holy Communion/ });
+    expect(communionLinks.some((el) => el.getAttribute('href') === '/communions/new?parishId=10')).toBe(true);
+    expect(screen.getByText(/Start by registering your first confirmation/)).toBeInTheDocument();
+    const confirmationLinks = screen.getAllByRole('link', { name: /Register Confirmation/ });
+    expect(confirmationLinks.some((el) => el.getAttribute('href') === '/confirmations/new?parishId=10')).toBe(true);
+    expect(screen.getByText(/Start by registering your first marriage/)).toBeInTheDocument();
+    const marriageLinks = screen.getAllByRole('link', { name: /Register Marriage/ });
+    expect(marriageLinks.some((el) => el.getAttribute('href') === '/marriages/new?parishId=10')).toBe(true);
+  });
+
+  it('does not show empty state guidance when sacrament has records', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 5, communions: 0, confirmations: 0, marriages: 0 },
+      [{ id: 1, baptismName: 'John', surname: 'Doe', parishId: 10, dateOfBirth: '2020-01-01' }],
+      [],
+      [],
+      []
+    ));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText(/5 records/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Start by registering your first baptism/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Start by registering your first communion/)).toBeInTheDocument();
   });
 });

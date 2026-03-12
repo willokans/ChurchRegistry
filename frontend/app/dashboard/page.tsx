@@ -25,6 +25,45 @@ function getGreeting(): string {
 
 const currentYear = new Date().getFullYear();
 
+const SACRAMENT_CARD_CONFIG = [
+  {
+    icon: '💧',
+    title: 'Baptisms',
+    countKey: 'baptisms' as const,
+    path: '/baptisms/new',
+    ctaLabel: 'Register Baptism',
+    guidance: 'Start by registering your first baptism',
+    buttonClass: 'bg-sancta-maroon hover:bg-sancta-maroon-dark',
+  },
+  {
+    icon: '🍞',
+    title: 'Holy Communion',
+    countKey: 'communions' as const,
+    path: '/communions/new',
+    ctaLabel: 'Register Holy Communion',
+    guidance: 'Start by registering your first communion',
+    buttonClass: 'bg-purple-700 hover:bg-purple-800',
+  },
+  {
+    icon: '✝',
+    title: 'Confirmations',
+    countKey: 'confirmations' as const,
+    path: '/confirmations/new',
+    ctaLabel: 'Register Confirmation',
+    guidance: 'Start by registering your first confirmation',
+    buttonClass: 'bg-indigo-700 hover:bg-indigo-800',
+  },
+  {
+    icon: '💒',
+    title: 'Marriages',
+    countKey: 'marriages' as const,
+    path: '/marriages/new',
+    ctaLabel: 'Register Marriage',
+    guidance: 'Start by registering your first marriage',
+    buttonClass: 'bg-amber-700 hover:bg-amber-800',
+  },
+] as const;
+
 type RecentItem = {
   type: 'baptism' | 'communion' | 'confirmation' | 'marriage';
   label: string;
@@ -45,7 +84,12 @@ function useDashboardData(parishId: number | null) {
   const confirmations = data?.confirmations ?? [];
   const marriages = data?.marriages ?? [];
   const counts = data?.counts
-    ? { baptisms: data.counts.baptisms, communions: data.counts.communions, confirmations: data.counts.confirmations, marriages: data.counts.marriages }
+    ? {
+        baptisms: Number(data.counts.baptisms ?? 0),
+        communions: Number(data.counts.communions ?? 0),
+        confirmations: Number(data.counts.confirmations ?? 0),
+        marriages: Number(data.counts.marriages ?? 0),
+      }
     : { baptisms: 0, communions: 0, confirmations: 0, marriages: 0 };
   const loading = isLoading;
   const error = swrError ? (swrError instanceof Error ? swrError.message : 'Failed to load dashboard') : null;
@@ -198,38 +242,37 @@ export default function DashboardPage() {
             {/* Summary cards */}
             {!loading && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>💧</span>
-                    <span className="font-medium">Baptisms</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.baptisms}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>🍞</span>
-                    <span className="font-medium">Holy Communion</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.communions}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>✝</span>
-                    <span className="font-medium">Confirmations</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.confirmations}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <span className="text-2xl" aria-hidden>💒</span>
-                    <span className="font-medium">Marriages</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-sancta-maroon">{counts.marriages}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Records in this parish</p>
-                </div>
+                {SACRAMENT_CARD_CONFIG.map(({ icon, title, countKey, path, ctaLabel, guidance, buttonClass }) => {
+                  const count = counts[countKey];
+                  const href = `${path}?parishId=${parishId}`;
+                  return (
+                    <div
+                      key={countKey}
+                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="text-2xl" aria-hidden>
+                          {icon}
+                        </span>
+                        <span className="font-medium">{title}</span>
+                      </div>
+                      <p className="mt-2 text-2xl font-semibold text-sancta-maroon">
+                        {count} records
+                      </p>
+                      {count === 0 && (
+                        <>
+                          <p className="mt-1 text-sm text-gray-600">{guidance}</p>
+                          <Link
+                            href={href}
+                            className={`mt-3 inline-block rounded-lg px-3 py-2 text-sm font-medium text-white ${buttonClass}`}
+                          >
+                            {ctaLabel}
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
