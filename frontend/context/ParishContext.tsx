@@ -7,7 +7,6 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { usePathname } from 'next/navigation';
 import {
   clearAuth,
   fetchDiocesesWithParishes,
@@ -35,7 +34,6 @@ type ParishContextValue = {
 const ParishContext = createContext<ParishContextValue | null>(null);
 
 export function ParishProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [parishId, setParishIdState] = useState<number | null>(null);
   const [dioceseId, setDioceseIdState] = useState<number | null>(null);
@@ -130,7 +128,7 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [pathname, refreshTrigger]);
+  }, [refreshTrigger]);
 
   useEffect(() => {
     if (parishId == null || parishes.length === 0) return;
