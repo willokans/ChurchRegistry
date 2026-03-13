@@ -98,6 +98,7 @@ export async function resetPassword(newPassword: string): Promise<void> {
 }
 
 const PARISH_STORAGE_KEY = 'church_registry_parish_id';
+const DIOCESE_STORAGE_KEY = 'church_registry_diocese_id';
 
 export function getStoredParishId(): number | null {
   if (typeof window === 'undefined') return null;
@@ -111,6 +112,20 @@ export function setStoredParishId(parishId: number | null): void {
   if (typeof window === 'undefined') return;
   if (parishId == null) localStorage.removeItem(PARISH_STORAGE_KEY);
   else localStorage.setItem(PARISH_STORAGE_KEY, String(parishId));
+}
+
+export function getStoredDioceseId(): number | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(DIOCESE_STORAGE_KEY);
+  if (!raw) return null;
+  const id = parseInt(raw, 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+export function setStoredDioceseId(dioceseId: number | null): void {
+  if (typeof window === 'undefined') return;
+  if (dioceseId == null) localStorage.removeItem(DIOCESE_STORAGE_KEY);
+  else localStorage.setItem(DIOCESE_STORAGE_KEY, String(dioceseId));
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -298,6 +313,52 @@ export interface DashboardResponse {
   communions: FirstHolyCommunionResponse[];
   confirmations: ConfirmationResponse[];
   marriages: MarriageResponse[];
+}
+
+/** Diocese-level dashboard: aggregated counts, parish activity, recent sacraments, monthly chart data. */
+export interface DioceseDashboardResponse {
+  counts: {
+    parishes?: number;
+    baptisms: number;
+    communions: number;
+    confirmations: number;
+    marriages: number;
+    holyOrders: number;
+  };
+  parishActivity: DioceseParishActivityItem[];
+  recentSacraments: DioceseRecentSacraments;
+  monthly: DioceseMonthlyData;
+}
+
+export interface DioceseParishActivityItem {
+  parishId: number;
+  parishName: string;
+  baptisms: number;
+  communions: number;
+  confirmations: number;
+  marriages: number;
+}
+
+export interface DioceseRecentSacraments {
+  baptisms: BaptismResponse[];
+  communions: FirstHolyCommunionResponse[];
+  confirmations: ConfirmationResponse[];
+  marriages: MarriageResponse[];
+}
+
+export interface DioceseMonthlyData {
+  baptisms: number[];
+  communions: number[];
+  confirmations: number[];
+  marriages: number[];
+}
+
+export async function fetchDioceseDashboard(dioceseId: number): Promise<DioceseDashboardResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/dioceses/${dioceseId}/dashboard`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch diocese dashboard');
+  return res.json();
 }
 
 export async function fetchDashboard(parishId: number): Promise<DashboardResponse> {

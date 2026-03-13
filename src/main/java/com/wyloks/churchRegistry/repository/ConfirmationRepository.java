@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ConfirmationRepository extends JpaRepository<Confirmation, Long> {
 
@@ -22,8 +23,16 @@ public interface ConfirmationRepository extends JpaRepository<Confirmation, Long
 
     long countByBaptismParishId(Long parishId);
 
+    @Query("SELECT COUNT(c) FROM Confirmation c WHERE c.baptism.parish.diocese.id = :dioceseId")
+    long countByBaptismParish_Diocese_Id(@Param("dioceseId") Long dioceseId);
+
+    long countByBaptismParishIdIn(Set<Long> parishIds);
+
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
     Page<Confirmation> findByBaptismParishId(Long parishId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion"})
+    Page<Confirmation> findByBaptismParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     @Query("SELECT c.baptism.parish.id FROM Confirmation c WHERE c.id = :id")
     Optional<Long> findParishIdById(@Param("id") Long id);

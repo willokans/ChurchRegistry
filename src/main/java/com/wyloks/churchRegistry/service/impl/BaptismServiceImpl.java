@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +46,15 @@ public class BaptismServiceImpl implements BaptismService {
     @Transactional(readOnly = true)
     public Page<BaptismResponse> findByParishId(Long parishId, Pageable pageable) {
         return baptismRepository.findByParishId(parishId, pageable).map(this::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BaptismResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable) {
+        if (parishIds == null || parishIds.isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return baptismRepository.findByParishIdIn(parishIds, pageable).map(this::toResponse);
     }
 
     @Override

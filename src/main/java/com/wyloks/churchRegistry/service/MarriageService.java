@@ -8,12 +8,15 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface MarriageService {
 
     List<MarriageResponse> findByParishId(Long parishId);
 
     Page<MarriageResponse> findByParishId(Long parishId, Pageable pageable);
+
+    Page<MarriageResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     Optional<MarriageResponse> findById(Long id);
 

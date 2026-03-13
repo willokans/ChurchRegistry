@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface FirstHolyCommunionRepository extends JpaRepository<FirstHolyCommunion, Long> {
 
@@ -20,8 +21,16 @@ public interface FirstHolyCommunionRepository extends JpaRepository<FirstHolyCom
 
     long countByBaptismParishId(Long parishId);
 
+    @Query("SELECT COUNT(c) FROM FirstHolyCommunion c WHERE c.baptism.parish.diocese.id = :dioceseId")
+    long countByBaptismParish_Diocese_Id(@Param("dioceseId") Long dioceseId);
+
+    long countByBaptismParishIdIn(Set<Long> parishIds);
+
     @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
     Page<FirstHolyCommunion> findByBaptismParishId(Long parishId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"baptism", "baptism.parish"})
+    Page<FirstHolyCommunion> findByBaptismParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     @Query("SELECT c.baptism.parish.id FROM FirstHolyCommunion c WHERE c.id = :id")
     Optional<Long> findParishIdById(@Param("id") Long id);

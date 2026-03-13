@@ -50,7 +50,7 @@ export default function AuthenticatedLayout({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { parishId, setParishId, parishes, loading: parishLoading, error: parishError, refetch } = useParish();
+  const { parishId, setParishId, dioceseId, setDioceseId, parishes, dioceses, loading: parishLoading, error: parishError, refetch } = useParish();
 
   useEffect(() => {
     setMounted(true);
@@ -186,10 +186,31 @@ export default function AuthenticatedLayout({
               </button>
             </div>
             {!parishLoading && (
-              <div className="p-4 border-b border-gray-100">
-                <label htmlFor="parish-select-mobile" className="block text-xs font-medium text-gray-500 mb-1">
-                  Parish
-                </label>
+              <div className="p-4 border-b border-gray-100 space-y-4">
+                {(isAdmin || isSuperAdmin) && dioceses.length > 0 && (
+                  <div>
+                    <label htmlFor="diocese-select-mobile" className="block text-xs font-medium text-gray-500 mb-1">
+                      Diocese
+                    </label>
+                    <select
+                      id="diocese-select-mobile"
+                      value={dioceseId ?? ''}
+                      onChange={(e) => setDioceseId(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                    >
+                      <option value="">All dioceses</option>
+                      {dioceses.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.dioceseName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="parish-select-mobile" className="block text-xs font-medium text-gray-500 mb-1">
+                    Parish
+                  </label>
                 {parishes.length > 0 ? (
                   <select
                     id="parish-select-mobile"
@@ -231,11 +252,13 @@ export default function AuthenticatedLayout({
                     </button>
                   </div>
                 )}
+                </div>
               </div>
             )}
             <nav className="flex-1 p-4">
               <ul className="space-y-1">
                 {[
+                  ...(isAdmin || isSuperAdmin ? [{ href: '/dashboard/diocese', label: 'Diocese Dashboard' }] : []),
                   { href: '/dashboard', label: 'Dashboard' },
                   ...(isAdmin || isSuperAdmin
                     ? [
@@ -302,10 +325,31 @@ export default function AuthenticatedLayout({
           )}
         </div>
         {!parishLoading && (
-          <div className="mb-4 px-2">
-            <label htmlFor="parish-select" className="block text-xs font-medium text-gray-500 mb-1">
-              Parish
-            </label>
+          <div className="mb-4 px-2 space-y-4">
+            {(isAdmin || isSuperAdmin) && dioceses.length > 0 && (
+              <div>
+                <label htmlFor="diocese-select" className="block text-xs font-medium text-gray-500 mb-1">
+                  Diocese
+                </label>
+                <select
+                  id="diocese-select"
+                  value={dioceseId ?? ''}
+                  onChange={(e) => setDioceseId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                >
+                  <option value="">All dioceses</option>
+                  {dioceses.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.dioceseName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label htmlFor="parish-select" className="block text-xs font-medium text-gray-500 mb-1">
+                Parish
+              </label>
             {parishes.length > 0 ? (
               <select
                 id="parish-select"
@@ -344,10 +388,21 @@ export default function AuthenticatedLayout({
                 </button>
               </div>
             )}
+            </div>
           </div>
         )}
         <nav className="flex-1" aria-label="Main">
           <ul className="space-y-1">
+            {(isAdmin || isSuperAdmin) && (
+              <li>
+                <Link
+                  href="/dashboard/diocese"
+                  className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                >
+                  Diocese Dashboard
+                </Link>
+              </li>
+            )}
             <li>
               <Link
                 href="/dashboard"

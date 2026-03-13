@@ -64,6 +64,17 @@ public class MarriageServiceImpl implements MarriageService {
         return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MarriageResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable) {
+        if (parishIds == null || parishIds.isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        Page<Marriage> page = marriageRepository.findByBaptismParishIdIn(parishIds, pageable);
+        List<MarriageResponse> content = mapMarriagesToResponses(page.getContent());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
+    }
+
     private List<MarriageResponse> mapMarriagesToResponses(List<Marriage> marriages) {
         if (marriages.isEmpty()) {
             return List.of();

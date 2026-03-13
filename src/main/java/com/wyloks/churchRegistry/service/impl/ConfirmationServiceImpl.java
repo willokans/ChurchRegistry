@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +46,15 @@ public class ConfirmationServiceImpl implements ConfirmationService {
     @Transactional(readOnly = true)
     public Page<ConfirmationResponse> findByParishId(Long parishId, Pageable pageable) {
         return confirmationRepository.findByBaptismParishId(parishId, pageable).map(this::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ConfirmationResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable) {
+        if (parishIds == null || parishIds.isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return confirmationRepository.findByBaptismParishIdIn(parishIds, pageable).map(this::toResponse);
     }
 
     @Override

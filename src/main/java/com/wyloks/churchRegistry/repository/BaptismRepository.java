@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Set;
 
 public interface BaptismRepository extends JpaRepository<Baptism, Long> {
 
@@ -15,7 +16,14 @@ public interface BaptismRepository extends JpaRepository<Baptism, Long> {
 
     long countByParishId(Long parishId);
 
+    @Query("SELECT COUNT(b) FROM Baptism b WHERE b.parish.diocese.id = :dioceseId")
+    long countByParish_Diocese_Id(@Param("dioceseId") Long dioceseId);
+
+    long countByParishIdIn(Set<Long> parishIds);
+
     Page<Baptism> findByParishId(Long parishId, Pageable pageable);
+
+    Page<Baptism> findByParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     @Query("SELECT b.parish.id FROM Baptism b WHERE b.id = :id")
     java.util.Optional<Long> findParishIdById(@Param("id") Long id);

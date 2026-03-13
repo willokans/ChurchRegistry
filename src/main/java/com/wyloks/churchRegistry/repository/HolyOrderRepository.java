@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface HolyOrderRepository extends JpaRepository<HolyOrder, Long> {
 
@@ -19,6 +20,11 @@ public interface HolyOrderRepository extends JpaRepository<HolyOrder, Long> {
     List<HolyOrder> findByBaptismParishId(Long parishId);
 
     long countByBaptismParishId(Long parishId);
+
+    @Query("SELECT COUNT(h) FROM HolyOrder h WHERE h.baptism.parish.diocese.id = :dioceseId")
+    long countByBaptismParish_Diocese_Id(@Param("dioceseId") Long dioceseId);
+
+    long countByBaptismParishIdIn(Set<Long> parishIds);
 
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation", "parish"})
     Page<HolyOrder> findByBaptismParishId(Long parishId, Pageable pageable);

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import DashboardSkeleton from '@/components/DashboardSkeleton';
 import { useParish } from '@/context/ParishContext';
 import { getChurchBranding } from '@/lib/church-branding';
 import { fetchDashboard, type BaptismResponse, type FirstHolyCommunionResponse, type ConfirmationResponse, type MarriageResponse } from '@/lib/api';
@@ -237,44 +238,44 @@ export default function DashboardPage() {
           </p>
         )}
 
-        {parishId && (
+        {parishId && loading && <DashboardSkeleton />}
+
+        {parishId && !loading && (
           <>
             {/* Summary cards */}
-            {!loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {SACRAMENT_CARD_CONFIG.map(({ icon, title, countKey, path, ctaLabel, guidance, buttonClass }) => {
-                  const count = counts[countKey];
-                  const href = `${path}?parishId=${parishId}`;
-                  return (
-                    <div
-                      key={countKey}
-                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-                    >
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <span className="text-2xl" aria-hidden>
-                          {icon}
-                        </span>
-                        <span className="font-medium">{title}</span>
-                      </div>
-                      <p className="mt-2 text-2xl font-semibold text-sancta-maroon">
-                        {count} records
-                      </p>
-                      {count === 0 && (
-                        <>
-                          <p className="mt-1 text-sm text-gray-600">{guidance}</p>
-                          <Link
-                            href={href}
-                            className={`mt-3 inline-block rounded-lg px-3 py-2 text-sm font-medium text-white ${buttonClass}`}
-                          >
-                            {ctaLabel}
-                          </Link>
-                        </>
-                      )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {SACRAMENT_CARD_CONFIG.map(({ icon, title, countKey, path, ctaLabel, guidance, buttonClass }) => {
+                const count = counts[countKey];
+                const href = `${path}?parishId=${parishId}`;
+                return (
+                  <div
+                    key={countKey}
+                    className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <span className="text-2xl" aria-hidden>
+                        {icon}
+                      </span>
+                      <span className="font-medium">{title}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <p className="mt-2 text-2xl font-semibold text-sancta-maroon">
+                      {count} records
+                    </p>
+                    {count === 0 && (
+                      <>
+                        <p className="mt-1 text-sm text-gray-600">{guidance}</p>
+                        <Link
+                          href={href}
+                          className={`mt-3 inline-block rounded-lg px-3 py-2 text-sm font-medium text-white ${buttonClass}`}
+                        >
+                          {ctaLabel}
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             {/* Quick Actions */}
             <div>

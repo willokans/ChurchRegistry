@@ -8,12 +8,15 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface FirstHolyCommunionService {
 
     List<FirstHolyCommunionResponse> findByParishId(Long parishId);
 
     Page<FirstHolyCommunionResponse> findByParishId(Long parishId, Pageable pageable);
+
+    Page<FirstHolyCommunionResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     Optional<FirstHolyCommunionResponse> findById(Long id);
 

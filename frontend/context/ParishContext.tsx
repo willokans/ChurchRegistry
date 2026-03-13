@@ -11,16 +11,22 @@ import { usePathname } from 'next/navigation';
 import {
   clearAuth,
   fetchDiocesesWithParishes,
+  getStoredDioceseId,
   getStoredParishId,
   getStoredToken,
+  setStoredDioceseId,
   setStoredParishId,
+  type DioceseWithParishesResponse,
   type ParishResponse,
 } from '@/lib/api';
 
 type ParishContextValue = {
   parishId: number | null;
   setParishId: (id: number | null) => void;
+  dioceseId: number | null;
+  setDioceseId: (id: number | null) => void;
   parishes: ParishResponse[];
+  dioceses: DioceseWithParishesResponse[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
@@ -32,9 +38,15 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [parishId, setParishIdState] = useState<number | null>(null);
-  const [parishes, setParishes] = useState<ParishResponse[]>([]);
+  const [dioceseId, setDioceseIdState] = useState<number | null>(null);
+  const [dioceses, setDioceses] = useState<DioceseWithParishesResponse[]>([]);
+  const [allParishes, setAllParishes] = useState<ParishResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const parishes = dioceseId != null
+    ? allParishes.filter((p) => p.dioceseId === dioceseId)
+    : allParishes;
 
   const refetch = useCallback(() => {
     setRefreshTrigger((t) => t + 1);
@@ -43,6 +55,11 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
   const setParishId = useCallback((id: number | null) => {
     setParishIdState(id);
     setStoredParishId(id);
+  }, []);
+
+  const setDioceseId = useCallback((id: number | null) => {
+    setDioceseIdState(id);
+    setStoredDioceseId(id);
   }, []);
 
   useEffect(() => {
@@ -61,15 +78,28 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
     }, 15000);
     (async () => {
       try {
-        const dioceses = await fetchDiocesesWithParishes();
+        const fetchedDioceses = await fetchDiocesesWithParishes();
         if (cancelled) return;
-        const allParishes: ParishResponse[] = dioceses.flatMap((d) => d.parishes ?? []);
-        setParishes(allParishes);
+        const flatParishes: ParishResponse[] = fetchedDioceses.flatMap((d) => d.parishes ?? []);
+        setDioceses(fetchedDioceses);
+        setAllParishes(flatParishes);
+
+        const storedDiocese = getStoredDioceseId();
+        const validDiocese =
+          storedDiocese != null && fetchedDioceses.some((d) => d.id === storedDiocese)
+            ? storedDiocese
+            : null;
+        setDioceseIdState(validDiocese);
+        if (validDiocese != null) setStoredDioceseId(validDiocese);
+
+        const parishesForSelection = validDiocese != null
+          ? flatParishes.filter((p) => p.dioceseId === validDiocese)
+          : flatParishes;
         const stored = getStoredParishId();
-        if (stored !== null && allParishes.some((p) => p.id === stored)) {
+        if (stored !== null && parishesForSelection.some((p) => p.id === stored)) {
           setParishIdState(stored);
-        } else if (allParishes.length > 0) {
-          const first = allParishes[0].id;
+        } else if (parishesForSelection.length > 0) {
+          const first = parishesForSelection[0].id;
           setParishIdState(first);
           setStoredParishId(first);
         } else {
@@ -80,8 +110,10 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
           const message = e instanceof Error ? e.message : 'Failed to load parishes';
           if (message === 'Unauthorized') {
             clearAuth();
-            setParishes([]);
+            setDioceses([]);
+            setAllParishes([]);
             setParishIdState(null);
+            setDioceseIdState(null);
             setError('Session expired. Please sign in again.');
             return;
           }
@@ -100,10 +132,23 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, refreshTrigger]);
 
+  useEffect(() => {
+    if (parishId == null || parishes.length === 0) return;
+    const currentInList = parishes.some((p) => p.id === parishId);
+    if (!currentInList) {
+      const first = parishes[0].id;
+      setParishIdState(first);
+      setStoredParishId(first);
+    }
+  }, [dioceseId, parishId, parishes]);
+
   const value: ParishContextValue = {
     parishId,
     setParishId,
+    dioceseId,
+    setDioceseId,
     parishes,
+    dioceses,
     loading,
     error,
     refetch,

@@ -45,6 +45,21 @@ public class SacramentAuthorizationService {
         }
     }
 
+    /**
+     * Ensures the current user can access diocese-level data (e.g. diocesan dashboard).
+     * ADMIN and SUPER_ADMIN can access any diocese; other roles are denied.
+     * Future: DIOCESE_ADMIN would be restricted to their assigned diocese.
+     */
+    public void requireDioceseAccess(Long dioceseId) {
+        CurrentUser user = currentUser();
+        if (!user.isAdmin()) {
+            throw forbidden("Diocese access denied. Only ADMIN and SUPER_ADMIN can access the diocesan dashboard.");
+        }
+        if (dioceseId == null) {
+            throw forbidden("Diocese ID is required");
+        }
+    }
+
     public void requireWriteAccessForParish(Long parishId) {
         CurrentUser user = currentUser();
         if (!WRITE_ROLES.contains(user.role())) {

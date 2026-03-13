@@ -28,7 +28,10 @@ const mockPush = jest.fn();
 const defaultParishContext = {
   parishId: 10,
   setParishId: jest.fn(),
+  dioceseId: null as number | null,
+  setDioceseId: jest.fn(),
   parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+  dioceses: [],
   loading: false,
   error: null,
   refetch: jest.fn(),
@@ -90,8 +93,18 @@ describe('AuthenticatedLayout', () => {
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: 'Dashboard' });
     expect(dashboardLink).toHaveAttribute('href', '/dashboard');
+  });
+
+  it('ADMIN sees Diocese Dashboard link pointing to /dashboard/diocese', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const dioceseDashboardLink = screen.getByRole('link', { name: 'Diocese Dashboard' });
+    expect(dioceseDashboardLink).toHaveAttribute('href', '/dashboard/diocese');
   });
 
   it('Help link points to /help in sidebar', () => {
@@ -193,6 +206,39 @@ describe('AuthenticatedLayout', () => {
       </AuthenticatedLayout>
     );
     expect(screen.queryByRole('link', { name: 'User Setup' })).not.toBeInTheDocument();
+  });
+
+  it('non-admin does not see Diocese Dashboard link', () => {
+    (getStoredUser as jest.Mock).mockReturnValue({
+      username: 'priest',
+      displayName: 'Priest',
+      role: 'PRIEST',
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    expect(screen.queryByRole('link', { name: 'Diocese Dashboard' })).not.toBeInTheDocument();
+  });
+
+  it('ADMIN sees Diocese selector when dioceses are loaded', () => {
+    (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
+      dioceses: [
+        { id: 1, dioceseName: 'Archdiocese of Accra', parishes: [] },
+        { id: 2, dioceseName: 'Diocese of Kumasi', parishes: [] },
+      ],
+    });
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const dioceseSelect = screen.getByRole('combobox', { name: /diocese/i });
+    expect(dioceseSelect).toBeInTheDocument();
+    expect(within(dioceseSelect).getByRole('option', { name: 'Archdiocese of Accra' })).toBeInTheDocument();
+    expect(within(dioceseSelect).getByRole('option', { name: 'Diocese of Kumasi' })).toBeInTheDocument();
   });
 
   it('no-assigned-parish state: admin sees "No parish selected" and Add diocese link', () => {

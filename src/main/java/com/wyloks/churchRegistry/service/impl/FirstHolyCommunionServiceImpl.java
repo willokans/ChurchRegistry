@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +46,15 @@ public class FirstHolyCommunionServiceImpl implements FirstHolyCommunionService 
     @Transactional(readOnly = true)
     public Page<FirstHolyCommunionResponse> findByParishId(Long parishId, Pageable pageable) {
         return communionRepository.findByBaptismParishId(parishId, pageable).map(this::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<FirstHolyCommunionResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable) {
+        if (parishIds == null || parishIds.isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return communionRepository.findByBaptismParishIdIn(parishIds, pageable).map(this::toResponse);
     }
 
     @Override

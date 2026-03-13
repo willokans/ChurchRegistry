@@ -279,6 +279,33 @@ describe('Dashboard page', () => {
     expect(marriageLinks.some((el) => el.getAttribute('href') === '/marriages/new?parishId=10')).toBe(true);
   });
 
+  it('shows loading skeleton when parish is selected and dashboard data is loading', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    // Never-resolving promise keeps SWR in loading state
+    api.fetchDashboard.mockImplementation(() => new Promise(() => {}));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    expect(screen.getByTestId('dashboard-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText(/Register Baptism/)).not.toBeInTheDocument();
+  });
+
   it('does not show empty state guidance when sacrament has records', async () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue({
@@ -312,5 +339,159 @@ describe('Dashboard page', () => {
     });
     expect(screen.queryByText(/Start by registering your first baptism/)).not.toBeInTheDocument();
     expect(screen.getByText(/Start by registering your first communion/)).toBeInTheDocument();
+  });
+
+  it('shows Latest sacrament records with baptism full name and date', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 1, communions: 0, confirmations: 0, marriages: 0 },
+      [{
+        id: 42,
+        baptismName: 'Alice',
+        otherNames: 'Mary',
+        surname: 'Smith',
+        parishId: 10,
+        dateOfBirth: '2018-03-15',
+      }],
+      [],
+      [],
+      []
+    ));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText('Latest sacrament records')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('Alice Mary Smith').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2018-03-15').length).toBeGreaterThan(0);
+    const links = screen.getAllByRole('link', { name: /Alice Mary Smith/i });
+    expect(links[0]).toHaveAttribute('href', '/baptisms/42');
+  });
+
+  it('shows Latest sacrament records with marriage partners name and date', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 0, communions: 0, confirmations: 0, marriages: 1 },
+      [],
+      [],
+      [],
+      [{
+        id: 7,
+        partnersName: 'John Doe & Jane Doe',
+        marriageDate: '2024-06-20',
+      }]
+    ));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('John Doe & Jane Doe').length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText('2024-06-20').length).toBeGreaterThan(0);
+    const links = screen.getAllByRole('link', { name: /John Doe & Jane Doe/i });
+    expect(links[0]).toHaveAttribute('href', '/marriages/7');
+  });
+
+  it('shows Latest sacrament records with communion and confirmation generic labels', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 0, communions: 1, confirmations: 1, marriages: 0 },
+      [],
+      [{ id: 3, communionDate: '2025-01-10' }],
+      [{ id: 4, confirmationDate: '2025-02-14' }],
+      []
+    ));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/^Holy Communion$/i).length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText('2025-01-10').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2025-02-14').length).toBeGreaterThan(0);
+    const communionLinks = screen.getAllByRole('link', { name: /Holy Communion/i });
+    expect(communionLinks.some((el) => el.getAttribute('href') === '/communions/3')).toBe(true);
+    const confirmationLinks = screen.getAllByRole('link', { name: /Confirmation/i });
+    expect(confirmationLinks.some((el) => el.getAttribute('href') === '/confirmations/4')).toBe(true);
+  });
+
+  it('shows empty state when no recent records', async () => {
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Administrator',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 0, communions: 0, confirmations: 0, marriages: 0 }
+    ));
+
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem(
+      'church_registry_user',
+      JSON.stringify({
+        username: 'admin',
+        displayName: 'Administrator',
+        role: 'ADMIN',
+      })
+    );
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText('Latest sacrament records')).toBeInTheDocument();
+    });
+    expect(screen.getByText('No recent records yet.')).toBeInTheDocument();
+    expect(screen.getByText('No recent activity.')).toBeInTheDocument();
   });
 });

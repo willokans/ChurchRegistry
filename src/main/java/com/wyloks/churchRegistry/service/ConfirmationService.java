@@ -8,12 +8,15 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ConfirmationService {
 
     List<ConfirmationResponse> findByParishId(Long parishId);
 
     Page<ConfirmationResponse> findByParishId(Long parishId, Pageable pageable);
+
+    Page<ConfirmationResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     Optional<ConfirmationResponse> findById(Long id);
 

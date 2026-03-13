@@ -8,12 +8,15 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface BaptismService {
 
     List<BaptismResponse> findByParishId(Long parishId);
 
     Page<BaptismResponse> findByParishId(Long parishId, Pageable pageable);
+
+    Page<BaptismResponse> findByParishIdIn(Set<Long> parishIds, Pageable pageable);
 
     Page<BaptismResponse> searchByNameOrAddress(Long parishId, String query, Pageable pageable);
 
