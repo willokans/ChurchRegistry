@@ -108,6 +108,9 @@ export default function ConfirmationCreatePage() {
             ...prev,
             parish: defaultParish?.parishName ?? prev.parish,
           }));
+          if (baptismPage.content.length === 0) {
+            setBaptismSource('external');
+          }
         }
       })
       .catch(() => {
@@ -358,6 +361,36 @@ export default function ConfirmationCreatePage() {
   const showCommunionSection = true;
   const effectiveParishName = parishes.find((p) => p.id === effectiveParishId)?.parishName ?? '';
 
+  const canSubmit = (() => {
+    if (!form.confirmationDate.trim() || !form.officiatingBishop.trim()) return false;
+    if (baptismSource === 'this_parish') {
+      if (selectedBaptismId <= 0 && !selectedCommunionId) return false;
+      if (communionByBaptism || selectedCommunionId) return true;
+      if (communionSource === 'this_church') return false;
+      return !!(
+        communionCertificateFile?.size &&
+        externalCommunion.baptismName.trim() &&
+        externalCommunion.surname.trim() &&
+        externalCommunion.communionChurchAddress.trim() &&
+        externalCommunion.communionDate.trim() &&
+        externalCommunion.officiatingPriest.trim()
+      );
+    }
+    if (!certificateFile?.size || !externalBaptism.baptismName.trim() || !externalBaptism.surname.trim()) return false;
+    if (!externalBaptism.fathersName.trim() || !externalBaptism.mothersName.trim()) return false;
+    if (communionSource === 'this_church') {
+      return !!(externalCommunion.communionDate.trim() && externalCommunion.officiatingPriest.trim());
+    }
+    return !!(
+      communionCertificateFile?.size &&
+      externalCommunion.baptismName.trim() &&
+      externalCommunion.surname.trim() &&
+      externalCommunion.communionChurchAddress.trim() &&
+      externalCommunion.communionDate.trim() &&
+      externalCommunion.officiatingPriest.trim()
+    );
+  })();
+
   return React.createElement(ConfirmationCreateForm, {
     cardClass,
     showCommunionSection,
@@ -395,6 +428,7 @@ export default function ConfirmationCreatePage() {
     form,
     error,
     submitting,
+    canSubmit,
     communionSearchQuery,
     setCommunionSearchQuery,
     communionSearchFocused,

@@ -4,7 +4,7 @@
  * - Baptism search (this parish) and Holy Communion search (when "Holy Communion in this church")
  * - Creates confirmation and redirects to list on submit
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ConfirmationCreatePage from '@/app/confirmations/new/page';
@@ -256,22 +256,78 @@ describe('Confirmation create page', () => {
     });
   });
 
-  it('submit without selecting baptism or communion shows error', async () => {
+  it('when parish has no baptisms, shows form with Baptism from another Parish pre-selected and allows creating confirmation', async () => {
+    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchCommunions as jest.Mock).mockResolvedValue({ content: [] });
     const user = userEvent.setup();
+    render(<ConfirmationCreatePage />);
+    await waitFor(() => {
+      expect(fetchBaptisms).toHaveBeenCalledWith(10);
+      expect(fetchCommunions).toHaveBeenCalledWith(10);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /select baptism record/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/no baptisms in this parish/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /baptism from another parish/i })).toBeChecked();
+    expect(screen.getByLabelText(/baptism name/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/baptism name/i), 'John');
+    await user.type(screen.getByLabelText(/^surname$/i), 'Smith');
+    await user.type(screen.getByLabelText(/other names/i), 'Paul');
+    await user.selectOptions(screen.getByLabelText(/gender/i), 'MALE');
+    await user.type(screen.getByLabelText(/father's name/i), 'James Smith');
+    await user.type(screen.getByLabelText(/mother's name/i), 'Mary Smith');
+    await user.type(screen.getByLabelText(/baptised church address/i), '123 Church St');
+
+    const baptismFileInput = document.querySelector('input[type="file"][accept*="pdf"]') ?? document.querySelector('input[type="file"]');
+    expect(baptismFileInput).toBeInTheDocument();
+    fireEvent.change(baptismFileInput!, { target: { files: [new File(['cert'], 'baptism.pdf', { type: 'application/pdf' })] } });
+
+    await user.click(screen.getByRole('radio', { name: /holy communion in this church/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/communion date/i)).toBeInTheDocument();
+    });
+    await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
+
+    await user.type(document.getElementById('confirmationDate')!, '2025-04-01');
+    await user.type(screen.getByLabelText(/officiating bishop/i), 'Bishop Jones');
+
+    const saveBtn = screen.getByRole('button', { name: /save confirmation/i });
+    await waitFor(() => {
+      expect(saveBtn).not.toBeDisabled();
+    });
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      expect(createBaptismWithCertificate).toHaveBeenCalled();
+      expect(createCommunion).toHaveBeenCalled();
+      expect(createConfirmation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+        })
+      );
+    });
+    expect(mockPush).toHaveBeenCalledWith('/confirmations');
+  });
+
+  it('Save Confirmation button is disabled when mandatory fields are missing', async () => {
     (createConfirmation as jest.Mock).mockClear();
+    const user = userEvent.setup();
     render(<ConfirmationCreatePage />);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /save confirmation/i })).toBeInTheDocument();
     });
+    const saveBtn = screen.getByRole('button', { name: /save confirmation/i });
+    expect(saveBtn).toBeDisabled();
+
     const confirmationDateInput = document.getElementById('confirmationDate');
-    expect(confirmationDateInput).toBeInTheDocument();
     await user.type(confirmationDateInput!, '2025-04-01');
     await user.type(screen.getByLabelText(/officiating bishop/i), 'Bishop Jones');
-    await user.click(screen.getByRole('button', { name: /save confirmation/i }));
+    expect(saveBtn).toBeDisabled();
 
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/select a baptism record|search and select a holy communion/i);
-    });
     expect(createConfirmation).not.toHaveBeenCalled();
   });
 });

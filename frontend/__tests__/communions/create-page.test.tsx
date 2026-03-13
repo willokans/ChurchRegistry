@@ -260,6 +260,22 @@ describe('Communion create page', () => {
       });
     });
 
+    it('Save button is disabled when Baptism in this Parish selected but no baptism selected', async () => {
+      (createCommunion as jest.Mock).mockClear();
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      expect(screen.getByRole('radio', { name: /baptism in this parish/i })).toBeChecked();
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      expect(saveBtn).toBeDisabled();
+
+      await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+      expect(screen.getByRole('button', { name: /save.*register communion|register communion/i })).toBeDisabled();
+      expect(createCommunion).not.toHaveBeenCalled();
+    });
+
     it('Save button is disabled when external selected but required fields or certificate missing', async () => {
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
@@ -335,6 +351,67 @@ describe('Communion create page', () => {
         expect(mockPush).toHaveBeenCalledWith('/communions');
       });
       expect(createCommunion).not.toHaveBeenCalled();
+    });
+
+    it('when parish has no baptisms, shows form with Baptism from another Parish pre-selected and allows creating communion', async () => {
+      (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(fetchBaptisms).toHaveBeenCalledWith(10);
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/no baptisms in this parish/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /baptism from another parish/i })).toBeChecked();
+      expect(screen.getByLabelText(/baptism name/i)).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/baptism name/i), 'John');
+      await user.type(screen.getByLabelText(/^surname$/i), 'Smith');
+      await user.type(screen.getByLabelText(/other names/i), 'Paul');
+      await user.selectOptions(screen.getByLabelText(/gender/i), 'MALE');
+      await user.type(screen.getByLabelText(/father's name/i), 'James Smith');
+      await user.type(screen.getByLabelText(/mother's name/i), 'Mary Smith');
+      await user.type(screen.getByLabelText(/baptised church address/i), '123 Church St');
+
+      const file = new File(['cert content'], 'cert.pdf', { type: 'application/pdf' });
+      const fileInput = document.querySelector('input[type="file"]');
+      fireEvent.change(fileInput!, { target: { files: [file] } });
+
+      await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+      await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
+      await user.selectOptions(screen.getByRole('combobox', { name: /mass venue/i }), 'St Mary');
+
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      await waitFor(() => {
+        expect(saveBtn).not.toBeDisabled();
+      });
+      await user.click(saveBtn);
+
+      await waitFor(() => {
+        expect(createCommunionWithCertificate).toHaveBeenCalledWith(
+          10,
+          expect.objectContaining({
+            communionDate: '2024-05-01',
+            officiatingPriest: 'Fr. Jones',
+            parish: 'St Mary',
+          }),
+          expect.any(File),
+          expect.objectContaining({
+            baptismName: 'John',
+            surname: 'Smith',
+            otherNames: 'Paul',
+            gender: 'MALE',
+            fathersName: 'James Smith',
+            mothersName: 'Mary Smith',
+            baptisedChurchAddress: '123 Church St',
+          })
+        );
+      });
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/communions');
+      });
     });
 
     it('switching back to Baptism in this Parish clears external fields and certificate', async () => {

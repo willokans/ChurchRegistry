@@ -72,6 +72,9 @@ export default function CommunionCreatePage() {
             ...f,
             parish: defaultParish?.parishName ?? f.parish,
           }));
+          if (page.content.length === 0) {
+            setBaptismSource('external');
+          }
         }
       })
       .catch(() => {
@@ -220,12 +223,7 @@ export default function CommunionCreatePage() {
           <p className="mt-1 text-gray-600">Register a parishioner&apos;s first Holy Communion.</p>
         </div>
 
-        {baptisms.length === 0 && baptismSource === 'this_parish' ? (
-          <div className={cardClass}>
-            <p className="text-gray-600">No baptisms in this parish. Record a baptism first.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column: Select Baptism + Communion Details */}
             <div className="lg:col-span-2 space-y-6">
               {/* 1. Select Baptism Record */}
@@ -687,7 +685,6 @@ export default function CommunionCreatePage() {
               </div>
             </div>
           </form>
-        )}
       </div>
     </AuthenticatedLayout>
   );
