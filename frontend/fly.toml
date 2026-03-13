@@ -3,6 +3,7 @@
 # Set secrets: fly secrets set NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
 
 app = "church-registry-staging"
+primary_region = "jnb"
 
 [build]
   [build.args]
