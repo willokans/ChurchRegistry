@@ -17,6 +17,7 @@ import {
 } from '@/lib/api';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -75,12 +76,8 @@ describe('Users page (User Access)', () => {
       role: 'ADMIN',
     });
     (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      setParishId: jest.fn(),
+      ...defaultParishContext,
       parishes: mockParishes,
-      loading: false,
-      error: null,
-      refetch: jest.fn(),
     });
     (listUsersWithParishAccess as jest.Mock).mockResolvedValue(mockUsers);
     (fetchDioceses as jest.Mock).mockResolvedValue(mockDioceses);

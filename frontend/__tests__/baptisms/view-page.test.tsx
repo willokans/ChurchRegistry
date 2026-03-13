@@ -28,9 +28,13 @@ jest.mock('@/context/ParishContext', () => ({
   useParish: () => ({
     parishId: 10,
     setParishId: jest.fn(),
+    dioceseId: null,
+    setDioceseId: jest.fn(),
     parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    dioceses: [],
     loading: false,
     error: null,
+    refetch: jest.fn(),
   }),
 }));
 

@@ -16,6 +16,7 @@ import {
   createMarriageWithParties,
 } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -124,11 +125,9 @@ describe('Marriage create page', () => {
   it('when no parishId shows message', () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      setParishId: jest.fn(),
       parishes: [],
-      loading: false,
-      error: null,
     });
     render(<MarriageCreatePage />);
     const main = screen.getByRole('main');

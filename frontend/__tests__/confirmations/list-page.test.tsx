@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import ConfirmationsPage from '@/app/confirmations/page';
 import { getStoredToken, getStoredUser, fetchConfirmations } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
-import { renderWithSWR } from '../test-utils';
+import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -36,13 +36,7 @@ describe('Confirmations list page', () => {
     mockPush.mockClear();
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      loading: false,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      error: null,
-    });
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
     (fetchConfirmations as jest.Mock).mockResolvedValue({ content: [] });
     (fetchConfirmations as jest.Mock).mockClear();
   });
@@ -167,11 +161,9 @@ describe('Confirmations list page', () => {
 
   it('when no parish shows message and no fetch', async () => {
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      loading: false,
-      setParishId: jest.fn(),
       parishes: [],
-      error: null,
     });
     renderWithSWR(<ConfirmationsPage />);
     const main = screen.getByRole('main');

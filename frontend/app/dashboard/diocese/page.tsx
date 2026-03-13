@@ -62,23 +62,6 @@ export default function DioceseDashboardPage() {
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
-  useEffect(() => {
-    const token = getStoredToken();
-    if (!token || !user) {
-      router.replace('/login');
-    } else if (!isAdmin) {
-      router.replace('/dashboard');
-    }
-  }, [router, user, isAdmin]);
-
-  if (user && !isAdmin) {
-    return (
-      <AuthenticatedLayout>
-        <p className="text-gray-600">Redirecting…</p>
-      </AuthenticatedLayout>
-    );
-  }
-
   const { data, error: swrError, isLoading } = useSWR(
     dioceseId && isAdmin ? ['diocese-dashboard', dioceseId] : null,
     dioceseId && isAdmin ? () => fetchDioceseDashboard(dioceseId) : null,
@@ -93,7 +76,7 @@ export default function DioceseDashboardPage() {
     marriages: 0,
     holyOrders: 0,
   };
-  const parishActivity = data?.parishActivity ?? [];
+  const parishActivity = useMemo(() => data?.parishActivity ?? [], [data?.parishActivity]);
   const recentSacraments = data?.recentSacraments ?? {
     baptisms: [],
     communions: [],
@@ -175,6 +158,23 @@ export default function DioceseDashboardPage() {
   const recent = recentItems.slice(0, 8);
 
   const maxBar = Math.max(1, ...monthly.baptisms, ...monthly.communions, ...monthly.confirmations, ...monthly.marriages);
+
+  useEffect(() => {
+    const token = getStoredToken();
+    if (!token || !user) {
+      router.replace('/login');
+    } else if (!isAdmin) {
+      router.replace('/dashboard');
+    }
+  }, [router, user, isAdmin]);
+
+  if (user && !isAdmin) {
+    return (
+      <AuthenticatedLayout>
+        <p className="text-gray-600">Redirecting…</p>
+      </AuthenticatedLayout>
+    );
+  }
 
   return (
     <AuthenticatedLayout>

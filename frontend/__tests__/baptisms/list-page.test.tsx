@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import BaptismsPage from '@/app/baptisms/page';
 import { getStoredToken, getStoredUser, fetchBaptisms, fetchBaptismsSearch } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
-import { renderWithSWR } from '../test-utils';
+import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -36,13 +36,7 @@ describe('Baptisms list page', () => {
     mockPush.mockClear();
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      loading: false,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      error: null,
-    });
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
     (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
     (fetchBaptisms as jest.Mock).mockClear();
     (fetchBaptismsSearch as jest.Mock).mockResolvedValue({ content: [] });
@@ -91,11 +85,9 @@ describe('Baptisms list page', () => {
 
   it('when no parishes shows message and no fetch to baptisms', async () => {
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      loading: false,
-      setParishId: jest.fn(),
       parishes: [],
-      error: null,
     });
     renderWithSWR(<BaptismsPage />);
     const main = screen.getByRole('main');

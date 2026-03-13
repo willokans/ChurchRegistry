@@ -19,6 +19,7 @@ import {
   createCommunionWithCommunionCertificate,
 } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -95,13 +96,7 @@ describe('Confirmation create page', () => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('parishId=10'));
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      loading: false,
-      error: null,
-    });
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
     (fetchBaptisms as jest.Mock).mockResolvedValue({ content: defaultBaptisms });
     (fetchCommunions as jest.Mock).mockResolvedValue({ content: defaultCommunions });
     (createConfirmation as jest.Mock).mockResolvedValue({ id: 99, communionId: 2, baptismId: 5 });
@@ -251,11 +246,9 @@ describe('Confirmation create page', () => {
   it('when no parishId shows message', async () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      setParishId: jest.fn(),
       parishes: [],
-      loading: false,
-      error: null,
     });
     render(<ConfirmationCreatePage />);
     await waitFor(() => {

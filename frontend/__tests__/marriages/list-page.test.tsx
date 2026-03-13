@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import MarriagesPage from '@/app/marriages/page';
 import { getStoredToken, getStoredUser, fetchMarriages } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
-import { renderWithSWR } from '../test-utils';
+import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -31,13 +31,7 @@ describe('Marriages list page', () => {
   beforeEach(() => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      loading: false,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      error: null,
-    });
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
     (fetchMarriages as jest.Mock).mockResolvedValue({ content: [] });
     (fetchMarriages as jest.Mock).mockClear();
   });
@@ -161,11 +155,9 @@ describe('Marriages list page', () => {
 
   it('when no parishes shows message and no fetch to marriages', async () => {
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      loading: false,
-      setParishId: jest.fn(),
       parishes: [],
-      error: null,
     });
     renderWithSWR(<MarriagesPage />);
     const main = screen.getByRole('main');

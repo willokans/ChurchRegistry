@@ -7,6 +7,7 @@ import { render, screen, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext } from '../test-utils';
 import HelpPage from '@/app/help/page';
 
 jest.mock('next/navigation', () => ({
@@ -24,18 +25,6 @@ jest.mock('@/context/ParishContext', () => ({
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
-
-const defaultParishContext = {
-  parishId: 10,
-  setParishId: jest.fn(),
-  dioceseId: null as number | null,
-  setDioceseId: jest.fn(),
-  parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-  dioceses: [],
-  loading: false,
-  error: null,
-  refetch: jest.fn(),
-};
 
 describe('Help page', () => {
   beforeEach(() => {

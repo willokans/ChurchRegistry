@@ -50,7 +50,7 @@ export default function AuthenticatedLayout({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { parishId, setParishId, dioceseId, setDioceseId, parishes, dioceses, loading: parishLoading, error: parishError, refetch } = useParish();
+  const { parishId, setParishId, dioceseId, setDioceseId, parishes = [], dioceses = [], loading: parishLoading, error: parishError, refetch } = useParish();
 
   useEffect(() => {
     setMounted(true);
