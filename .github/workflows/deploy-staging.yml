@@ -1,8 +1,5 @@
 name: Deploy to Staging
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches: [staging]
@@ -33,7 +30,9 @@ jobs:
         run: mvn -B test
 
       - name: Install Fly CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        run: |
+          curl -L https://fly.io/install.sh | sh -s -- --non-interactive
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
 
       - name: Ensure Fly API app exists
         env:
@@ -143,7 +142,9 @@ jobs:
           CI: true
 
       - name: Install Fly CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        run: |
+          curl -L https://fly.io/install.sh | sh -s -- --non-interactive
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
 
       - name: Sync frontend runtime env
         env:
