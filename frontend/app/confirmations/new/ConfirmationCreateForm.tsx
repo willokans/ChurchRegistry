@@ -61,6 +61,7 @@ export interface ConfirmationCreateFormProps {
   form: ConfirmationRequest;
   error: string | null;
   submitting: boolean;
+  canSubmit: boolean;
   communionSearchQuery: string;
   setCommunionSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   communionSearchFocused: boolean;
@@ -110,6 +111,7 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
     form,
     error,
     submitting,
+    canSubmit,
     communionSearchQuery,
     setCommunionSearchQuery,
     communionSearchFocused,
@@ -120,8 +122,6 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
     setSelectedCommunionId,
     selectedCommunion,
   } = props;
-
-  const showNoBaptisms = baptisms.length === 0 && baptismSource === 'this_parish';
 
   return React.createElement(
     AuthenticatedLayout,
@@ -163,7 +163,7 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
       form,
       error,
       submitting,
-      showNoBaptisms,
+      canSubmit,
       communionSearchQuery,
       setCommunionSearchQuery,
       communionSearchFocused,

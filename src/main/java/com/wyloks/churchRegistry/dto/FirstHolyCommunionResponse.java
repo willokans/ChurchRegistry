@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 @Data
 @NoArgsConstructor
@@ -18,4 +19,17 @@ public class FirstHolyCommunionResponse {
     private LocalDate communionDate;
     private String officiatingPriest;
     private String parish;
+    private String baptismCertificatePath;
+    private String communionCertificatePath;
+    private OffsetDateTime createdAt;
+
+    private String baptismName;
+    private String otherNames;
+    private String surname;
+    private LocalDate dateOfBirth;
+    private String baptismParishName;
+    private String gender;
+    private String fathersName;
+    private String mothersName;
+    private String note;
 }

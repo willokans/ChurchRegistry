@@ -1,12 +1,12 @@
-# Church Registry – Frontend
+# Parish Registry – Frontend
 
-Next.js 14 (App Router) app for the Church Registry. Login and home are implemented with TDD.
+Next.js 14 (App Router) app for the Parish Registry. Login and home are implemented with TDD.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.local.example .env.local   # optional; defaults to http://localhost:8080
+cp .env.local.example .env.local
 ```
 
 ## Scripts
@@ -19,9 +19,17 @@ cp .env.local.example .env.local   # optional; defaults to http://localhost:8080
 ## Auth
 
 - **Login:** `/login` – username/password; on success stores token and refresh token in `localStorage` and redirects to home.
-- **Home:** `/` – protected; redirects to `/login` if not authenticated. Shows “Church Registry” and “Welcome, {displayName}”.
+- **Home:** `/` – protected; redirects to `/login` if not authenticated. Shows “Parish Registry” and “Welcome, {displayName}”.
 
-Ensure the backend is running (e.g. `./mvnw spring-boot:run` in the repo root) and `NEXT_PUBLIC_API_URL` points to it.
+Ensure the Spring backend is running (e.g. `./mvnw spring-boot:run` in the repo root) and `NEXT_PUBLIC_API_URL` points to it.
+The frontend is UI-only and does not fall back to same-origin Next route handlers.
+
+## Runtime Architecture
+
+- Spring Boot is the single backend for auth/business APIs.
+- Next.js is a client-only UI that calls Spring via `NEXT_PUBLIC_API_URL`.
+- In production, internal Next `/api/*` routes are blocked except `/api/health`.
+- Set `NEXT_ALLOW_INTERNAL_API_ROUTES=true` only for emergency rollback scenarios.
 
 ## Deploy to Fly.io (staging)
 
@@ -38,3 +46,5 @@ From the `frontend/` directory:
 The app will be at `https://church-registry-staging.fly.dev` (or the URL shown after deploy).
 
 **Auto-deploy:** Pushing to the `staging` branch runs the GitHub Action that lints, tests, and deploys to Fly staging. Add `FLY_API_TOKEN` (from [Fly.io tokens](https://fly.io/user/tokens)) in the repo’s **Settings → Secrets and variables → Actions**.
+
+**CDN (optional):** For low-bandwidth users, see [CDN_SETUP.md](../docs/CDN_SETUP.md) to add Cloudflare in front of the frontend. Cache headers for `_next/static` and `/api/*` are already configured.

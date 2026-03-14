@@ -1,0 +1,101 @@
+package com.wyloks.churchRegistry.security;
+
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.lang.NonNull;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Rate limits auth endpoints (login, refresh, logout) and all API requests
+ * to mitigate brute force and abuse. Uses client IP (or X-Forwarded-For when behind proxy).
+ */
+public class RateLimitFilter extends OncePerRequestFilter {
+
+    private final int loginLimit;
+    private final int loginPeriodMinutes;
+    private final int refreshLimit;
+    private final int refreshPeriodMinutes;
+    private final int apiLimit;
+    private final int apiPeriodMinutes;
+
+    private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> refreshBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> apiBuckets = new ConcurrentHashMap<>();
+
+    public RateLimitFilter(
+            int loginLimit,
+            int loginPeriodMinutes,
+            int refreshLimit,
+            int refreshPeriodMinutes,
+            int apiLimit,
+            int apiPeriodMinutes) {
+        this.loginLimit = loginLimit;
+        this.loginPeriodMinutes = loginPeriodMinutes;
+        this.refreshLimit = refreshLimit;
+        this.refreshPeriodMinutes = refreshPeriodMinutes;
+        this.apiLimit = apiLimit;
+        this.apiPeriodMinutes = apiPeriodMinutes;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
+        String clientKey = resolveClientKey(request);
+        String path = request.getRequestURI();
+
+        Bucket bucket = resolveBucket(path, clientKey);
+        if (bucket != null) {
+            if (!bucket.tryConsume(1)) {
+                response.setStatus(429);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\"}");
+                return;
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private String resolveClientKey(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        String remote = request.getRemoteAddr();
+        return remote != null ? remote : "unknown";
+    }
+
+    private Bucket resolveBucket(String path, String clientKey) {
+        if (path == null) return null;
+        if (path.startsWith("/api/health")) return null; // Exempt for load balancer health checks
+        if (path.startsWith("/api/auth/login")) {
+            return loginBuckets.computeIfAbsent(clientKey, k -> buildBucket(loginLimit, loginPeriodMinutes));
+        }
+        if (path.startsWith("/api/auth/refresh") || path.startsWith("/api/auth/logout")) {
+            return refreshBuckets.computeIfAbsent(clientKey, k -> buildBucket(refreshLimit, refreshPeriodMinutes));
+        }
+        if (path.startsWith("/api/")) {
+            return apiBuckets.computeIfAbsent(clientKey, k -> buildBucket(apiLimit, apiPeriodMinutes));
+        }
+        return null;
+    }
+
+    private Bucket buildBucket(int capacity, int periodMinutes) {
+        Bandwidth limit = Bandwidth.builder()
+                .capacity(capacity)
+                .refillGreedy(capacity, Duration.ofMinutes(periodMinutes))
+                .build();
+        return Bucket.builder().addLimit(limit).build();
+    }
+}

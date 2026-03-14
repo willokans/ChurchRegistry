@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import CommunionCreatePage from '@/app/communions/new/page';
 import { getStoredToken, getStoredUser, fetchBaptisms, createCommunion, createCommunionWithCertificate } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -36,16 +37,12 @@ describe('Communion create page', () => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('parishId=10'));
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      loading: false,
-      error: null,
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
+      ],
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue([
-      { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
-    ]);
     (createCommunion as jest.Mock).mockResolvedValue({ id: 99, baptismId: 5, communionDate: '2024-05-01' });
     (createCommunionWithCertificate as jest.Mock).mockResolvedValue({ id: 100, baptismId: 50, communionDate: '2024-05-01' });
     (createCommunion as jest.Mock).mockClear();
@@ -104,11 +101,9 @@ describe('Communion create page', () => {
   it('when no parishId shows message', async () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      setParishId: jest.fn(),
       parishes: [],
-      loading: false,
-      error: null,
     });
     render(<CommunionCreatePage />);
     await waitFor(() => {
@@ -128,10 +123,12 @@ describe('Communion create page', () => {
     });
 
     it('typing in search shows filtered results in listbox', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
-        { id: 6, baptismName: 'Bob', otherNames: '', surname: 'Smith', dateOfBirth: '2017-05-15', fathersName: 'Jim', mothersName: 'Ann' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
+          { id: 6, baptismName: 'Bob', otherNames: '', surname: 'Smith', dateOfBirth: '2017-05-15', fathersName: 'Jim', mothersName: 'Ann' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -149,9 +146,11 @@ describe('Communion create page', () => {
     });
 
     it('clicking a result selects baptism and shows selected parishioner box', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -174,9 +173,11 @@ describe('Communion create page', () => {
     });
 
     it('clicking Change clears selection and shows search box again', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -197,9 +198,11 @@ describe('Communion create page', () => {
     });
 
     it('shows no matches message when search matches no baptism records', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', surname: 'Doe', dateOfBirth: '2016-01-01' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -214,9 +217,11 @@ describe('Communion create page', () => {
     });
 
     it('when baptism selected shows Baptism Certificate and Parents & Sponsors sections', async () => {
-      (fetchBaptisms as jest.Mock).mockResolvedValue([
-        { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary', sponsorNames: 'T. Walsh' },
-      ]);
+      (fetchBaptisms as jest.Mock).mockResolvedValue({
+        content: [
+          { id: 5, baptismName: 'Jane', otherNames: '', surname: 'Doe', dateOfBirth: '2016-01-01', fathersName: 'John', mothersName: 'Mary', sponsorNames: 'T. Walsh' },
+        ],
+      });
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -253,6 +258,22 @@ describe('Communion create page', () => {
         expect(screen.getByLabelText(/baptised church address/i)).toBeInTheDocument();
         expect(screen.getByText(/upload baptism certificate/i)).toBeInTheDocument();
       });
+    });
+
+    it('Save button is disabled when Baptism in this Parish selected but no baptism selected', async () => {
+      (createCommunion as jest.Mock).mockClear();
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      expect(screen.getByRole('radio', { name: /baptism in this parish/i })).toBeChecked();
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      expect(saveBtn).toBeDisabled();
+
+      await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+      expect(screen.getByRole('button', { name: /save.*register communion|register communion/i })).toBeDisabled();
+      expect(createCommunion).not.toHaveBeenCalled();
     });
 
     it('Save button is disabled when external selected but required fields or certificate missing', async () => {
@@ -330,6 +351,67 @@ describe('Communion create page', () => {
         expect(mockPush).toHaveBeenCalledWith('/communions');
       });
       expect(createCommunion).not.toHaveBeenCalled();
+    });
+
+    it('when parish has no baptisms, shows form with Baptism from another Parish pre-selected and allows creating communion', async () => {
+      (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(fetchBaptisms).toHaveBeenCalledWith(10);
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/no baptisms in this parish/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /baptism from another parish/i })).toBeChecked();
+      expect(screen.getByLabelText(/baptism name/i)).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/baptism name/i), 'John');
+      await user.type(screen.getByLabelText(/^surname$/i), 'Smith');
+      await user.type(screen.getByLabelText(/other names/i), 'Paul');
+      await user.selectOptions(screen.getByLabelText(/gender/i), 'MALE');
+      await user.type(screen.getByLabelText(/father's name/i), 'James Smith');
+      await user.type(screen.getByLabelText(/mother's name/i), 'Mary Smith');
+      await user.type(screen.getByLabelText(/baptised church address/i), '123 Church St');
+
+      const file = new File(['cert content'], 'cert.pdf', { type: 'application/pdf' });
+      const fileInput = document.querySelector('input[type="file"]');
+      fireEvent.change(fileInput!, { target: { files: [file] } });
+
+      await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+      await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
+      await user.selectOptions(screen.getByRole('combobox', { name: /mass venue/i }), 'St Mary');
+
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      await waitFor(() => {
+        expect(saveBtn).not.toBeDisabled();
+      });
+      await user.click(saveBtn);
+
+      await waitFor(() => {
+        expect(createCommunionWithCertificate).toHaveBeenCalledWith(
+          10,
+          expect.objectContaining({
+            communionDate: '2024-05-01',
+            officiatingPriest: 'Fr. Jones',
+            parish: 'St Mary',
+          }),
+          expect.any(File),
+          expect.objectContaining({
+            baptismName: 'John',
+            surname: 'Smith',
+            otherNames: 'Paul',
+            gender: 'MALE',
+            fathersName: 'James Smith',
+            mothersName: 'Mary Smith',
+            baptisedChurchAddress: '123 Church St',
+          })
+        );
+      });
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/communions');
+      });
     });
 
     it('switching back to Baptism in this Parish clears external fields and certificate', async () => {

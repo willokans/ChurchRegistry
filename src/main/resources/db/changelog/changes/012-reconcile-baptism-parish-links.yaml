@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 36
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: baptisms
+      changes:
+        - sql:
+            sql: |
+              UPDATE baptism b
+              SET parish_id = lb.parish_id
+              FROM baptisms lb
+              JOIN parish p ON p.id = lb.parish_id
+              WHERE lb.id = b.id
+                AND (
+                  b.parish_id IS NULL
+                  OR b.parish_id <> lb.parish_id
+                );
+
+              UPDATE holy_order ho
+              SET parish_id = b.parish_id
+              FROM baptism b
+              WHERE ho.baptism_id = b.id
+                AND ho.parish_id IS NULL
+                AND b.parish_id IS NOT NULL;

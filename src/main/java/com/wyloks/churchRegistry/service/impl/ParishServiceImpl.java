@@ -1,13 +1,18 @@
 package com.wyloks.churchRegistry.service.impl;
 
+import com.wyloks.churchRegistry.config.CacheConfig;
 import com.wyloks.churchRegistry.dto.ParishRequest;
 import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.entity.Diocese;
 import com.wyloks.churchRegistry.entity.Parish;
 import com.wyloks.churchRegistry.repository.DioceseRepository;
 import com.wyloks.churchRegistry.repository.ParishRepository;
+import com.wyloks.churchRegistry.security.CurrentUserAccessService;
 import com.wyloks.churchRegistry.service.ParishService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +26,20 @@ public class ParishServiceImpl implements ParishService {
 
     private final ParishRepository parishRepository;
     private final DioceseRepository dioceseRepository;
+    private final CurrentUserAccessService currentUserAccessService;
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.CACHE_PARISHES_BY_DIOCESE, keyGenerator = "dioceseParishCacheKeyGenerator")
     public List<ParishResponse> findByDioceseId(Long dioceseId) {
-        return parishRepository.findByDioceseId(dioceseId).stream()
+        CurrentUserAccessService.CurrentUserAccess currentUser = currentUserAccessService.currentUser();
+        List<Parish> parishes = currentUser.isAdmin()
+                ? parishRepository.findByDioceseId(dioceseId)
+                : currentUser.parishIds().isEmpty()
+                    ? List.of()
+                    : parishRepository.findByIdInAndDioceseId(currentUser.parishIds(), dioceseId);
+
+        return parishes.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -38,11 +52,16 @@ public class ParishServiceImpl implements ParishService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DIOCESES_WITH_PARISHES, CacheConfig.CACHE_PARISHES_BY_DIOCESE}, allEntries = true)
     public ParishResponse create(ParishRequest request) {
         Diocese diocese = dioceseRepository.findById(request.getDioceseId())
                 .orElseThrow(() -> new IllegalArgumentException("Diocese not found: " + request.getDioceseId()));
+        String parishName = NameUtils.capitalizeNameOrEmpty(request.getParishName());
+        if (parishRepository.existsByParishNameIgnoreCaseAndDioceseId(parishName, diocese.getId())) {
+            throw new IllegalArgumentException("A parish with that name already exists in this diocese");
+        }
         Parish entity = Parish.builder()
-                .parishName(request.getParishName())
+                .parishName(parishName)
                 .diocese(diocese)
                 .description(request.getDescription())
                 .build();

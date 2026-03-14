@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "baptism")
@@ -39,6 +40,12 @@ public class Baptism {
     @Column(name = "sponsor_names", nullable = false, length = 255)
     private String sponsorNames;
 
+    @Column(name = "other_names", nullable = false, length = 255)
+    private String otherNames;
+
+    @Column(name = "officiating_priest", nullable = false, length = 255)
+    private String officiatingPriest;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parish_id", foreignKey = @ForeignKey(name = "fk_baptism_parish_id"))
     private Parish parish;
@@ -51,6 +58,18 @@ public class Baptism {
 
     @Column(name = "parent_address", length = 500)
     private String parentAddress;
+
+    @Column(name = "note")
+    private String note;
+
+    @Column(name = "external_certificate_path")
+    private String externalCertificatePath;
+
+    @Column(name = "external_certificate_issuing_parish", length = 255)
+    private String externalCertificateIssuingParish;
+
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
 
     @OneToOne(mappedBy = "baptism", cascade = CascadeType.ALL, orphanRemoval = true)
     private FirstHolyCommunion firstHolyCommunion;

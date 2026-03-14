@@ -6,9 +6,7 @@ import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessag
 import type { BaptismResponse, FirstHolyCommunionResponse, ConfirmationRequest } from '@/lib/api';
 import type { ConfirmationCreateFormProps } from './ConfirmationCreateForm';
 
-export type ConfirmationCreateFormContentProps = ConfirmationCreateFormProps & {
-  showNoBaptisms: boolean;
-};
+export type ConfirmationCreateFormContentProps = ConfirmationCreateFormProps;
 
 export default function ConfirmationCreateFormContent(
   props: ConfirmationCreateFormContentProps
@@ -50,7 +48,7 @@ export default function ConfirmationCreateFormContent(
     form,
     error,
     submitting,
-    showNoBaptisms,
+    canSubmit,
     communionSearchQuery,
     setCommunionSearchQuery,
     communionSearchFocused,
@@ -81,12 +79,7 @@ export default function ConfirmationCreateFormContent(
           <p className="mt-1 text-gray-600">Register a parishioner&apos;s confirmation.</p>
         </div>
 
-        {showNoBaptisms ? (
-          <div className={cardClass}>
-            <p className="text-gray-600">No baptisms in this parish. Record a baptism first.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <div className={cardClass}>
                 <h2 className="text-lg font-semibold text-gray-900">Select Baptism Record</h2>
@@ -692,7 +685,7 @@ export default function ConfirmationCreateFormContent(
               )}
               <div className="flex flex-col gap-3">
                 {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-                <button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50">
+                <button type="submit" disabled={submitting || !canSubmit} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50">
                   {submitting ? 'Saving…' : 'Save Confirmation'}
                 </button>
                 <Link href="/confirmations" className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50">Cancel</Link>
@@ -700,7 +693,6 @@ export default function ConfirmationCreateFormContent(
               </div>
             </div>
           </form>
-        )}
       </div>
     </>
   );

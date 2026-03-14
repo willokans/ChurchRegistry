@@ -14,6 +14,8 @@ import {
   fetchCommunion,
   fetchBaptismExternalCertificate,
   fetchCommunionCertificate,
+  fetchConfirmationNoteHistory,
+  updateConfirmationNotes,
 } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
@@ -29,15 +31,21 @@ jest.mock('@/lib/api', () => ({
   fetchCommunion: jest.fn(),
   fetchBaptismExternalCertificate: jest.fn(),
   fetchCommunionCertificate: jest.fn(),
+  fetchConfirmationNoteHistory: jest.fn(),
+  updateConfirmationNotes: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
   useParish: () => ({
     parishId: 10,
     setParishId: jest.fn(),
+    dioceseId: null,
+    setDioceseId: jest.fn(),
     parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    dioceses: [],
     loading: false,
     error: null,
+    refetch: jest.fn(),
   }),
 }));
 
@@ -71,6 +79,8 @@ describe('Confirmation view page', () => {
     });
     (fetchBaptismExternalCertificate as jest.Mock).mockRejectedValue(new Error('no external cert'));
     (fetchCommunionCertificate as jest.Mock).mockRejectedValue(new Error('no external cert'));
+    (fetchConfirmationNoteHistory as jest.Mock).mockResolvedValue([]);
+    (updateConfirmationNotes as jest.Mock).mockResolvedValue({});
     (fetchConfirmation as jest.Mock).mockResolvedValue({
       id: 7,
       baptismId: 5,

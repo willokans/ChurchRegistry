@@ -13,12 +13,16 @@ import {
   fetchBaptismExternalCertificate,
   fetchCommunionCertificate,
   fetchMarriagePartyCertificate,
+  updateMarriageNotes,
+  fetchMarriageNoteHistory,
   type MarriageResponse,
   type MarriagePartyResponse,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
   type ConfirmationResponse,
+  type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -35,6 +39,13 @@ function formatTime(isoTime: string | null | undefined): string {
   const am = hour < 12;
   const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
   return `${h12}:${min} ${am ? 'AM' : 'PM'}`;
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 const cardClass = 'rounded-xl border border-gray-200 bg-white p-5 shadow-sm';
@@ -174,6 +185,11 @@ export default function MarriageViewPage() {
   const { parishId } = useParish();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const [marriage, setMarriage] = useState<MarriageResponse | null | undefined>(undefined);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [noteHistory, setNoteHistory] = useState<BaptismNoteResponse[]>([]);
+  const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
 
   const [groomBaptism, setGroomBaptism] = useState<BaptismResponse | null>(null);
   const [groomCommunion, setGroomCommunion] = useState<FirstHolyCommunionResponse | null>(null);
@@ -202,12 +218,32 @@ export default function MarriageViewPage() {
     }
     let cancelled = false;
     fetchMarriage(id).then((m) => {
-      if (!cancelled) setMarriage(m ?? null);
+      if (!cancelled) {
+        setMarriage(m ?? null);
+        setNotes(m?.note ?? '');
+      }
     }).catch(() => {
       if (!cancelled) setMarriage(null);
     });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (marriage?.id == null || Number.isNaN(id)) {
+      setNoteHistory([]);
+      return;
+    }
+    let cancelled = false;
+    setNoteHistoryLoading(true);
+    fetchMarriageNoteHistory(id).then((list) => {
+      if (!cancelled) setNoteHistory(list);
+    }).catch(() => {
+      if (!cancelled) setNoteHistory([]);
+    }).finally(() => {
+      if (!cancelled) setNoteHistoryLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [id, marriage?.id]);
 
   const groom = marriage?.parties?.find((p) => String(p.role).toUpperCase() === 'GROOM');
   const bride = marriage?.parties?.find((p) => String(p.role).toUpperCase() === 'BRIDE');
@@ -447,6 +483,24 @@ export default function MarriageViewPage() {
   const hasParties = Boolean(marriage.parties?.length);
   const witnessesList = marriage.witnesses?.map((w) => w.fullName).join(', ') ?? '—';
 
+  async function handleSaveNotes() {
+    const currentMarriage = marriage;
+    if (!currentMarriage) return;
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: currentMarriage.id,
+      updateNotes: updateMarriageNotes,
+      fetchNoteHistory: fetchMarriageNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setMarriage,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
+  }
+
   if (!hasParties) {
     return (
       <AuthenticatedLayout>
@@ -644,14 +698,38 @@ export default function MarriageViewPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-500">Add internal notes about this marriage record (optional)</p>
             <textarea
-              readOnly
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Follow-up actions, observations..."
               rows={4}
-              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-500 bg-gray-50"
+              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
             />
-            <button type="button" disabled className="mt-3 rounded-lg bg-gray-300 px-4 py-2 font-medium text-white cursor-not-allowed text-sm">
-              Save Note
+            <button
+              type="button"
+              onClick={handleSaveNotes}
+              disabled={savingNotes}
+              className="mt-3 rounded-lg bg-sancta-maroon px-4 py-2 font-medium text-white hover:bg-sancta-maroon-dark disabled:opacity-60 text-sm"
+            >
+              {savingNotes ? 'Saving…' : 'Save Note'}
             </button>
+            {notesError && <p className="mt-2 text-sm text-red-600">{notesError}</p>}
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <h3 className="text-sm font-medium text-gray-800">Note History</h3>
+              {noteHistoryLoading ? (
+                <p className="mt-2 text-sm text-gray-500">Loading note history…</p>
+              ) : noteHistory.length === 0 ? (
+                <p className="mt-2 text-sm text-gray-500">No notes saved yet.</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {noteHistory.map((item) => (
+                    <li key={item.id} className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                      <p className="text-xs text-gray-500">{formatDateTime(item.createdAt)} By {item.createdBy || 'Unknown'}</p>
+                      <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{item.content || '—'}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         </div>
 

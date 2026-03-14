@@ -1,43 +1,32 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { PaginationControls } from '@/components/PaginationControls';
+import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
+import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
-import { fetchMarriages, type MarriageResponse } from '@/lib/api';
+import { useMarriages } from '@/lib/use-sacrament-lists';
+import { MONTH_LABELS, monthOptions, dayOptions } from '@/lib/date-filters';
+import type { MarriageResponse } from '@/lib/api';
 
 export default function MarriagesListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const [marriages, setMarriages] = useState<MarriageResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const { data: marriages, totalElements, totalPages, size, isLoading: loading, error } = useMarriages(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [dayFilter, setDayFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (parishId === null) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const list = await fetchMarriages(parishId);
-        if (!cancelled) setMarriages(list);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    setPage(0);
   }, [parishId]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isLoading = parishLoading || (parishId !== null && loading);
   const years = useMemo(() => {
@@ -51,6 +40,8 @@ export default function MarriagesListPage() {
   const filteredMarriages = useMemo(() => {
     return marriages.filter((m) => {
       if (yearFilter !== 'all' && (!m.marriageDate || m.marriageDate.slice(0, 4) !== yearFilter)) return false;
+      if (monthFilter !== 'all' && (!m.marriageDate || m.marriageDate.length < 7 || m.marriageDate.slice(5, 7) !== monthFilter)) return false;
+      if (dayFilter !== 'all' && (!m.marriageDate || m.marriageDate.length < 10 || m.marriageDate.slice(8, 10) !== dayFilter)) return false;
       if (genderFilter !== 'all') {
         const gender = inferGender(m);
         if (gender !== genderFilter) return false;
@@ -67,7 +58,7 @@ export default function MarriagesListPage() {
         (m.witnessesDisplay ?? '').toLowerCase().includes(q)
       );
     });
-  }, [marriages, yearFilter, genderFilter, searchQuery]);
+  }, [marriages, yearFilter, monthFilter, dayFilter, genderFilter, searchQuery]);
 
   if (isLoading) {
     return (
@@ -80,7 +71,7 @@ export default function MarriagesListPage() {
   if (error) {
     return (
       <AuthenticatedLayout>
-        <p role="alert" className="text-red-600">{error}</p>
+        <p role="alert" className="text-red-600">{error.message}</p>
       </AuthenticatedLayout>
     );
   }
@@ -103,6 +94,7 @@ export default function MarriagesListPage() {
           </h1>
           <Link
             href={`/marriages/new?parishId=${parishId}`}
+            prefetch={false}
             className="hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             <span aria-hidden>+</span>
@@ -120,6 +112,28 @@ export default function MarriagesListPage() {
             <option value="all">All Years</option>
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter marriages by month"
+          >
+            <option value="all">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>{MONTH_LABELS[m] ?? m}</option>
+            ))}
+          </select>
+          <select
+            value={dayFilter}
+            onChange={(e) => setDayFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter marriages by day"
+          >
+            <option value="all">All Days</option>
+            {dayOptions.map((d) => (
+              <option key={d} value={d}>{Number.parseInt(d, 10)}</option>
             ))}
           </select>
           <select
@@ -176,9 +190,20 @@ export default function MarriagesListPage() {
           </>
         ) : (
           <>
-            <ul className="md:hidden space-y-3" role="list">
-              {filteredMarriages.map((m) => (
-                <li key={m.id}>
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              size={size}
+              onPageChange={setPage}
+              isLoading={loading}
+              ariaLabel="marriages"
+            />
+            <div className="md:hidden">
+              <VirtualizedCardList
+                items={filteredMarriages}
+                getItemKey={(m) => String(m.id)}
+                renderCard={(m) => (
                   <button
                     type="button"
                     onClick={() => router.push(`/marriages/${m.id}`)}
@@ -192,19 +217,20 @@ export default function MarriagesListPage() {
                     <p className="text-sm text-gray-600">{m.officiatingPriest || '—'}</p>
                     <p className="text-xs text-gray-500 mt-1">{m.parish || '—'}</p>
                   </button>
-                </li>
-              ))}
-            </ul>
+                )}
+              />
+            </div>
 
             <div className="md:hidden pt-2">
               <AddRecordDesktopOnlyMessage />
             </div>
 
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-[1050px] w-full table-auto" role="grid">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50/80">
+              <VirtualizedTableContainer itemCount={filteredMarriages.length}>
+                {(scrollContainerRef) => (
+                  <table className="min-w-[1050px] w-full table-auto" role="grid">
+                    <thead>
+                      <tr className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/80">
                       <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
                         GROOM NAME
                       </th>
@@ -242,47 +268,46 @@ export default function MarriagesListPage() {
                         CERTIFICATE
                       </th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {filteredMarriages.map((m) => (
-                      <tr
-                        key={m.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/marriages/${m.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && router.push(`/marriages/${m.id}`)}
-                        className="cursor-pointer hover:bg-gray-50/80 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                          {m.groomName || splitPartners(m.partnersName).groom}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                          {m.brideName || splitPartners(m.partnersName).bride}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.marriageDate}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomFatherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomMotherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideFatherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideMotherName || 'See Certificate'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.diocese || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.officiatingPriest || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.witnessesDisplay || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                          <Link
-                            href={`/marriages/${m.id}/certificate`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sancta-maroon hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Civil Marriage Certificate
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <VirtualizedTableBody
+                      items={filteredMarriages}
+                      getRowKey={(m) => String(m.id)}
+                      scrollContainerRef={scrollContainerRef}
+                      onRowClick={(m) => router.push(`/marriages/${m.id}`)}
+                      renderRow={(m) => (
+                        <>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                            {m.groomName || splitPartners(m.partnersName).groom}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                            {m.brideName || splitPartners(m.partnersName).bride}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.marriageDate}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomFatherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.groomMotherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideFatherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.brideMotherName || 'See Certificate'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.diocese || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.officiatingPriest || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{m.witnessesDisplay || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                            <Link
+                              href={`/marriages/${m.id}/certificate`}
+                              prefetch={false}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sancta-maroon hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Civil Marriage Certificate
+                            </Link>
+                          </td>
+                        </>
+                      )}
+                    />
+                  </table>
+                )}
+              </VirtualizedTableContainer>
             </div>
           </>
         )}

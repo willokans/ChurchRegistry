@@ -1,14 +1,15 @@
 /**
  * TDD: Holy Order list page.
  * - When authenticated, fetches holy orders for parish and shows list or empty state
- * - Shows link to add new holy order
+ * - Add holy order button disabled (coming soon)
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import HolyOrdersPage from '@/app/holy-orders/page';
 import { getStoredToken, getStoredUser, fetchHolyOrders } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -30,27 +31,21 @@ describe('Holy Orders list page', () => {
   beforeEach(() => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      loading: false,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      error: null,
-    });
-    (fetchHolyOrders as jest.Mock).mockResolvedValue([]);
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
+    (fetchHolyOrders as jest.Mock).mockResolvedValue({ content: [] });
     (fetchHolyOrders as jest.Mock).mockClear();
   });
 
   it('when authenticated fetches holy orders and shows list heading', async () => {
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
-      expect(fetchHolyOrders).toHaveBeenCalledWith(10);
+      expect(fetchHolyOrders).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /holy order/i })).toBeInTheDocument();
   });
 
   it('shows empty state when no holy orders', async () => {
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
@@ -58,10 +53,12 @@ describe('Holy Orders list page', () => {
   });
 
   it('shows list of holy orders when data returned', async () => {
-    (fetchHolyOrders as jest.Mock).mockResolvedValue([
-      { id: 1, confirmationId: 7, ordinationDate: '2025-09-01', orderType: 'PRIEST', officiatingBishop: 'Bishop Jones' },
-    ]);
-    render(<HolyOrdersPage />);
+    (fetchHolyOrders as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, confirmationId: 7, ordinationDate: '2025-09-01', orderType: 'PRIEST', officiatingBishop: 'Bishop Jones' },
+      ],
+    });
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
@@ -69,26 +66,22 @@ describe('Holy Orders list page', () => {
     expect(screen.getByRole('main')).toHaveTextContent('PRIEST');
   });
 
-  it('shows link to add new holy order', async () => {
-    render(<HolyOrdersPage />);
+  it('shows add holy order button disabled (coming soon)', async () => {
+    renderWithSWR(<HolyOrdersPage />);
     await waitFor(() => {
       expect(fetchHolyOrders).toHaveBeenCalled();
     });
-    const main = screen.getByRole('main');
-    const addLinks = within(main).getAllByRole('link', { name: /add holy order/i });
-    expect(addLinks.length).toBeGreaterThanOrEqual(1);
-    expect(addLinks[0].getAttribute('href')).toMatch(/holy-orders\/new/);
+    const comingSoon = screen.getAllByText(/add holy order \(coming soon\)/i);
+    expect(comingSoon.length).toBeGreaterThanOrEqual(1);
   });
 
   it('when no parishes shows message and no fetch to holy orders', async () => {
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      loading: false,
-      setParishId: jest.fn(),
       parishes: [],
-      error: null,
     });
-    render(<HolyOrdersPage />);
+    renderWithSWR(<HolyOrdersPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();

@@ -4,11 +4,12 @@
  * - Shows link to add new marriage
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import MarriagesPage from '@/app/marriages/page';
 import { getStoredToken, getStoredUser, fetchMarriages } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -30,27 +31,21 @@ describe('Marriages list page', () => {
   beforeEach(() => {
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      loading: false,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      error: null,
-    });
-    (fetchMarriages as jest.Mock).mockResolvedValue([]);
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
+    (fetchMarriages as jest.Mock).mockResolvedValue({ content: [] });
     (fetchMarriages as jest.Mock).mockClear();
   });
 
   it('when authenticated fetches marriages and shows list heading', async () => {
-    render(<MarriagesPage />);
+    renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
-      expect(fetchMarriages).toHaveBeenCalledWith(10);
+      expect(fetchMarriages).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /marriage|holy matrimony|matrimony/i })).toBeInTheDocument();
   });
 
   it('shows empty state when no marriages', async () => {
-    render(<MarriagesPage />);
+    renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
     });
@@ -58,10 +53,12 @@ describe('Marriages list page', () => {
   });
 
   it('shows list of marriages when data returned', async () => {
-    (fetchMarriages as jest.Mock).mockResolvedValue([
-      { id: 1, confirmationId: 7, partnersName: 'John & Jane', marriageDate: '2025-06-15', officiatingPriest: 'Fr. Smith', parish: 'St Mary' },
-    ]);
-    render(<MarriagesPage />);
+    (fetchMarriages as jest.Mock).mockResolvedValue({
+      content: [
+        { id: 1, confirmationId: 7, partnersName: 'John & Jane', marriageDate: '2025-06-15', officiatingPriest: 'Fr. Smith', parish: 'St Mary' },
+      ],
+    });
+    renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
     });
@@ -70,10 +67,11 @@ describe('Marriages list page', () => {
   });
 
   it('shows the requested matrimony grid headers on desktop table', async () => {
-    (fetchMarriages as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        partnersName: 'John Okeke & Jane Woods',
+    (fetchMarriages as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          partnersName: 'John Okeke & Jane Woods',
         marriageDate: '2026-06-25',
         officiatingPriest: 'Fr. Smith',
         parish: 'St Mary',
@@ -86,8 +84,9 @@ describe('Marriages list page', () => {
         brideMotherName: 'Ada Woods',
         witnessesDisplay: 'Peter N, Mark O',
       },
-    ]);
-    render(<MarriagesPage />);
+      ],
+    });
+    renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
     });
@@ -106,9 +105,10 @@ describe('Marriages list page', () => {
   });
 
   it('shows groom/bride parents, witnesses and civil certificate link', async () => {
-    (fetchMarriages as jest.Mock).mockResolvedValue([
-      {
-        id: 11,
+    (fetchMarriages as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 11,
         partnersName: 'Jacob Lamin & Rebecca Smith',
         marriageDate: '2026-09-14',
         officiatingPriest: 'Fr. Damian',
@@ -122,8 +122,9 @@ describe('Marriages list page', () => {
         brideMotherName: 'Mary Smith',
         witnessesDisplay: 'Peter Nkosi, Felix Obinna',
       },
-    ]);
-    render(<MarriagesPage />);
+      ],
+    });
+    renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
     });
@@ -142,7 +143,7 @@ describe('Marriages list page', () => {
   });
 
   it('shows link to add new marriage', async () => {
-    render(<MarriagesPage />);
+    renderWithSWR(<MarriagesPage />);
     await waitFor(() => {
       expect(fetchMarriages).toHaveBeenCalled();
     });
@@ -154,13 +155,11 @@ describe('Marriages list page', () => {
 
   it('when no parishes shows message and no fetch to marriages', async () => {
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      loading: false,
-      setParishId: jest.fn(),
       parishes: [],
-      error: null,
     });
-    render(<MarriagesPage />);
+    renderWithSWR(<MarriagesPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();

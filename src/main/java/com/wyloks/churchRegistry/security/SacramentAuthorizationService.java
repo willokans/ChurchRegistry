@@ -3,6 +3,7 @@ package com.wyloks.churchRegistry.security;
 import com.wyloks.churchRegistry.repository.BaptismRepository;
 import com.wyloks.churchRegistry.repository.ConfirmationRepository;
 import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
+import com.wyloks.churchRegistry.repository.HolyOrderRepository;
 import com.wyloks.churchRegistry.repository.MarriageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,10 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Final authorization guard for sacrament read/write operations.
+ * Scope is derived from app_user_parish_access (assignment flow); parish_id is optional default.
+ */
 @Component
 @RequiredArgsConstructor
 public class SacramentAuthorizationService {
@@ -25,14 +30,33 @@ public class SacramentAuthorizationService {
     private final FirstHolyCommunionRepository communionRepository;
     private final ConfirmationRepository confirmationRepository;
     private final MarriageRepository marriageRepository;
+    private final HolyOrderRepository holyOrderRepository;
 
     public void requireParishAccess(Long parishId) {
         CurrentUser user = currentUser();
         if (user.isAdmin()) {
             return;
         }
-        if (parishId == null || user.parishId() == null || !parishId.equals(user.parishId())) {
+        if (user.parishIds().isEmpty()) {
+            throw forbidden("No parish assigned. Contact admin.");
+        }
+        if (parishId == null || !user.parishIds().contains(parishId)) {
             throw forbidden("Cross-parish access denied");
+        }
+    }
+
+    /**
+     * Ensures the current user can access diocese-level data (e.g. diocesan dashboard).
+     * ADMIN and SUPER_ADMIN can access any diocese; other roles are denied.
+     * Future: DIOCESE_ADMIN would be restricted to their assigned diocese.
+     */
+    public void requireDioceseAccess(Long dioceseId) {
+        CurrentUser user = currentUser();
+        if (!user.isAdmin()) {
+            throw forbidden("Diocese access denied. Only ADMIN and SUPER_ADMIN can access the diocesan dashboard.");
+        }
+        if (dioceseId == null) {
+            throw forbidden("Diocese ID is required");
         }
     }
 
@@ -42,7 +66,10 @@ public class SacramentAuthorizationService {
             throw forbidden("Insufficient role for sacrament write access");
         }
         if (!user.isAdmin()) {
-            if (parishId == null || user.parishId() == null || !parishId.equals(user.parishId())) {
+            if (user.parishIds().isEmpty()) {
+                throw forbidden("No parish assigned. Contact admin.");
+            }
+            if (parishId == null || !user.parishIds().contains(parishId)) {
                 throw forbidden("Cross-parish write denied");
             }
         }
@@ -76,6 +103,10 @@ public class SacramentAuthorizationService {
         return marriageRepository.findParishIdByConfirmationId(confirmationId);
     }
 
+    public Optional<Long> findHolyOrderParishId(Long holyOrderId) {
+        return holyOrderRepository.findParishIdById(holyOrderId);
+    }
+
     public Optional<Long> findBaptismParishIdForCommunionRequest(Long baptismId) {
         return baptismRepository.findParishIdById(baptismId);
     }
@@ -96,7 +127,7 @@ public class SacramentAuthorizationService {
             throw forbidden("Role is required");
         }
 
-        return new CurrentUser(role, userDetails.getParishId());
+        return new CurrentUser(role, userDetails.getParishAccessIds());
     }
 
     private String normalizeRole(String role) {
@@ -110,9 +141,9 @@ public class SacramentAuthorizationService {
         return new ResponseStatusException(HttpStatus.FORBIDDEN, message);
     }
 
-    private record CurrentUser(String role, Long parishId) {
+    private record CurrentUser(String role, Set<Long> parishIds) {
         boolean isAdmin() {
-            return "ADMIN".equals(role);
+            return "ADMIN".equals(role) || "SUPER_ADMIN".equals(role);
         }
     }
 }

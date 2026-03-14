@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -10,16 +11,27 @@ import {
   fetchCommunion,
   fetchBaptismExternalCertificate,
   fetchCommunionCertificate,
+  updateConfirmationNotes,
+  fetchConfirmationNoteHistory,
   type ConfirmationResponse,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
+  type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
   const d = new Date(isoDate + 'T00:00:00');
   if (Number.isNaN(d.getTime())) return isoDate;
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 const cardClass = 'rounded-xl border border-gray-200 bg-white p-5 shadow-sm';
@@ -103,17 +115,24 @@ export default function ConfirmationViewPage() {
   const [baptism, setBaptism] = useState<BaptismResponse | null>(null);
   const [communion, setCommunion] = useState<FirstHolyCommunionResponse | null>(null);
 
+  const [baptismCertExpanded, setBaptismCertExpanded] = useState(false);
   const [baptismCertUrl, setBaptismCertUrl] = useState<string | null>(null);
   const [baptismCertIsPdf, setBaptismCertIsPdf] = useState(true);
   const baptismCertUrlRef = useRef<string | null>(null);
   const [baptismCertLoading, setBaptismCertLoading] = useState(false);
   const [baptismCertError, setBaptismCertError] = useState<string | null>(null);
 
+  const [communionCertExpanded, setCommunionCertExpanded] = useState(false);
   const [communionCertUrl, setCommunionCertUrl] = useState<string | null>(null);
   const [communionCertIsPdf, setCommunionCertIsPdf] = useState(true);
   const communionCertUrlRef = useRef<string | null>(null);
   const [communionCertLoading, setCommunionCertLoading] = useState(false);
   const [communionCertError, setCommunionCertError] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [noteHistory, setNoteHistory] = useState<BaptismNoteResponse[]>([]);
+  const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (Number.isNaN(id)) {
@@ -122,12 +141,32 @@ export default function ConfirmationViewPage() {
     }
     let cancelled = false;
     fetchConfirmation(id).then((c) => {
-      if (!cancelled) setConfirmation(c ?? null);
+      if (!cancelled) {
+        setConfirmation(c ?? null);
+        setNotes(c?.note ?? '');
+      }
     }).catch(() => {
       if (!cancelled) setConfirmation(null);
     });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (confirmation?.id == null || Number.isNaN(id)) {
+      setNoteHistory([]);
+      return;
+    }
+    let cancelled = false;
+    setNoteHistoryLoading(true);
+    fetchConfirmationNoteHistory(id).then((list) => {
+      if (!cancelled) setNoteHistory(list);
+    }).catch(() => {
+      if (!cancelled) setNoteHistory([]);
+    }).finally(() => {
+      if (!cancelled) setNoteHistoryLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [id, confirmation?.id]);
 
   useEffect(() => {
     if (!confirmation?.baptismId) {
@@ -160,7 +199,7 @@ export default function ConfirmationViewPage() {
   const hasBaptismCert = Boolean(baptism?.externalCertificatePath);
 
   useEffect(() => {
-    if (!hasBaptismCert || !confirmation?.baptismId) return;
+    if (!baptismCertExpanded || !hasBaptismCert || !confirmation?.baptismId) return;
     let cancelled = false;
     setBaptismCertLoading(true);
     setBaptismCertError(null);
@@ -187,12 +226,12 @@ export default function ConfirmationViewPage() {
       }
       setBaptismCertUrl(null);
     };
-  }, [confirmation?.baptismId, hasBaptismCert]);
+  }, [baptismCertExpanded, confirmation?.baptismId, hasBaptismCert]);
 
   const hasCommunionCert = Boolean(communion?.communionCertificatePath);
 
   useEffect(() => {
-    if (!hasCommunionCert || !confirmation?.communionId) return;
+    if (!communionCertExpanded || !hasCommunionCert || !confirmation?.communionId) return;
     let cancelled = false;
     setCommunionCertLoading(true);
     setCommunionCertError(null);
@@ -219,7 +258,7 @@ export default function ConfirmationViewPage() {
       }
       setCommunionCertUrl(null);
     };
-  }, [confirmation?.communionId, hasCommunionCert]);
+  }, [communionCertExpanded, confirmation?.communionId, hasCommunionCert]);
 
   const handleDownloadBaptismCert = useCallback(() => {
     if (!confirmation?.baptismId || !baptism) return;
@@ -313,6 +352,23 @@ export default function ConfirmationViewPage() {
 
   const hasExternalConfirmationCert = false;
 
+  async function handleSaveNotes() {
+    if (!confirmation) return;
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: confirmation.id,
+      updateNotes: updateConfirmationNotes,
+      fetchNoteHistory: fetchConfirmationNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setConfirmation,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
+  }
+
   return (
     <AuthenticatedLayout>
       <div className="mb-4">
@@ -405,43 +461,62 @@ export default function ConfirmationViewPage() {
             </h2>
             {hasBaptismCert ? (
               <>
-                <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-                  {baptismCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
-                  {baptismCertError && <p className="text-red-600 text-sm p-4">{baptismCertError}</p>}
-                  {!baptismCertLoading && !baptismCertError && baptismCertUrl && (
-                    baptismCertIsPdf ? (
-                      <iframe
-                        src={`${baptismCertUrl}#view=FitH`}
-                        title="Baptism certificate (from linked record)"
-                        className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-                      />
-                    ) : (
-                      <img
-                        src={baptismCertUrl}
-                        alt="Baptism certificate (from linked record)"
-                        className="w-full h-full object-contain border-0 rounded"
-                      />
-                    )
-                  )}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleViewBaptismFullscreen}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <ExpandIcon className="h-4 w-4" />
-                    View Fullscreen
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadBaptismCert}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <DownloadIcon className="h-4 w-4" />
-                    Download PDF
-                  </button>
-                </div>
+                {!baptismCertExpanded ? (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setBaptismCertExpanded(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ExpandIcon className="h-4 w-4" />
+                      View certificate
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                      {baptismCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
+                      {baptismCertError && <p className="text-red-600 text-sm p-4">{baptismCertError}</p>}
+                      {!baptismCertLoading && !baptismCertError && baptismCertUrl && (
+                        baptismCertIsPdf ? (
+                          <iframe
+                            src={`${baptismCertUrl}#view=FitH`}
+                            title="Baptism certificate (from linked record)"
+                            className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                          />
+                        ) : (
+                          <div className="relative w-full h-full min-h-[200px]">
+                            <Image
+                              src={baptismCertUrl}
+                              alt="Baptism certificate (from linked record)"
+                              fill
+                              className="object-contain border-0 rounded"
+                              unoptimized
+                            />
+                          </div>
+                        )
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleViewBaptismFullscreen}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExpandIcon className="h-4 w-4" />
+                        View Fullscreen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadBaptismCert}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                        Download PDF
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -466,43 +541,62 @@ export default function ConfirmationViewPage() {
             </h2>
             {hasCommunionCert ? (
               <>
-                <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-                  {communionCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
-                  {communionCertError && <p className="text-red-600 text-sm p-4">{communionCertError}</p>}
-                  {!communionCertLoading && !communionCertError && communionCertUrl && (
-                    communionCertIsPdf ? (
-                      <iframe
-                        src={`${communionCertUrl}#view=FitH`}
-                        title="Holy Communion certificate (from linked record)"
-                        className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-                      />
-                    ) : (
-                      <img
-                        src={communionCertUrl}
-                        alt="Holy Communion certificate (from linked record)"
-                        className="w-full h-full object-contain border-0 rounded"
-                      />
-                    )
-                  )}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleViewCommunionFullscreen}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <ExpandIcon className="h-4 w-4" />
-                    View Fullscreen
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadCommunionCert}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <DownloadIcon className="h-4 w-4" />
-                    Download PDF
-                  </button>
-                </div>
+                {!communionCertExpanded ? (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setCommunionCertExpanded(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ExpandIcon className="h-4 w-4" />
+                      View certificate
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                      {communionCertLoading && <p className="text-gray-500 p-4">Loading certificate…</p>}
+                      {communionCertError && <p className="text-red-600 text-sm p-4">{communionCertError}</p>}
+                      {!communionCertLoading && !communionCertError && communionCertUrl && (
+                        communionCertIsPdf ? (
+                          <iframe
+                            src={`${communionCertUrl}#view=FitH`}
+                            title="Holy Communion certificate (from linked record)"
+                            className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                          />
+                        ) : (
+                          <div className="relative w-full h-full min-h-[200px]">
+                            <Image
+                              src={communionCertUrl}
+                              alt="Holy Communion certificate (from linked record)"
+                              fill
+                              className="object-contain border-0 rounded"
+                              unoptimized
+                            />
+                          </div>
+                        )
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleViewCommunionFullscreen}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExpandIcon className="h-4 w-4" />
+                        View Fullscreen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadCommunionCert}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                        Download PDF
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -527,18 +621,38 @@ export default function ConfirmationViewPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-500">Add internal notes about this Confirmation record (optional)</p>
             <textarea
-              readOnly
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Follow-up actions, observations..."
               rows={4}
-              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-500 bg-gray-50"
+              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
             />
             <button
               type="button"
-              disabled
-              className="mt-3 rounded-lg bg-gray-300 px-4 py-2 font-medium text-white cursor-not-allowed text-sm"
+              onClick={handleSaveNotes}
+              disabled={savingNotes}
+              className="mt-3 rounded-lg bg-sancta-maroon px-4 py-2 font-medium text-white hover:bg-sancta-maroon-dark disabled:opacity-60 text-sm"
             >
-              Save Note
+              {savingNotes ? 'Saving…' : 'Save Note'}
             </button>
+            {notesError && <p className="mt-2 text-sm text-red-600">{notesError}</p>}
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <h3 className="text-sm font-medium text-gray-800">Note History</h3>
+              {noteHistoryLoading ? (
+                <p className="mt-2 text-sm text-gray-500">Loading note history…</p>
+              ) : noteHistory.length === 0 ? (
+                <p className="mt-2 text-sm text-gray-500">No notes saved yet.</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {noteHistory.map((item) => (
+                    <li key={item.id} className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                      <p className="text-xs text-gray-500">{formatDateTime(item.createdAt)} By {item.createdBy || 'Unknown'}</p>
+                      <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{item.content || '—'}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         </div>
 

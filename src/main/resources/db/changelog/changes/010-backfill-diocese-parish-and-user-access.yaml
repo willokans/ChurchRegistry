@@ -1,0 +1,149 @@
+databaseChangeLog:
+  - changeSet:
+      id: 26
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: dioceses
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO diocese (id, diocese_name, code, description)
+              SELECT d.id, COALESCE(NULLIF(d.name, ''), 'Diocese ' || d.id), NULL, NULL
+              FROM dioceses d
+              ON CONFLICT (id) DO UPDATE
+              SET diocese_name = EXCLUDED.diocese_name;
+
+  - changeSet:
+      id: 27
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: parishes
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO parish (id, diocese_id, parish_name, description)
+              SELECT p.id, p.diocese_id, p.parish_name, p.description
+              FROM parishes p
+              JOIN diocese d ON d.id = p.diocese_id
+              ON CONFLICT (id) DO UPDATE
+              SET diocese_id = EXCLUDED.diocese_id,
+                  parish_name = EXCLUDED.parish_name,
+                  description = EXCLUDED.description;
+
+  - changeSet:
+      id: 28
+      author: will_okanumeh
+      validCheckSum:
+        - 9:dcc67587919b57faeda84afe3ba5a556
+        - 9:639493dc52e851099cf8233bd834b313
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+      comment: Set sequences for diocese/parish only; no default diocese or parish seeded (create via UI).
+      changes:
+        - sql:
+            sql: |
+              SELECT setval(
+                pg_get_serial_sequence('diocese', 'id'),
+                COALESCE((SELECT MAX(id) FROM diocese), 1),
+                true
+              )
+              WHERE EXISTS (SELECT 1 FROM diocese);
+
+              SELECT setval(
+                pg_get_serial_sequence('parish', 'id'),
+                COALESCE((SELECT MAX(id) FROM parish), 1),
+                true
+              )
+              WHERE EXISTS (SELECT 1 FROM parish);
+
+  - changeSet:
+      id: 29
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              WITH p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              ),
+              p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              UPDATE app_user
+              SET parish_id = CASE
+                    WHEN username IN ('fr_tomas.walsh@church_registry.com', 'priest_test@church_registry.com', 'priest@church_registry.com', 'secretary@church_registry.com')
+                      THEN COALESCE((SELECT id FROM p_holy_family), parish_id)
+                    WHEN username = 'fr.raph.okanumeh@church_registry.com'
+                      THEN COALESCE((SELECT id FROM p_st_peter), parish_id)
+                    ELSE parish_id
+                  END
+              WHERE username IN (
+                'fr_tomas.walsh@church_registry.com',
+                'fr.raph.okanumeh@church_registry.com',
+                'priest_test@church_registry.com',
+                'priest@church_registry.com',
+                'secretary@church_registry.com'
+              );
+
+  - changeSet:
+      id: 30
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              WITH p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user_parish_access (user_id, parish_id)
+              SELECT u.id, p.id
+              FROM app_user u
+              JOIN p_holy_family p ON TRUE
+              WHERE u.username IN (
+                'fr_tomas.walsh@church_registry.com',
+                'priest_test@church_registry.com',
+                'priest@church_registry.com',
+                'secretary@church_registry.com'
+              )
+              ON CONFLICT DO NOTHING;
+
+              WITH p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user_parish_access (user_id, parish_id)
+              SELECT u.id, p.id
+              FROM app_user u
+              JOIN p_st_peter p ON TRUE
+              WHERE u.username IN (
+                'fr.raph.okanumeh@church_registry.com',
+                'priest_test@church_registry.com'
+              )
+              ON CONFLICT DO NOTHING;

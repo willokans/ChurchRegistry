@@ -10,7 +10,10 @@ import com.wyloks.churchRegistry.repository.HolyOrderRepository;
 import com.wyloks.churchRegistry.repository.MarriageRepository;
 import com.wyloks.churchRegistry.repository.ParishRepository;
 import com.wyloks.churchRegistry.service.HolyOrderService;
+import com.wyloks.churchRegistry.util.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,12 @@ public class HolyOrderServiceImpl implements HolyOrderService {
         return holyOrderRepository.findByBaptismParishId(parishId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<HolyOrderResponse> findByParishId(Long parishId, Pageable pageable) {
+        return holyOrderRepository.findByBaptismParishId(parishId, pageable).map(this::toResponse);
     }
 
     @Override
@@ -67,7 +76,7 @@ public class HolyOrderServiceImpl implements HolyOrderService {
                 .confirmation(confirmation)
                 .ordinationDate(request.getOrdinationDate())
                 .orderType(request.getOrderType())
-                .officiatingBishop(request.getOfficiatingBishop())
+                .officiatingBishop(NameUtils.capitalizeNameOrEmpty(request.getOfficiatingBishop()))
                 .parish(parish)
                 .build();
         entity = holyOrderRepository.save(entity);

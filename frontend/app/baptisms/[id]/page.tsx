@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -13,6 +14,7 @@ import {
   type BaptismResponse,
   type BaptismNoteResponse,
 } from '@/lib/api';
+import { saveNotesOptimistically } from '@/lib/optimistic-notes';
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '—';
@@ -102,7 +104,7 @@ export default function BaptismViewPage() {
   }, [id, baptism?.id]);
 
   useEffect(() => {
-    if (!isExternalBaptism || Number.isNaN(id)) return;
+    if (!certificateModalOpen || !isExternalBaptism || Number.isNaN(id)) return;
     let cancelled = false;
     setCertificateLoading(true);
     setCertificateError(null);
@@ -129,7 +131,7 @@ export default function BaptismViewPage() {
       }
       setCertificateObjectUrl(null);
     };
-  }, [id, isExternalBaptism]);
+  }, [id, isExternalBaptism, certificateModalOpen]);
 
   const handleDownloadCertificate = useCallback(async (format: 'pdf' | 'image' = 'pdf') => {
     if (!id || !isExternalBaptism || !baptism) return;
@@ -164,18 +166,19 @@ export default function BaptismViewPage() {
 
   async function handleSaveNotes() {
     if (baptism == null) return;
-    setNotesError(null);
-    setSavingNotes(true);
-    try {
-      const updated = await updateBaptismNotes(baptism.id, notes);
-      setBaptism(updated);
-      const list = await fetchBaptismNoteHistory(baptism.id);
-      setNoteHistory(list);
-    } catch (e) {
-      setNotesError(e instanceof Error ? e.message : 'Failed to save notes');
-    } finally {
-      setSavingNotes(false);
-    }
+    await saveNotesOptimistically({
+      notes,
+      noteHistory,
+      entityId: baptism.id,
+      updateNotes: updateBaptismNotes,
+      fetchNoteHistory: fetchBaptismNoteHistory,
+      setNotes,
+      setNoteHistory,
+      setEntity: setBaptism,
+      setNotesError,
+      setSavingNotes,
+      errorFallback: 'Failed to save notes',
+    });
   }
 
   function openEmailModal() {
@@ -399,7 +402,7 @@ export default function BaptismViewPage() {
               <ul className="mt-3 space-y-4" role="list">
                 {noteHistory.map((entry) => (
                   <li key={entry.id} className="border-l-2 border-gray-200 pl-4">
-                    <p className="text-xs font-medium text-gray-500">{formatDateTime(entry.createdAt)}</p>
+                    <p className="text-xs font-medium text-gray-500">{formatDateTime(entry.createdAt)} By {entry.createdBy || 'Unknown'}</p>
                     <p className="mt-0.5 text-sm text-gray-900 whitespace-pre-wrap">{entry.content}</p>
                   </li>
                 ))}
@@ -446,11 +449,15 @@ export default function BaptismViewPage() {
                       className="w-full h-full min-w-0 min-h-0 border-0 rounded"
                     />
                   ) : (
-                    <img
-                      src={certificateObjectUrl}
-                      alt="External baptism certificate"
-                      className="w-full h-full object-contain border-0 rounded"
-                    />
+                    <div className="relative w-full h-full min-h-[200px]">
+                      <Image
+                        src={certificateObjectUrl}
+                        alt="External baptism certificate"
+                        fill
+                        className="object-contain border-0 rounded"
+                        unoptimized
+                      />
+                    </div>
                   )
                 )}
               </div>
@@ -634,11 +641,15 @@ function CertificatePopupModal({
                 className="w-full h-full min-h-[60vh] rounded border border-gray-200 bg-white"
               />
             ) : (
-              <img
-                src={certificateObjectUrl}
-                alt="External baptism certificate"
-                className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded border border-gray-200 bg-white"
-              />
+              <div className="relative w-full max-w-4xl h-[70vh] min-h-[200px]">
+                <Image
+                  src={certificateObjectUrl}
+                  alt="External baptism certificate"
+                  fill
+                  className="object-contain rounded border border-gray-200 bg-white"
+                  unoptimized
+                />
+              </div>
             )
           )}
         </div>

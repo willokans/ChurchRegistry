@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wyloks.churchRegistry.dto.BaptismRequest;
 import com.wyloks.churchRegistry.dto.BaptismResponse;
+import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
 import com.wyloks.churchRegistry.service.BaptismService;
+import com.wyloks.churchRegistry.service.SacramentAuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.wyloks.churchRegistry.config.TestSecurityConfig;
+
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -43,6 +49,12 @@ class BaptismControllerTest {
     @MockBean
     BaptismService baptismService;
 
+    @MockBean
+    SacramentAuthorizationService sacramentAuthorizationService;
+
+    @MockBean
+    SacramentAuditService sacramentAuditService;
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
@@ -50,13 +62,42 @@ class BaptismControllerTest {
     }
 
     @Test
-    void getBaptismsByParish_returnsEmptyList_whenNoneExist() throws Exception {
-        when(baptismService.findByParishId(1L)).thenReturn(List.of());
+    void getBaptismsByParish_returnsEmptyPage_whenNoneExist() throws Exception {
+        when(baptismService.findByParishId(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 50), 0));
 
         mvc.perform(get("/api/parishes/1/baptisms"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void searchBaptisms_returnsMatchingResults() throws Exception {
+        BaptismResponse response = BaptismResponse.builder()
+                .id(1L)
+                .baptismName("Alice")
+                .surname("Smith")
+                .parishId(1L)
+                .build();
+        when(baptismService.searchByNameOrAddress(eq(1L), eq("alice"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 50), 1));
+
+        mvc.perform(get("/api/parishes/1/baptisms/search").param("q", "alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].baptismName").value("Alice"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void searchBaptisms_returnsEmptyPage_whenQueryBlank() throws Exception {
+        mvc.perform(get("/api/parishes/1/baptisms/search").param("q", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0));
     }
 
     @Test

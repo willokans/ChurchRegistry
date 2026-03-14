@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getStoredToken, getStoredUser, clearAuth } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { getChurchBranding } from '@/lib/church-branding';
 
 function CrossIcon({ className }: { className?: string }) {
   return (
@@ -30,6 +32,16 @@ function CloseIcon({ className }: { className?: string }) {
   );
 }
 
+function HelpIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
 export default function AuthenticatedLayout({
   children,
 }: {
@@ -38,7 +50,7 @@ export default function AuthenticatedLayout({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { parishId, setParishId, parishes, loading: parishLoading } = useParish();
+  const { parishId, setParishId, dioceseId, setDioceseId, parishes = [], dioceses = [], loading: parishLoading, error: parishError, refetch } = useParish();
 
   useEffect(() => {
     setMounted(true);
@@ -66,7 +78,7 @@ export default function AuthenticatedLayout({
 
   function handleLogout() {
     clearAuth();
-    router.push('/login');
+    router.push('/');
   }
 
   if (!mounted) {
@@ -89,6 +101,10 @@ export default function AuthenticatedLayout({
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const isAdmin = user.role === 'ADMIN';
+  const isSuperAdmin = user.role === 'SUPER_ADMIN';
+
+  const currentParish = parishId != null ? parishes.find((p) => p.id === parishId) : undefined;
+  const churchBranding = getChurchBranding(currentParish?.parishName);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-sancta-beige">
@@ -106,14 +122,25 @@ export default function AuthenticatedLayout({
           <div className="flex items-center gap-2">
             <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
             <span className="font-serif font-semibold text-sancta-maroon text-xl">
-              Church Registry
+              Parish Registry
             </span>
           </div>
-          {parishes.length > 0 && parishId != null && (
+          {churchBranding ? (
+            <div className="mt-1 w-[180px] h-11 flex items-center">
+              <Image
+                src={churchBranding.logoPath}
+                alt={churchBranding.logoAlt}
+                width={180}
+                height={44}
+                className="object-contain w-full h-full"
+                priority
+              />
+            </div>
+          ) : parishes.length > 0 && parishId != null ? (
             <span className="text-sm text-gray-500 mt-0.5 truncate">
-              {parishes.find((p) => p.id === parishId)?.parishName ?? 'Select parish'}
+              {currentParish?.parishName ?? 'Select parish'}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="w-12" aria-hidden />
       </header>
@@ -131,9 +158,23 @@ export default function AuthenticatedLayout({
             aria-label="Main navigation"
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
-                <span className="font-serif font-semibold text-sancta-maroon text-lg">Church Registry</span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
+                  <span className="font-serif font-semibold text-sancta-maroon text-lg">Parish Registry</span>
+                </div>
+                {churchBranding && (
+                  <div className="mt-1 w-[180px] h-11 flex items-center">
+                    <Image
+                      src={churchBranding.logoPath}
+                      alt={churchBranding.logoAlt}
+                      width={180}
+                      height={44}
+                      className="object-contain w-full h-full"
+                      priority
+                    />
+                  </div>
+                )}
               </div>
               <button
                 type="button"
@@ -145,10 +186,31 @@ export default function AuthenticatedLayout({
               </button>
             </div>
             {!parishLoading && (
-              <div className="p-4 border-b border-gray-100">
-                <label htmlFor="parish-select-mobile" className="block text-xs font-medium text-gray-500 mb-1">
-                  Parish
-                </label>
+              <div className="p-4 border-b border-gray-100 space-y-4">
+                {(isAdmin || isSuperAdmin) && dioceses.length > 0 && (
+                  <div>
+                    <label htmlFor="diocese-select-mobile" className="block text-xs font-medium text-gray-500 mb-1">
+                      Diocese
+                    </label>
+                    <select
+                      id="diocese-select-mobile"
+                      value={dioceseId ?? ''}
+                      onChange={(e) => setDioceseId(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                    >
+                      <option value="">All dioceses</option>
+                      {dioceses.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.dioceseName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="parish-select-mobile" className="block text-xs font-medium text-gray-500 mb-1">
+                    Parish
+                  </label>
                 {parishes.length > 0 ? (
                   <select
                     id="parish-select-mobile"
@@ -165,33 +227,58 @@ export default function AuthenticatedLayout({
                     ))}
                   </select>
                 ) : (
-                  <p className="text-sm text-gray-500 mb-1">No parish selected</p>
+                  <p className="text-sm text-gray-500 mb-1">
+                    {(isAdmin || isSuperAdmin) ? 'No parish selected' : 'No parish assigned. Contact admin.'}
+                  </p>
                 )}
-                {isAdmin && (
+                {(isAdmin || isSuperAdmin) && (
                   <Link
                     href="/parishes"
+                    prefetch={false}
                     onClick={closeMobileMenu}
                     className="text-xs text-sancta-maroon hover:underline mt-1 inline-block"
                   >
                     {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
                   </Link>
                 )}
+                {parishError && (
+                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                    <p className="text-xs text-amber-900">{parishError}</p>
+                    <button
+                      type="button"
+                      onClick={refetch}
+                      className="mt-1 text-xs font-medium text-sancta-maroon hover:underline"
+                    >
+                      Retry loading parishes
+                    </button>
+                  </div>
+                )}
+                </div>
               </div>
             )}
             <nav className="flex-1 p-4">
               <ul className="space-y-1">
                 {[
-                  { href: '/', label: 'Dashboard' },
-                  ...(isAdmin ? [{ href: '/parishes', label: 'Dioceses & Parishes' }] : []),
+                  ...(isAdmin || isSuperAdmin ? [{ href: '/dashboard/diocese', label: 'Diocese Dashboard' }] : []),
+                  { href: '/dashboard', label: 'Dashboard' },
+                  ...(isAdmin || isSuperAdmin
+                    ? [
+                        ...(isSuperAdmin ? [{ href: '/users/setup', label: 'User Setup' }] : []),
+                        { href: '/parishes', label: 'Dioceses & Parishes' },
+                        { href: '/users', label: 'User Access' },
+                      ]
+                    : []),
                   { href: '/baptisms', label: 'Baptisms' },
                   { href: '/communions', label: 'Holy Communion' },
                   { href: '/confirmations', label: 'Confirmation' },
                   { href: '/marriages', label: 'Marriage' },
                   { href: '/holy-orders', label: 'Holy Order' },
+                  { href: '/help', label: 'Help' },
                 ].map(({ href, label }) => (
                   <li key={href}>
                     <Link
                       href={href}
+                      prefetch={false}
                       onClick={closeMobileMenu}
                       className="block px-3 py-3 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10 min-h-[44px] flex items-center"
                     >
@@ -219,17 +306,52 @@ export default function AuthenticatedLayout({
       )}
 
       <aside className="hidden md:flex md:flex-col md:w-56 md:border-r md:border-gray-200 md:bg-white/80 md:py-6 md:px-4">
-        <div className="flex items-center gap-2 mb-4 px-2">
-          <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
-          <span className="font-serif font-semibold text-sancta-maroon text-lg">
-            Church Registry
-          </span>
+        <div className="mb-4 px-2">
+          <div className="flex items-center gap-2">
+            <CrossIcon className="w-8 h-8 text-sancta-gold shrink-0" />
+            <span className="font-serif font-semibold text-sancta-maroon text-lg">
+              Parish Registry
+            </span>
+          </div>
+          {churchBranding && (
+            <div className="mt-2 w-[180px] h-11 flex items-center">
+              <Image
+                src={churchBranding.logoPath}
+                alt={churchBranding.logoAlt}
+                width={180}
+                height={44}
+                className="object-contain w-full h-full"
+                priority
+              />
+            </div>
+          )}
         </div>
         {!parishLoading && (
-          <div className="mb-4 px-2">
-            <label htmlFor="parish-select" className="block text-xs font-medium text-gray-500 mb-1">
-              Parish
-            </label>
+          <div className="mb-4 px-2 space-y-4">
+            {(isAdmin || isSuperAdmin) && dioceses.length > 0 && (
+              <div>
+                <label htmlFor="diocese-select" className="block text-xs font-medium text-gray-500 mb-1">
+                  Diocese
+                </label>
+                <select
+                  id="diocese-select"
+                  value={dioceseId ?? ''}
+                  onChange={(e) => setDioceseId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+                >
+                  <option value="">All dioceses</option>
+                  {dioceses.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.dioceseName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label htmlFor="parish-select" className="block text-xs font-medium text-gray-500 mb-1">
+                Parish
+              </label>
             {parishes.length > 0 ? (
               <select
                 id="parish-select"
@@ -244,9 +366,11 @@ export default function AuthenticatedLayout({
                 ))}
               </select>
             ) : (
-              <p className="text-sm text-gray-500 mb-1">No parish selected</p>
+              <p className="text-sm text-gray-500 mb-1">
+                {(isAdmin || isSuperAdmin) ? 'No parish selected' : 'No parish assigned. Contact admin.'}
+              </p>
             )}
-            {isAdmin && (
+            {(isAdmin || isSuperAdmin) && (
               <Link
                 href="/parishes"
                 className="text-xs text-sancta-maroon hover:underline"
@@ -254,31 +378,79 @@ export default function AuthenticatedLayout({
                 {parishes.length > 0 ? 'Manage dioceses & parishes' : 'Add diocese & parish'}
               </Link>
             )}
+            {parishError && (
+              <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                <p className="text-xs text-amber-900">{parishError}</p>
+                <button
+                  type="button"
+                  onClick={refetch}
+                  className="mt-1 text-xs font-medium text-sancta-maroon hover:underline"
+                >
+                  Retry loading parishes
+                </button>
+              </div>
+            )}
+            </div>
           </div>
         )}
         <nav className="flex-1" aria-label="Main">
           <ul className="space-y-1">
-            <li>
-              <Link
-                href="/"
-                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
-              >
-                Dashboard
-              </Link>
-            </li>
-            {isAdmin && (
+            {(isAdmin || isSuperAdmin) && (
               <li>
                 <Link
-                  href="/parishes"
+                  href="/dashboard/diocese"
+                  prefetch={false}
                   className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
                 >
-                  Dioceses & Parishes
+                  Diocese Dashboard
                 </Link>
               </li>
             )}
             <li>
               <Link
+                href="/dashboard"
+                prefetch={false}
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Dashboard
+              </Link>
+            </li>
+            {(isAdmin || isSuperAdmin) && (
+              <>
+                {isSuperAdmin && (
+                  <li>
+                    <Link
+                      href="/users/setup"
+                      className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                    >
+                      User Setup
+                    </Link>
+                  </li>
+                )}
+                <li>
+                  <Link
+                    href="/parishes"
+                    prefetch={false}
+                    className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                  >
+                    Dioceses & Parishes
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/users"
+                    prefetch={false}
+                    className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+                  >
+                    User Access
+                  </Link>
+                </li>
+              </>
+            )}
+            <li>
+              <Link
                 href="/baptisms"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Baptisms
@@ -287,6 +459,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/communions"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Holy Communion
@@ -303,6 +476,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/marriages"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Marriage
@@ -311,9 +485,19 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/holy-orders"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Holy Order
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/help"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10 flex items-center gap-2"
+              >
+                <HelpIcon className="w-4 h-4 shrink-0" />
+                Help
               </Link>
             </li>
           </ul>
@@ -328,6 +512,10 @@ export default function AuthenticatedLayout({
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
         <header className="hidden md:flex items-center justify-end gap-4 py-3 px-4 border-b border-gray-200 bg-white/80">
+          <Link href="/help" prefetch={false} className="flex items-center gap-1.5 text-sm text-sancta-maroon hover:underline">
+            <HelpIcon className="w-4 h-4 shrink-0" />
+            Help
+          </Link>
           <span className="text-sm text-gray-600">
             {user.displayName || user.username}
           </span>
@@ -339,7 +527,7 @@ export default function AuthenticatedLayout({
             Sign out
           </button>
         </header>
-        <main className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full">
+        <main className="flex-1 p-4 md:p-6 w-full min-w-0">
           {children}
         </main>
       </div>

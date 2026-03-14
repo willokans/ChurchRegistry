@@ -43,6 +43,14 @@ public class BaptismRequest {
     @Size(max = 255)
     private String sponsorNames;
 
+    @Size(max = 255)
+    @Builder.Default
+    private String otherNames = "";
+
+    @Size(max = 255)
+    @Builder.Default
+    private String officiatingPriest = "";
+
     private Long parishId;
 
     @Size(max = 500)
@@ -53,4 +61,11 @@ public class BaptismRequest {
 
     @Size(max = 500)
     private String parentAddress;
+
+    private String note;
+
+    private String externalCertificatePath;
+
+    @Size(max = 255)
+    private String externalCertificateIssuingParish;
 }

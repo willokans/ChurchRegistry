@@ -1,4 +1,16 @@
+server:
+  error:
+    include-message: always
+
 spring:
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
@@ -30,4 +42,14 @@ app:
   refresh-token:
     # Cron for expired refresh token cleanup (default: hourly at minute 0)
     cleanup-cron: ${REFRESH_TOKEN_CLEANUP_CRON:0 0 * * * ?}
+  rate-limit:
+    login:
+      limit: 5
+      period-minutes: 1
+    refresh:
+      limit: 15
+      period-minutes: 1
+    api:
+      limit: 300
+      period-minutes: 1
 

@@ -1,0 +1,193 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20
+      author: will_okanumeh
+      changes:
+        - createTable:
+            tableName: app_user_parish_access
+            columns:
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parish_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: app_user_parish_access
+            columnNames: user_id, parish_id
+            constraintName: pk_app_user_parish_access
+        - addForeignKeyConstraint:
+            baseTableName: app_user_parish_access
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            onDelete: CASCADE
+            constraintName: fk_app_user_parish_access_user
+        - addForeignKeyConstraint:
+            baseTableName: app_user_parish_access
+            baseColumnNames: parish_id
+            referencedTableName: parish
+            referencedColumnNames: id
+            onDelete: CASCADE
+            constraintName: fk_app_user_parish_access_parish
+
+  - changeSet:
+      id: 21
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              WITH p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              ),
+              p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user (username, password_hash, display_name, role, parish_id)
+              SELECT
+                'fr_tomas.walsh@church_registry.com',
+                '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG',
+                'Fr Tomas Walsh',
+                'PRIEST',
+                p_holy_family.id
+              FROM p_holy_family
+              WHERE NOT EXISTS (
+                SELECT 1 FROM app_user WHERE username = 'fr_tomas.walsh@church_registry.com'
+              );
+
+              WITH p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              )
+              UPDATE app_user
+              SET display_name = 'Fr Tomas Walsh',
+                  role = 'PRIEST',
+                  parish_id = (SELECT id FROM p_holy_family)
+              WHERE username = 'fr_tomas.walsh@church_registry.com'
+                AND EXISTS (SELECT 1 FROM p_holy_family);
+
+              WITH p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user (username, password_hash, display_name, role, parish_id)
+              SELECT
+                'fr.raph.okanumeh@church_registry.com',
+                '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG',
+                'Fr Raph Okanumeh',
+                'PRIEST',
+                p_st_peter.id
+              FROM p_st_peter
+              WHERE NOT EXISTS (
+                SELECT 1 FROM app_user WHERE username = 'fr.raph.okanumeh@church_registry.com'
+              );
+
+              WITH p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              UPDATE app_user
+              SET display_name = 'Fr Raph Okanumeh',
+                  role = 'PRIEST',
+                  parish_id = (SELECT id FROM p_st_peter)
+              WHERE username = 'fr.raph.okanumeh@church_registry.com'
+                AND EXISTS (SELECT 1 FROM p_st_peter);
+
+              WITH p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user (username, password_hash, display_name, role, parish_id)
+              SELECT
+                'priest_test@church_registry.com',
+                '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG',
+                'Priest Test',
+                'PRIEST',
+                p_holy_family.id
+              FROM p_holy_family
+              WHERE NOT EXISTS (
+                SELECT 1 FROM app_user WHERE username = 'priest_test@church_registry.com'
+              );
+
+              WITH p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              )
+              UPDATE app_user
+              SET display_name = 'Priest Test',
+                  role = 'PRIEST',
+                  parish_id = (SELECT id FROM p_holy_family)
+              WHERE username = 'priest_test@church_registry.com'
+                AND EXISTS (SELECT 1 FROM p_holy_family);
+
+              WITH user_ids AS (
+                SELECT id, username
+                FROM app_user
+                WHERE username IN (
+                  'fr_tomas.walsh@church_registry.com',
+                  'fr.raph.okanumeh@church_registry.com',
+                  'priest_test@church_registry.com'
+                )
+              ),
+              p_holy_family AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'Holy Family Catholic Church%'
+                ORDER BY id
+                LIMIT 1
+              ),
+              p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user_parish_access (user_id, parish_id)
+              SELECT u.id, p.id
+              FROM user_ids u
+              JOIN p_holy_family p ON TRUE
+              WHERE u.username IN ('fr_tomas.walsh@church_registry.com', 'priest_test@church_registry.com')
+              ON CONFLICT DO NOTHING;
+
+              WITH user_ids AS (
+                SELECT id, username
+                FROM app_user
+                WHERE username IN (
+                  'fr.raph.okanumeh@church_registry.com',
+                  'priest_test@church_registry.com'
+                )
+              ),
+              p_st_peter AS (
+                SELECT id FROM parish
+                WHERE parish_name ILIKE 'St. Peter%Kuje%'
+                ORDER BY id
+                LIMIT 1
+              )
+              INSERT INTO app_user_parish_access (user_id, parish_id)
+              SELECT u.id, p.id
+              FROM user_ids u
+              JOIN p_st_peter p ON TRUE
+              ON CONFLICT DO NOTHING;

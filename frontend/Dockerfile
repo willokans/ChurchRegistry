@@ -8,6 +8,8 @@ RUN npm ci
 
 COPY . .
 RUN mkdir -p /app/public
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV BUILD_STANDALONE=1
 RUN npm run build
 

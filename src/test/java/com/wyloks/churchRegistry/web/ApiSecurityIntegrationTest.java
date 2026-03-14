@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -121,6 +122,86 @@ class ApiSecurityIntegrationTest {
         mvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @Transactional
+    void resetPassword_withValidJwt_returns204_andNewPasswordWorks() throws Exception {
+        String loginResponse = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"password\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String token = objectMapper.readTree(loginResponse).get("token").asText();
+
+        mvc.perform(post("/api/auth/reset-password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPassword\":\"newpass123\"}"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"password\"}"))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"newpass123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists());
+    }
+
+    @Test
+    void resetPassword_withoutToken_returns401() throws Exception {
+        mvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPassword\":\"newpass123\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @Transactional
+    void forgotPassword_returnsToken_whenEmailExists() throws Exception {
+        ResultActions result = mvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"identifier\":\"admin@church_registry.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.expiresAt").exists());
+        String token = objectMapper.readTree(result.andReturn().getResponse().getContentAsString()).get("token").asText();
+
+        mvc.perform(post("/api/auth/reset-password-by-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + token + "\",\"newPassword\":\"forgotpass123\"}"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"password\"}"))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"forgotpass123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists());
+    }
+
+    @Test
+    void forgotPassword_withUnknownEmail_returns400() throws Exception {
+        mvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"identifier\":\"unknown@example.com\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void resetPasswordByToken_withoutAuth_works() throws Exception {
+        mvc.perform(post("/api/auth/reset-password-by-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"invalid-token\",\"newPassword\":\"newpass123\"}"))
                 .andExpect(status().isUnauthorized());
     }
 }

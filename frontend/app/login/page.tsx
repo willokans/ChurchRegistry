@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { login, storeAuth } from '@/lib/api';
+import { login, storeAuth, setStoredParishId } from '@/lib/api';
 
 function CrossIcon({ className }: { className?: string }) {
   // Latin cross with subtly flared ends, solid fill (matches Sancta reference)
@@ -70,8 +70,16 @@ export default function LoginPage() {
         throw new Error('Invalid response from server');
       }
       storeAuth(token, refreshToken, user);
+      // Set default parish so ParishContext shows it on first load
+      const defaultParishId = res?.defaultParishId != null ? Number(res.defaultParishId) : null;
+      setStoredParishId(defaultParishId);
+      // First-login: must reset password before accessing the app
+      if (res?.mustResetPassword) {
+        window.location.href = '/reset-password?required=1';
+        return;
+      }
       // Full page navigation so home loads with auth in localStorage
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setSubmitting(false);
@@ -83,7 +91,7 @@ export default function LoginPage() {
       {/* Header: cross, title, tagline */}
       <header className="text-center mb-4 sm:mb-8">
         <CrossIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-sancta-gold mb-2" />
-        <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Church Registry</h1>
+        <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Parish Registry</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-1">Growing in faith together.</p>
       </header>
 
@@ -168,13 +176,19 @@ export default function LoginPage() {
         </form>
 
         {/* Links */}
-        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
-          <Link href="/login/forgot-password" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
-            Forgot password?
-          </Link>
-          <a href="#" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
-            Create account
-          </a>
+        <div className="mt-6 pt-4 border-t border-gray-100 text-center space-y-2">
+          <p>
+            <Link href="/" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
+              Home
+            </Link>
+            <span className="mx-2 text-gray-300">·</span>
+            <Link href="/login/forgot-password" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
+              Forgot password?
+            </Link>
+          </p>
+          <p className="mt-3 text-xs text-gray-500">
+            Account access is by invitation only. Contact your parish administrator to request access.
+          </p>
         </div>
       </div>
     </main>

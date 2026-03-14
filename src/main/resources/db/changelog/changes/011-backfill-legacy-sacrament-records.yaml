@@ -1,0 +1,248 @@
+databaseChangeLog:
+  - changeSet:
+      id: 31
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: baptisms
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO baptism (
+                id,
+                baptism_name,
+                other_names,
+                surname,
+                gender,
+                date_of_birth,
+                fathers_name,
+                mothers_name,
+                sponsor_names,
+                officiating_priest,
+                parish_id,
+                address,
+                parish_address,
+                parent_address
+              )
+              SELECT
+                b.id,
+                b.baptism_name,
+                '',
+                b.surname,
+                b.gender,
+                b.date_of_birth,
+                b.fathers_name,
+                b.mothers_name,
+                b.sponsor_names,
+                '',
+                b.parish_id,
+                b.address,
+                b.parish_address,
+                b.parent_address
+              FROM baptisms b
+              JOIN parish p ON p.id = b.parish_id
+              ON CONFLICT (id) DO UPDATE
+              SET baptism_name = EXCLUDED.baptism_name,
+                  surname = EXCLUDED.surname,
+                  gender = EXCLUDED.gender,
+                  date_of_birth = EXCLUDED.date_of_birth,
+                  fathers_name = EXCLUDED.fathers_name,
+                  mothers_name = EXCLUDED.mothers_name,
+                  sponsor_names = EXCLUDED.sponsor_names,
+                  parish_id = EXCLUDED.parish_id,
+                  address = EXCLUDED.address,
+                  parish_address = EXCLUDED.parish_address,
+                  parent_address = EXCLUDED.parent_address;
+
+              SELECT setval(
+                pg_get_serial_sequence('baptism', 'id'),
+                COALESCE((SELECT MAX(id) FROM baptism), 1),
+                true
+              );
+
+  - changeSet:
+      id: 32
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: communions
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO first_holy_communion (
+                id,
+                baptism_id,
+                communion_date,
+                officiating_priest,
+                parish
+              )
+              SELECT
+                c.id,
+                c.baptism_id,
+                c.communion_date,
+                c.officiating_priest,
+                c.parish
+              FROM communions c
+              JOIN baptism b ON b.id = c.baptism_id
+              ON CONFLICT (id) DO UPDATE
+              SET baptism_id = EXCLUDED.baptism_id,
+                  communion_date = EXCLUDED.communion_date,
+                  officiating_priest = EXCLUDED.officiating_priest,
+                  parish = EXCLUDED.parish;
+
+              SELECT setval(
+                pg_get_serial_sequence('first_holy_communion', 'id'),
+                COALESCE((SELECT MAX(id) FROM first_holy_communion), 1),
+                true
+              );
+
+  - changeSet:
+      id: 33
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: confirmations
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO confirmation (
+                id,
+                baptism_id,
+                communion_id,
+                confirmation_date,
+                officiating_bishop,
+                parish
+              )
+              SELECT
+                c.id,
+                c.baptism_id,
+                c.communion_id,
+                c.confirmation_date,
+                c.officiating_bishop,
+                c.parish
+              FROM confirmations c
+              JOIN baptism b ON b.id = c.baptism_id
+              JOIN first_holy_communion fhc ON fhc.id = c.communion_id
+              ON CONFLICT (id) DO UPDATE
+              SET baptism_id = EXCLUDED.baptism_id,
+                  communion_id = EXCLUDED.communion_id,
+                  confirmation_date = EXCLUDED.confirmation_date,
+                  officiating_bishop = EXCLUDED.officiating_bishop,
+                  parish = EXCLUDED.parish;
+
+              SELECT setval(
+                pg_get_serial_sequence('confirmation', 'id'),
+                COALESCE((SELECT MAX(id) FROM confirmation), 1),
+                true
+              );
+
+  - changeSet:
+      id: 34
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: marriages
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO marriage (
+                id,
+                baptism_id,
+                communion_id,
+                confirmation_id,
+                partners_name,
+                marriage_date,
+                officiating_priest,
+                parish
+              )
+              SELECT
+                m.id,
+                m.baptism_id,
+                m.communion_id,
+                m.confirmation_id,
+                m.partners_name,
+                m.marriage_date,
+                m.officiating_priest,
+                m.parish
+              FROM marriages m
+              JOIN baptism b ON b.id = m.baptism_id
+              JOIN first_holy_communion fhc ON fhc.id = m.communion_id
+              JOIN confirmation c ON c.id = m.confirmation_id
+              WHERE m.marriage_date IS NOT NULL
+              ON CONFLICT (id) DO UPDATE
+              SET baptism_id = EXCLUDED.baptism_id,
+                  communion_id = EXCLUDED.communion_id,
+                  confirmation_id = EXCLUDED.confirmation_id,
+                  partners_name = EXCLUDED.partners_name,
+                  marriage_date = EXCLUDED.marriage_date,
+                  officiating_priest = EXCLUDED.officiating_priest,
+                  parish = EXCLUDED.parish;
+
+              SELECT setval(
+                pg_get_serial_sequence('marriage', 'id'),
+                COALESCE((SELECT MAX(id) FROM marriage), 1),
+                true
+              );
+
+  - changeSet:
+      id: 35
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+        - tableExists:
+            tableName: holy_orders
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO holy_order (
+                id,
+                baptism_id,
+                communion_id,
+                confirmation_id,
+                ordination_date,
+                order_type,
+                officiating_bishop,
+                parish_id
+              )
+              SELECT
+                h.id,
+                h.baptism_id,
+                h.communion_id,
+                h.confirmation_id,
+                h.ordination_date,
+                h.order_type,
+                h.officiating_bishop,
+                h.parish_id
+              FROM holy_orders h
+              JOIN baptism b ON b.id = h.baptism_id
+              JOIN first_holy_communion fhc ON fhc.id = h.communion_id
+              JOIN confirmation c ON c.id = h.confirmation_id
+              LEFT JOIN parish p ON p.id = h.parish_id
+              ON CONFLICT (id) DO UPDATE
+              SET baptism_id = EXCLUDED.baptism_id,
+                  communion_id = EXCLUDED.communion_id,
+                  confirmation_id = EXCLUDED.confirmation_id,
+                  ordination_date = EXCLUDED.ordination_date,
+                  order_type = EXCLUDED.order_type,
+                  officiating_bishop = EXCLUDED.officiating_bishop,
+                  parish_id = EXCLUDED.parish_id;
+
+              SELECT setval(
+                pg_get_serial_sequence('holy_order', 'id'),
+                COALESCE((SELECT MAX(id) FROM holy_order), 1),
+                true
+              );

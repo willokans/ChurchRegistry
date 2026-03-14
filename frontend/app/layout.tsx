@@ -3,7 +3,7 @@ import { ParishProvider } from '@/context/ParishContext';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Church Registry',
+  title: 'Parish Registry',
   description: 'Sacramental records',
 };
 

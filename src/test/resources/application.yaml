@@ -1,4 +1,7 @@
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
   task:
     scheduling:
       enabled: false
@@ -19,3 +22,8 @@ app:
     secret: test-secret-key-at-least-256-bits-for-hs256-encoding-required
     expiration-ms: 3600000
     refresh-expiration-ms: 604800000
+  rate-limit:
+    login:
+      limit: 10000
+    api:
+      limit: 100000

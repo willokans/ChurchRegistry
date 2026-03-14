@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: will_okanumeh
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - sqlCheck:
+            expectedResult: "0"
+            sql: "select count(*) from app_user where role = 'SUPER_ADMIN'"
+      changes:
+        - insert:
+            tableName: app_user
+            columns:
+              - column:
+                  name: username
+                  value: superadmin
+              - column:
+                  name: password_hash
+                  value: $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG
+              - column:
+                  name: display_name
+                  value: Super Administrator
+              - column:
+                  name: role
+                  value: SUPER_ADMIN
+              - column:
+                  name: must_reset_password
+                  valueBoolean: true

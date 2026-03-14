@@ -1,4 +1,4 @@
--- Church Registry – initial schema for Supabase (PostgreSQL)
+-- Parish Registry – initial schema for Supabase (PostgreSQL)
 -- Run this in Supabase SQL Editor for both staging and production projects.
 -- Column names use snake_case; your app layer will map to camelCase for the API.
 

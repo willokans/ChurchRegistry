@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { PaginationControls } from '@/components/PaginationControls';
+import { VirtualizedTableBody, VirtualizedTableContainer } from '@/components/VirtualizedTableBody';
+import { VirtualizedCardList } from '@/components/VirtualizedCardList';
 import { useParish } from '@/context/ParishContext';
-import { fetchCommunions, type FirstHolyCommunionResponse } from '@/lib/api';
+import { useCommunions } from '@/lib/use-sacrament-lists';
+import { MONTH_LABELS, monthOptions, dayOptions } from '@/lib/date-filters';
+import type { FirstHolyCommunionResponse } from '@/lib/api';
 
 function fullName(c: FirstHolyCommunionResponse): string {
   return [c.baptismName, c.otherNames, c.surname].filter(Boolean).join(' ');
@@ -34,32 +39,16 @@ function DotsVerticalIcon({ className }: { className?: string }) {
 export default function CommunionsListPage() {
   const router = useRouter();
   const { parishId, loading: parishLoading } = useParish();
-  const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const { data: communions, totalElements, totalPages, size, isLoading: loading, error } = useCommunions(parishId, page);
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [dayFilter, setDayFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (parishId === null) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const list = await fetchCommunions(parishId);
-        if (!cancelled) setCommunions(list);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    setPage(0);
   }, [parishId]);
 
   const years = useMemo(() => {
@@ -73,6 +62,8 @@ export default function CommunionsListPage() {
   const filteredCommunions = useMemo(() => {
     return communions.filter((c) => {
       if (yearFilter !== 'all' && (!c.communionDate || c.communionDate.slice(0, 4) !== yearFilter)) return false;
+      if (monthFilter !== 'all' && (!c.communionDate || c.communionDate.length < 7 || c.communionDate.slice(5, 7) !== monthFilter)) return false;
+      if (dayFilter !== 'all' && (!c.communionDate || c.communionDate.length < 10 || c.communionDate.slice(8, 10) !== dayFilter)) return false;
       if (genderFilter !== 'all' && c.gender !== genderFilter) return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.trim().toLowerCase();
@@ -81,7 +72,7 @@ export default function CommunionsListPage() {
       const mother = (c.mothersName ?? '').toLowerCase();
       return name.includes(q) || father.includes(q) || mother.includes(q);
     });
-  }, [communions, yearFilter, genderFilter, searchQuery]);
+  }, [communions, yearFilter, monthFilter, dayFilter, genderFilter, searchQuery]);
 
   const isLoading = parishLoading || (parishId !== null && loading);
 
@@ -96,7 +87,7 @@ export default function CommunionsListPage() {
   if (error) {
     return (
       <AuthenticatedLayout>
-        <p role="alert" className="text-red-600">{error}</p>
+        <p role="alert" className="text-red-600">{error.message}</p>
       </AuthenticatedLayout>
     );
   }
@@ -120,6 +111,7 @@ export default function CommunionsListPage() {
           </h1>
           <Link
             href={`/communions/new?parishId=${parishId}`}
+            prefetch={false}
             className="hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             <span aria-hidden>+</span>
@@ -138,6 +130,28 @@ export default function CommunionsListPage() {
             <option value="all">All Years</option>
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter by month"
+          >
+            <option value="all">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>{MONTH_LABELS[m] ?? m}</option>
+            ))}
+          </select>
+          <select
+            value={dayFilter}
+            onChange={(e) => setDayFilter(e.target.value)}
+            className="hidden md:block rounded-xl border border-gray-200 bg-sancta-beige/80 px-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon"
+            aria-label="Filter by day"
+          >
+            <option value="all">All Days</option>
+            {dayOptions.map((d) => (
+              <option key={d} value={d}>{Number.parseInt(d, 10)}</option>
             ))}
           </select>
           <select
@@ -184,6 +198,7 @@ export default function CommunionsListPage() {
               {communions.length === 0 && (
                 <Link
                   href={`/communions/new?parishId=${parishId}`}
+                  prefetch={false}
                   className="mt-4 hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 text-white font-medium hover:bg-sancta-maroon-dark"
                 >
                   <span aria-hidden>+</span>
@@ -199,10 +214,21 @@ export default function CommunionsListPage() {
           </>
         ) : (
           <>
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              size={size}
+              onPageChange={setPage}
+              isLoading={loading}
+              ariaLabel="communions"
+            />
             {/* Mobile: card list with name, date, parents, edit/menu icons */}
-            <ul className="md:hidden space-y-3" role="list">
-              {filteredCommunions.map((c) => (
-                <li key={c.id}>
+            <div className="md:hidden">
+              <VirtualizedCardList
+                items={filteredCommunions}
+                getItemKey={(c) => String(c.id)}
+                renderCard={(c) => (
                   <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <button
                       type="button"
@@ -235,6 +261,7 @@ export default function CommunionsListPage() {
                       </Link>
                       <Link
                         href={`/communions/${c.id}`}
+                        prefetch={false}
                         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label={`More options for ${fullName(c)}`}
                       >
@@ -242,9 +269,9 @@ export default function CommunionsListPage() {
                       </Link>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                )}
+              />
+            </div>
 
             <div className="md:hidden pt-2">
               <AddRecordDesktopOnlyMessage />
@@ -252,10 +279,11 @@ export default function CommunionsListPage() {
 
             {/* Desktop: table */}
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-0 w-full table-auto" role="grid">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50/80">
+              <VirtualizedTableContainer itemCount={filteredCommunions.length}>
+                {(scrollContainerRef) => (
+                  <table className="min-w-0 w-full table-auto" role="grid">
+                    <thead>
+                      <tr className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/80">
                       <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
                         BAPTISM NAME
                       </th>
@@ -281,30 +309,28 @@ export default function CommunionsListPage() {
                         OFFICIATING PRIEST
                       </th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {filteredCommunions.map((c) => (
-                      <tr
-                        key={c.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/communions/${c.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && router.push(`/communions/${c.id}`)}
-                        className="cursor-pointer hover:bg-gray-50/80 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{c.baptismName ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.otherNames || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.surname || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.communionDate}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.gender ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.fathersName ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.mothersName ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.officiatingPriest || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <VirtualizedTableBody
+                      items={filteredCommunions}
+                      getRowKey={(c) => String(c.id)}
+                      scrollContainerRef={scrollContainerRef}
+                      onRowClick={(c) => router.push(`/communions/${c.id}`)}
+                      renderRow={(c) => (
+                        <>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{c.baptismName ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.otherNames || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.surname || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.communionDate}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.gender ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.fathersName ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.mothersName ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.officiatingPriest || '—'}</td>
+                        </>
+                      )}
+                    />
+                  </table>
+                )}
+              </VirtualizedTableContainer>
             </div>
           </>
         )}

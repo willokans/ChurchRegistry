@@ -1,0 +1,179 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pom.xml"
+      - "Dockerfile"
+      - "fly.api.toml"
+      - "fly.api.prod.toml"
+      - "frontend/**"
+      - "frontend/fly.prod.toml"
+      - ".github/workflows/deploy-production.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run backend tests
+        run: mvn -B test
+
+      - name: Install Fly CLI
+        run: |
+          curl -L https://fly.io/install.sh | sh -s -- --non-interactive
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
+
+      - name: Ensure Fly API app exists
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_ORG: ${{ vars.FLY_ORG }}
+        run: |
+          set -euo pipefail
+          APP_NAME="church-registry-api"
+          if ! flyctl apps show "$APP_NAME" >/dev/null 2>&1; then
+            if [ -n "${FLY_ORG:-}" ]; then
+              flyctl apps create "$APP_NAME" --org "$FLY_ORG"
+            else
+              flyctl apps create "$APP_NAME"
+            fi
+          fi
+
+      - name: Sync API secrets
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          API_DATABASE_URL_PROD: ${{ secrets.API_DATABASE_URL_PROD }}
+          API_DATABASE_USERNAME_PROD: ${{ secrets.API_DATABASE_USERNAME_PROD }}
+          API_DATABASE_PASSWORD_PROD: ${{ secrets.API_DATABASE_PASSWORD_PROD }}
+          API_JWT_SECRET_PROD: ${{ secrets.API_JWT_SECRET_PROD }}
+          API_CORS_ALLOWED_ORIGINS_PROD: ${{ secrets.API_CORS_ALLOWED_ORIGINS_PROD }}
+          API_JWT_EXPIRATION_MS_PROD: ${{ secrets.API_JWT_EXPIRATION_MS_PROD }}
+          API_JWT_REFRESH_EXPIRATION_MS_PROD: ${{ secrets.API_JWT_REFRESH_EXPIRATION_MS_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+        run: |
+          set -euo pipefail
+          APP_NAME="church-registry-api"
+
+          # Pre Postgres: use staging credentials. Post Postgres: use prod credentials.
+          # All _PROD secrets must be set in GitHub (copy from staging for Pre Postgres).
+          required=(API_DATABASE_URL_PROD API_DATABASE_USERNAME_PROD API_DATABASE_PASSWORD_PROD API_JWT_SECRET_PROD API_CORS_ALLOWED_ORIGINS_PROD)
+          for key in "${required[@]}"; do
+            if [ -z "${!key:-}" ]; then
+              echo "Missing required GitHub secret: $key"
+              exit 1
+            fi
+          done
+
+          # Validate JDBC URL format
+          if ! echo "$API_DATABASE_URL_PROD" | grep -qE '^jdbc:postgresql://[^/]+:[0-9]+/'; then
+            echo "ERROR: API_DATABASE_URL_PROD must be a full JDBC URL, e.g.:"
+            echo "  jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require&preferQueryMode=simple&prepareThreshold=0"
+            exit 1
+          fi
+
+          # Use secrets import (stdin) to preserve & and other special chars in URL
+          {
+            printf 'SPRING_DATASOURCE_URL=%s\n' "$(printf '%s' "$API_DATABASE_URL_PROD" | tr -d '\n')"
+            printf 'SPRING_DATASOURCE_USERNAME=%s\n' "$API_DATABASE_USERNAME_PROD"
+            printf 'SPRING_DATASOURCE_PASSWORD=%s\n' "$API_DATABASE_PASSWORD_PROD"
+            printf 'JWT_SECRET=%s\n' "$API_JWT_SECRET_PROD"
+            printf 'CORS_ALLOWED_ORIGINS=%s\n' "$API_CORS_ALLOWED_ORIGINS_PROD"
+            printf 'JWT_EXPIRATION_MS=%s\n' "${API_JWT_EXPIRATION_MS_PROD:-3600000}"
+            printf 'JWT_REFRESH_EXPIRATION_MS=%s\n' "${API_JWT_REFRESH_EXPIRATION_MS_PROD:-604800000}"
+            [ -n "${SUPABASE_SERVICE_ROLE_KEY_PROD:-}" ] && printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
+          } | flyctl secrets import --stage --app "$APP_NAME"
+
+      - name: Deploy API to Fly production
+        id: deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          flyctl deploy -c fly.api.prod.toml --remote-only --app church-registry-api
+
+      - name: Show Fly logs on deploy failure
+        if: failure()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "=== Fly API logs (last 150 lines) - check for startup errors ==="
+          flyctl logs -a church-registry-api 2>&1 | tail -150
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: "frontend/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Test
+        working-directory: frontend
+        run: npm test
+        env:
+          CI: true
+
+      - name: Install Fly CLI
+        run: |
+          curl -L https://fly.io/install.sh | sh -s -- --non-interactive
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
+
+      - name: Ensure Fly frontend app exists
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_ORG: ${{ vars.FLY_ORG }}
+        run: |
+          set -euo pipefail
+          APP_NAME="church-registry"
+          if ! flyctl apps show "$APP_NAME" >/dev/null 2>&1; then
+            if [ -n "${FLY_ORG:-}" ]; then
+              flyctl apps create "$APP_NAME" --org "$FLY_ORG"
+            else
+              flyctl apps create "$APP_NAME"
+            fi
+          fi
+
+      - name: Sync frontend runtime env
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
+        run: |
+          set -euo pipefail
+          FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
+
+          flyctl secrets set \
+            NEXT_PUBLIC_API_URL="$FRONTEND_API_URL" \
+            --stage \
+            --app church-registry
+
+      - name: Deploy to Fly production
+        working-directory: frontend
+        run: flyctl deploy -c fly.prod.toml --remote-only --app church-registry
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

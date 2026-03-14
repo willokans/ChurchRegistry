@@ -6,9 +6,17 @@
  * - When not found, shows not-found message
  */
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useRouter, useParams } from 'next/navigation';
 import CommunionViewPage from '@/app/communions/[id]/page';
-import { getStoredToken, getStoredUser, fetchCommunion, fetchBaptismExternalCertificate } from '@/lib/api';
+import {
+  getStoredToken,
+  getStoredUser,
+  fetchCommunion,
+  fetchBaptismExternalCertificate,
+  fetchCommunionNoteHistory,
+  updateCommunionNotes,
+} from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -20,15 +28,21 @@ jest.mock('@/lib/api', () => ({
   getStoredUser: jest.fn(),
   fetchCommunion: jest.fn(),
   fetchBaptismExternalCertificate: jest.fn(),
+  fetchCommunionNoteHistory: jest.fn(),
+  updateCommunionNotes: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
   useParish: () => ({
     parishId: 10,
     setParishId: jest.fn(),
+    dioceseId: null,
+    setDioceseId: jest.fn(),
     parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+    dioceses: [],
     loading: false,
     error: null,
+    refetch: jest.fn(),
   }),
 }));
 
@@ -52,6 +66,8 @@ describe('Communion view page', () => {
       baptismParishName: 'St Mary',
     });
     (fetchBaptismExternalCertificate as jest.Mock).mockReset();
+    (fetchCommunionNoteHistory as jest.Mock).mockResolvedValue([]);
+    (updateCommunionNotes as jest.Mock).mockResolvedValue({});
   });
 
   it('fetches communion by id and shows date', async () => {
@@ -157,22 +173,30 @@ describe('Communion view page', () => {
     });
 
     it('shows Communicant\'s Baptism Certificate section', async () => {
+      const user = userEvent.setup();
       render(<CommunionViewPage />);
       await waitFor(() => {
         expect(screen.getByText(/Communicant's Baptism Certificate/i)).toBeInTheDocument();
       });
-      const viewFullscreenLinks = screen.getAllByRole('link', { name: /View Fullscreen/i });
-      expect(viewFullscreenLinks.length).toBeGreaterThanOrEqual(1);
-      expect(viewFullscreenLinks.some((el) => el.getAttribute('href')?.includes('/baptisms/5'))).toBe(true);
+      const viewCertButton = screen.getByRole('button', { name: /view certificate/i });
+      await user.click(viewCertButton);
+      await waitFor(() => {
+        const viewFullscreenLinks = screen.getAllByRole('link', { name: /View Fullscreen/i });
+        expect(viewFullscreenLinks.some((el) => el.getAttribute('href')?.includes('/baptisms/5'))).toBe(true);
+      });
       const downloadPdfButtons = screen.getAllByRole('button', { name: /Download PDF/i });
       expect(downloadPdfButtons.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('fetches external baptism certificate when baptismCertificatePath is set', async () => {
+    it('fetches external baptism certificate when user expands baptism cert section', async () => {
+      const user = userEvent.setup();
       render(<CommunionViewPage />);
       await waitFor(() => {
         expect(fetchCommunion).toHaveBeenCalledWith(42);
       });
+      expect(fetchBaptismExternalCertificate).not.toHaveBeenCalled();
+      const viewCertButton = screen.getByRole('button', { name: /view certificate/i });
+      await user.click(viewCertButton);
       await waitFor(() => {
         expect(fetchBaptismExternalCertificate).toHaveBeenCalledWith(5);
       });

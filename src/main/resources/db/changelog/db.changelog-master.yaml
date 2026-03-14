@@ -179,3 +179,33 @@ databaseChangeLog:
       file: db/changelog/changes/001-diocese-parish-user-holy-order.yaml
   - include:
       file: db/changelog/changes/002-refresh-token.yaml
+  - include:
+      file: db/changelog/changes/003-seed-email-app-users.yaml
+  - include:
+      file: db/changelog/changes/004-legacy-compat-fields.yaml
+  - include:
+      file: db/changelog/changes/005-sacrament-notes-audit.yaml
+  - include:
+      file: db/changelog/changes/006-priest-parish-access.yaml
+  - include:
+      file: db/changelog/changes/007-baptism-legacy-columns-nullable.yaml
+  - include:
+      file: db/changelog/changes/008-legacy-marriage-read-tables.yaml
+  - include:
+      file: db/changelog/changes/009-fix-priest-seed-login-consistency.yaml
+  - include:
+      file: db/changelog/changes/010-backfill-diocese-parish-and-user-access.yaml
+  - include:
+      file: db/changelog/changes/011-backfill-legacy-sacrament-records.yaml
+  - include:
+      file: db/changelog/changes/012-reconcile-baptism-parish-links.yaml
+  - include:
+      file: db/changelog/changes/015-rls-tenant-isolation.yaml
+  - include:
+      file: db/changelog/changes/016-sacrament-audit-log.yaml
+  - include:
+      file: db/changelog/changes/017-app-user-user-setup-fields.yaml
+  - include:
+      file: db/changelog/changes/018-password-reset-token.yaml
+  - include:
+      file: db/changelog/changes/019-seed-super-admin.yaml

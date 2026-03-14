@@ -23,7 +23,8 @@ public class RefreshTokenCleanupService {
     }
 
     @Scheduled(cron = "${app.refresh-token.cleanup-cron:0 0 * * * ?}")
+    @Transactional
     public void scheduledCleanup() {
-        cleanupExpiredRefreshTokens();
+        refreshTokenRepository.deleteAllByExpiresAtBefore(Instant.now());
     }
 }

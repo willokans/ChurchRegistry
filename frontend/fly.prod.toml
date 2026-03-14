@@ -1,0 +1,35 @@
+# Fly.io app config – production. Deploy from frontend/: fly deploy -c fly.prod.toml
+# App: church-registry
+# Create app first: fly apps create church-registry --org YOUR_ORG
+# Set secrets: fly secrets set NEXT_PUBLIC_API_URL=https://church-registry-api.fly.dev
+
+app = "church-registry"
+primary_region = "jnb"
+
+[build]
+  [build.args]
+    NEXT_PUBLIC_API_URL = "https://church-registry-api.fly.dev"
+
+[env]
+  PORT = "3000"
+  NEXT_PUBLIC_API_URL = "https://church-registry-api.fly.dev"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "2s"

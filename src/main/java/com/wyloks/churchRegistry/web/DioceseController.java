@@ -2,6 +2,7 @@ package com.wyloks.churchRegistry.web;
 
 import com.wyloks.churchRegistry.dto.DioceseRequest;
 import com.wyloks.churchRegistry.dto.DioceseResponse;
+import com.wyloks.churchRegistry.dto.DioceseWithParishesResponse;
 import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.service.DioceseService;
 import com.wyloks.churchRegistry.service.ParishService;
@@ -24,6 +25,11 @@ public class DioceseController {
     @GetMapping
     public List<DioceseResponse> getAll() {
         return dioceseService.findAll();
+    }
+
+    @GetMapping("/with-parishes")
+    public List<DioceseWithParishesResponse> getDiocesesWithParishes() {
+        return dioceseService.findDiocesesWithParishes();
     }
 
     @GetMapping("/{dioceseId}/parishes")

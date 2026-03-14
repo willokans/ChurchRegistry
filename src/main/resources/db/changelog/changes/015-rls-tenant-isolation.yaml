@@ -1,0 +1,222 @@
+# RLS policies for tenant (parish) isolation - defense-in-depth.
+# Requires Spring to set app.parish_ids (comma-separated) and app.is_admin ('true'/'false') per request.
+# Only applies when connecting with a role that respects RLS (not superuser). Use FORCE ROW LEVEL SECURITY
+# so table owner is also subject to policies when using a non-bypass role.
+databaseChangeLog:
+  - changeSet:
+      id: 40
+      author: will_okanumeh
+      comment: Add RLS helper function and enable RLS on tenant-scoped tables
+      preConditions:
+        - onFail: MARK_RAN
+        - dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              -- Helper: parse app.parish_ids session variable to bigint array (empty array if unset/empty)
+              CREATE OR REPLACE FUNCTION app_rls_parish_ids() RETURNS bigint[] AS $$
+              SELECT COALESCE(
+                (SELECT ARRAY_AGG(x::bigint)
+                 FROM unnest(string_to_array(NULLIF(trim(current_setting('app.parish_ids', true)), ''), ',')) AS t(x)
+                 WHERE x ~ '^[0-9]+$' AND x <> ''),
+                '{}'::bigint[]
+              );
+              $$ LANGUAGE sql STABLE;
+
+              CREATE OR REPLACE FUNCTION app_rls_is_admin() RETURNS boolean AS $$
+              SELECT current_setting('app.is_admin', true) = 'true';
+              $$ LANGUAGE sql STABLE;
+            splitStatements: false
+
+        - sql:
+            sql: |
+              ALTER TABLE baptism ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE baptism FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "baptism_tenant_isolation" ON baptism;
+              CREATE POLICY "baptism_tenant_isolation" ON baptism
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR (parish_id IS NOT NULL AND parish_id = ANY(app_rls_parish_ids()))
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR (parish_id IS NOT NULL AND parish_id = ANY(app_rls_parish_ids()))
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE first_holy_communion ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE first_holy_communion FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "communion_tenant_isolation" ON first_holy_communion;
+              CREATE POLICY "communion_tenant_isolation" ON first_holy_communion
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR EXISTS (
+                    SELECT 1 FROM baptism b
+                    WHERE b.id = first_holy_communion.baptism_id
+                      AND b.parish_id = ANY(app_rls_parish_ids())
+                  )
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR EXISTS (
+                    SELECT 1 FROM baptism b
+                    WHERE b.id = first_holy_communion.baptism_id
+                      AND b.parish_id = ANY(app_rls_parish_ids())
+                  )
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE confirmation ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE confirmation FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "confirmation_tenant_isolation" ON confirmation;
+              CREATE POLICY "confirmation_tenant_isolation" ON confirmation
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR EXISTS (
+                    SELECT 1 FROM baptism b
+                    WHERE b.id = confirmation.baptism_id
+                      AND b.parish_id = ANY(app_rls_parish_ids())
+                  )
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR EXISTS (
+                    SELECT 1 FROM baptism b
+                    WHERE b.id = confirmation.baptism_id
+                      AND b.parish_id = ANY(app_rls_parish_ids())
+                  )
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE marriage ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE marriage FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "marriage_tenant_isolation" ON marriage;
+              CREATE POLICY "marriage_tenant_isolation" ON marriage
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR EXISTS (
+                    SELECT 1 FROM baptism b
+                    WHERE b.id = marriage.baptism_id
+                      AND b.parish_id = ANY(app_rls_parish_ids())
+                  )
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR EXISTS (
+                    SELECT 1 FROM baptism b
+                    WHERE b.id = marriage.baptism_id
+                      AND b.parish_id = ANY(app_rls_parish_ids())
+                  )
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE holy_order ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE holy_order FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "holy_order_tenant_isolation" ON holy_order;
+              CREATE POLICY "holy_order_tenant_isolation" ON holy_order
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR (parish_id IS NOT NULL AND parish_id = ANY(app_rls_parish_ids()))
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR (parish_id IS NOT NULL AND parish_id = ANY(app_rls_parish_ids()))
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE priest ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE priest FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "priest_tenant_isolation" ON priest;
+              CREATE POLICY "priest_tenant_isolation" ON priest
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR (parish_id IS NOT NULL AND parish_id = ANY(app_rls_parish_ids()))
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR (parish_id IS NOT NULL AND parish_id = ANY(app_rls_parish_ids()))
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE parish ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE parish FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "parish_tenant_isolation" ON parish;
+              CREATE POLICY "parish_tenant_isolation" ON parish
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR id = ANY(app_rls_parish_ids())
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR id = ANY(app_rls_parish_ids())
+                );
+            splitStatements: true
+
+        - sql:
+            sql: |
+              ALTER TABLE diocese ENABLE ROW LEVEL SECURITY;
+              ALTER TABLE diocese FORCE ROW LEVEL SECURITY;
+            splitStatements: true
+
+        - sql:
+            sql: |
+              DROP POLICY IF EXISTS "diocese_tenant_isolation" ON diocese;
+              CREATE POLICY "diocese_tenant_isolation" ON diocese
+                FOR ALL
+                USING (
+                  app_rls_is_admin()
+                  OR id IN (SELECT diocese_id FROM parish WHERE id = ANY(app_rls_parish_ids()))
+                )
+                WITH CHECK (
+                  app_rls_is_admin()
+                  OR id IN (SELECT diocese_id FROM parish WHERE id = ANY(app_rls_parish_ids()))
+                );
+            splitStatements: true

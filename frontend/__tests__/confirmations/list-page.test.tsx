@@ -6,12 +6,13 @@
  * - Mobile: card list with edit/menu icons
  * - When no parish available, shows message
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import ConfirmationsPage from '@/app/confirmations/page';
 import { getStoredToken, getStoredUser, fetchConfirmations } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -35,27 +36,21 @@ describe('Confirmations list page', () => {
     mockPush.mockClear();
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
-    (useParish as jest.Mock).mockReturnValue({
-      parishId: 10,
-      loading: false,
-      setParishId: jest.fn(),
-      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-      error: null,
-    });
-    (fetchConfirmations as jest.Mock).mockResolvedValue([]);
+    (useParish as jest.Mock).mockReturnValue(defaultParishContext);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({ content: [] });
     (fetchConfirmations as jest.Mock).mockClear();
   });
 
   it('when authenticated fetches confirmations and shows list heading', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(fetchConfirmations).toHaveBeenCalledWith(10);
+      expect(fetchConfirmations).toHaveBeenCalledWith(10, 0, 50);
     });
     expect(screen.getByRole('heading', { name: /confirmation/i })).toBeInTheDocument();
   });
 
   it('shows empty state when no confirmations', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
@@ -63,23 +58,25 @@ describe('Confirmations list page', () => {
   });
 
   it('shows list of confirmations when data returned', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        parish: 'St Mary',
-        baptismName: 'John',
-        otherNames: 'Paul',
-        surname: 'Doe',
-        gender: 'MALE',
-        fathersName: 'James',
-        mothersName: 'Mary',
-      },
-    ]);
-    render(<ConfirmationsPage />);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          parish: 'St Mary',
+          baptismName: 'John',
+          otherNames: 'Paul',
+          surname: 'Doe',
+          gender: 'MALE',
+          fathersName: 'James',
+          mothersName: 'Mary',
+        },
+      ],
+    });
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
@@ -90,56 +87,60 @@ describe('Confirmations list page', () => {
   });
 
   it('shows filters: All Years, All Genders, and Search confirmations', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
-    expect(screen.getByRole('combobox', { name: /filter by year/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /filter by gender/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by year/i, hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /filter by gender/i, hidden: true })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search confirmations/i })).toBeInTheDocument();
   });
 
   it('grid shows BAPTISM NAME, OTHER NAMES, SURNAME, CONFIRMATION DATE and OFFICIATING BISHOP column headers when confirmations exist', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Smith',
-      },
-    ]);
-    render(<ConfirmationsPage />);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Smith',
+        },
+      ],
+    });
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('columnheader', { name: /baptism name/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /other names/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /surname/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /confirmation date/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /officiating bishop/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /baptism name/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /other names/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /surname/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /confirmation date/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /officiating bishop/i, hidden: true })).toBeInTheDocument();
     });
   });
 
   it('clicking a table row navigates to confirmation detail', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 99,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Smith',
-      },
-    ]);
-    render(<ConfirmationsPage />);
-    await waitFor(() => {
-      expect(screen.getByRole('grid')).toHaveTextContent('Jane');
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 99,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Smith',
+        },
+      ],
     });
-    const grid = screen.getByRole('grid');
+    renderWithSWR(<ConfirmationsPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('grid', { hidden: true })).toHaveTextContent('Jane');
+    });
+    const grid = screen.getByRole('grid', { hidden: true });
     const cell = within(grid).getByRole('cell', { name: 'Jane' });
     const row = cell.closest('tr');
     expect(row).toBeInTheDocument();
@@ -148,7 +149,7 @@ describe('Confirmations list page', () => {
   });
 
   it('shows link to add new confirmation', async () => {
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
       expect(fetchConfirmations).toHaveBeenCalled();
     });
@@ -160,13 +161,11 @@ describe('Confirmations list page', () => {
 
   it('when no parish shows message and no fetch', async () => {
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      loading: false,
-      setParishId: jest.fn(),
       parishes: [],
-      error: null,
     });
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     const main = screen.getByRole('main');
     await waitFor(() => {
       expect(within(main).getByText(/no parish available/i)).toBeInTheDocument();
@@ -175,38 +174,40 @@ describe('Confirmations list page', () => {
   });
 
   it('search filters confirmations by name', async () => {
-    (fetchConfirmations as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        baptismId: 5,
-        communionId: 2,
-        confirmationDate: '2025-04-01',
-        officiatingBishop: 'Bishop Jones',
-        baptismName: 'Jane',
-        otherNames: '',
-        surname: 'Doe',
-      },
-      {
-        id: 2,
-        baptismId: 6,
-        communionId: 3,
-        confirmationDate: '2025-05-01',
-        officiatingBishop: 'Bishop Smith',
-        baptismName: 'Bob',
-        otherNames: 'Paul',
-        surname: 'Smith',
-      },
-    ]);
+    (fetchConfirmations as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismId: 5,
+          communionId: 2,
+          confirmationDate: '2025-04-01',
+          officiatingBishop: 'Bishop Jones',
+          baptismName: 'Jane',
+          otherNames: '',
+          surname: 'Doe',
+        },
+        {
+          id: 2,
+          baptismId: 6,
+          communionId: 3,
+          confirmationDate: '2025-05-01',
+          officiatingBishop: 'Bishop Smith',
+          baptismName: 'Bob',
+          otherNames: 'Paul',
+          surname: 'Smith',
+        },
+      ],
+    });
     const user = userEvent.setup();
-    render(<ConfirmationsPage />);
+    renderWithSWR(<ConfirmationsPage />);
     await waitFor(() => {
-      expect(screen.getByRole('grid')).toBeInTheDocument();
+      expect(screen.getByRole('grid', { hidden: true })).toBeInTheDocument();
     });
     const search = screen.getByRole('searchbox', { name: /search confirmations/i });
     await user.type(search, 'Jane');
     await waitFor(() => {
-      expect(screen.getByRole('grid')).toHaveTextContent('Jane');
-      expect(screen.getByRole('grid')).not.toHaveTextContent('Bob');
+      expect(screen.getByRole('grid', { hidden: true })).toHaveTextContent('Jane');
+      expect(screen.getByRole('grid', { hidden: true })).not.toHaveTextContent('Bob');
     });
   });
 });

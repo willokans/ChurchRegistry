@@ -16,6 +16,7 @@ import {
   createMarriageWithParties,
 } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
+import { defaultParishContext } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -52,9 +53,9 @@ describe('Marriage create page', () => {
       loading: false,
       error: null,
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue([]);
-    (fetchCommunions as jest.Mock).mockResolvedValue([]);
-    (fetchConfirmations as jest.Mock).mockResolvedValue([]);
+    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchCommunions as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchConfirmations as jest.Mock).mockResolvedValue({ content: [] });
     (createMarriageWithParties as jest.Mock).mockResolvedValue({ id: 99 });
   });
 
@@ -124,11 +125,9 @@ describe('Marriage create page', () => {
   it('when no parishId shows message', () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(''));
     (useParish as jest.Mock).mockReturnValue({
+      ...defaultParishContext,
       parishId: null,
-      setParishId: jest.fn(),
       parishes: [],
-      loading: false,
-      error: null,
     });
     render(<MarriageCreatePage />);
     const main = screen.getByRole('main');

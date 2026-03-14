@@ -4,7 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionRequest;
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionResponse;
+import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
+import com.wyloks.churchRegistry.service.BaptismService;
 import com.wyloks.churchRegistry.service.FirstHolyCommunionService;
+import com.wyloks.churchRegistry.service.RemoteFileService;
+import com.wyloks.churchRegistry.service.SacramentAuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,10 +23,16 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.wyloks.churchRegistry.config.TestSecurityConfig;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -41,6 +51,18 @@ class FirstHolyCommunionControllerTest {
 
     @MockBean
     FirstHolyCommunionService communionService;
+
+    @MockBean
+    BaptismService baptismService;
+
+    @MockBean
+    RemoteFileService remoteFileService;
+
+    @MockBean
+    SacramentAuthorizationService sacramentAuthorizationService;
+
+    @MockBean
+    SacramentAuditService sacramentAuditService;
 
     @BeforeEach
     void setUp() {
@@ -64,6 +86,7 @@ class FirstHolyCommunionControllerTest {
                 .parish("St Mary")
                 .build();
 
+        when(sacramentAuthorizationService.findBaptismParishIdForCommunionRequest(1L)).thenReturn(Optional.of(1L));
         when(communionService.create(any(FirstHolyCommunionRequest.class))).thenReturn(response);
 
         mvc.perform(post("/api/communions")
@@ -75,12 +98,15 @@ class FirstHolyCommunionControllerTest {
     }
 
     @Test
-    void getByParish_returnsEmptyList_whenNone() throws Exception {
-        when(communionService.findByParishId(1L)).thenReturn(List.of());
+    void getByParish_returnsEmptyPage_whenNone() throws Exception {
+        when(communionService.findByParishId(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 50), 0));
 
         mvc.perform(get("/api/parishes/1/communions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
