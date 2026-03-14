@@ -1,5 +1,9 @@
 # Fly.io config for the dedicated Spring Boot API app.
 # Create app once (or let CI create it): fly apps create church-registry-api-staging
+#
+# For distributed dioceses/parishes cache (multi-instance): create Redis and set secret:
+#   fly redis create
+#   fly secrets set REDIS_URL="redis://default:...@...upstash.io:6379"
 
 app = "church-registry-api-staging"
 primary_region = "jnb"  # Johannesburg - closest to Nigeria
