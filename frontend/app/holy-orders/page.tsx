@@ -151,6 +151,7 @@ export default function HolyOrdersListPage() {
             renderCard={(h) => (
               <Link
                 href={`/holy-orders/${h.id}`}
+                prefetch={false}
                 className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-sancta-maroon/30 hover:shadow"
               >
                 <span className="font-medium text-gray-900">

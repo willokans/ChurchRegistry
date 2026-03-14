@@ -111,6 +111,7 @@ export default function CommunionsListPage() {
           </h1>
           <Link
             href={`/communions/new?parishId=${parishId}`}
+            prefetch={false}
             className="hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             <span aria-hidden>+</span>
@@ -197,6 +198,7 @@ export default function CommunionsListPage() {
               {communions.length === 0 && (
                 <Link
                   href={`/communions/new?parishId=${parishId}`}
+                  prefetch={false}
                   className="mt-4 hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 text-white font-medium hover:bg-sancta-maroon-dark"
                 >
                   <span aria-hidden>+</span>
@@ -259,6 +261,7 @@ export default function CommunionsListPage() {
                       </Link>
                       <Link
                         href={`/communions/${c.id}`}
+                        prefetch={false}
                         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label={`More options for ${fullName(c)}`}
                       >

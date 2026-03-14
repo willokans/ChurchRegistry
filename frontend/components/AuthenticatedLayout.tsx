@@ -234,6 +234,7 @@ export default function AuthenticatedLayout({
                 {(isAdmin || isSuperAdmin) && (
                   <Link
                     href="/parishes"
+                    prefetch={false}
                     onClick={closeMobileMenu}
                     className="text-xs text-sancta-maroon hover:underline mt-1 inline-block"
                   >
@@ -277,6 +278,7 @@ export default function AuthenticatedLayout({
                   <li key={href}>
                     <Link
                       href={href}
+                      prefetch={false}
                       onClick={closeMobileMenu}
                       className="block px-3 py-3 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10 min-h-[44px] flex items-center"
                     >
@@ -397,6 +399,7 @@ export default function AuthenticatedLayout({
               <li>
                 <Link
                   href="/dashboard/diocese"
+                  prefetch={false}
                   className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
                 >
                   Diocese Dashboard
@@ -406,6 +409,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/dashboard"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Dashboard
@@ -426,6 +430,7 @@ export default function AuthenticatedLayout({
                 <li>
                   <Link
                     href="/parishes"
+                    prefetch={false}
                     className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
                   >
                     Dioceses & Parishes
@@ -434,6 +439,7 @@ export default function AuthenticatedLayout({
                 <li>
                   <Link
                     href="/users"
+                    prefetch={false}
                     className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
                   >
                     User Access
@@ -444,6 +450,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/baptisms"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Baptisms
@@ -452,6 +459,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/communions"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Holy Communion
@@ -468,6 +476,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/marriages"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Marriage
@@ -476,6 +485,7 @@ export default function AuthenticatedLayout({
             <li>
               <Link
                 href="/holy-orders"
+                prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Holy Order
@@ -502,7 +512,7 @@ export default function AuthenticatedLayout({
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
         <header className="hidden md:flex items-center justify-end gap-4 py-3 px-4 border-b border-gray-200 bg-white/80">
-          <Link href="/help" className="flex items-center gap-1.5 text-sm text-sancta-maroon hover:underline">
+          <Link href="/help" prefetch={false} className="flex items-center gap-1.5 text-sm text-sancta-maroon hover:underline">
             <HelpIcon className="w-4 h-4 shrink-0" />
             Help
           </Link>

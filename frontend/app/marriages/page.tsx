@@ -94,6 +94,7 @@ export default function MarriagesListPage() {
           </h1>
           <Link
             href={`/marriages/new?parishId=${parishId}`}
+            prefetch={false}
             className="hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             <span aria-hidden>+</span>
@@ -292,6 +293,7 @@ export default function MarriagesListPage() {
                           <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                             <Link
                               href={`/marriages/${m.id}/certificate`}
+                              prefetch={false}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sancta-maroon hover:underline"

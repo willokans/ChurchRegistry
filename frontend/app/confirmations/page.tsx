@@ -111,6 +111,7 @@ export default function ConfirmationsListPage() {
           </h1>
           <Link
             href={`/confirmations/new?parishId=${parishId}`}
+            prefetch={false}
             className="hidden md:inline-flex items-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark"
           >
             <span aria-hidden>+</span>
@@ -252,6 +253,7 @@ export default function ConfirmationsListPage() {
                     <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       <Link
                         href={`/confirmations/${c.id}`}
+                        prefetch={false}
                         className="p-2 rounded-lg text-sancta-gold hover:bg-sancta-maroon/10 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label={`Edit ${fullName(c)}`}
                       >
@@ -259,6 +261,7 @@ export default function ConfirmationsListPage() {
                       </Link>
                       <Link
                         href={`/confirmations/${c.id}`}
+                        prefetch={false}
                         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label={`More options for ${fullName(c)}`}
                       >
