@@ -86,9 +86,6 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME="church-registry-api"
-          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
-          ORG_ARG=""
-          [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
 
           # Pre Postgres: use staging credentials. Post Postgres: use prod credentials.
           # All _PROD secrets must be set in GitHub (copy from staging for Pre Postgres).
@@ -117,35 +114,25 @@ jobs:
             printf 'JWT_EXPIRATION_MS=%s\n' "${API_JWT_EXPIRATION_MS_PROD:-3600000}"
             printf 'JWT_REFRESH_EXPIRATION_MS=%s\n' "${API_JWT_REFRESH_EXPIRATION_MS_PROD:-604800000}"
             [ -n "${SUPABASE_SERVICE_ROLE_KEY_PROD:-}" ] && printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
-          } | flyctl secrets import --stage --app "$APP_NAME" $ORG_ARG
+          } | flyctl secrets import --stage --app "$APP_NAME"
 
       - name: Deploy API to Fly production
         id: deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
-          FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           set -euo pipefail
-          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
-          ORG_ARG=""
-          [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
-          flyctl deploy -c fly.api.prod.toml --remote-only --app church-registry-api $ORG_ARG
+          flyctl deploy -c fly.api.prod.toml --remote-only --app church-registry-api
 
       - name: Show Fly logs on deploy failure
         if: failure()
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
-          FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
-          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
-          ORG_ARG=""
-          [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           echo "=== Fly API logs (last 150 lines) - check for startup errors ==="
-          flyctl logs -a church-registry-api $ORG_ARG 2>&1 | tail -150
+          flyctl logs -a church-registry-api 2>&1 | tail -150
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -205,30 +192,19 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
-          FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
         run: |
           set -euo pipefail
           FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
-          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
-          ORG_ARG=""
-          [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
 
           flyctl secrets set \
             NEXT_PUBLIC_API_URL="$FRONTEND_API_URL" \
             --stage \
-            --app church-registry $ORG_ARG
+            --app church-registry
 
       - name: Deploy to Fly production
         working-directory: frontend
-        run: |
-          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
-          ORG_ARG=""
-          [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
-          flyctl deploy -c fly.prod.toml --remote-only --app church-registry $ORG_ARG
+        run: flyctl deploy -c fly.prod.toml --remote-only --app church-registry
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
-          FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
