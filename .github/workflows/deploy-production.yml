@@ -39,11 +39,11 @@ jobs:
       - name: Validate production org
         env:
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           ORG="${FLY_ORG_PROD:-$FLY_ORG}"
           if [ -z "${ORG:-}" ]; then
-            echo "::error::FLY_ORG_PROD or FLY_ORG must be set. Add a repository variable: Settings → Secrets and variables → Actions → Variables tab → New variable → Name: FLY_ORG_PROD, Value: wyloks (or your prod org slug)"
+            echo "::error::FLY_ORG_PROD or FLY_ORG must be set. Add secret: Settings → Secrets and variables → Actions → Secrets → FLY_ORG_PROD = wyloks (or your prod org slug)"
             exit 1
           fi
           echo "Using Fly org: $ORG"
@@ -52,7 +52,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           set -euo pipefail
           APP_NAME="church-registry-api"
@@ -71,7 +71,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           API_DATABASE_URL_PROD: ${{ secrets.API_DATABASE_URL_PROD }}
           API_DATABASE_USERNAME_PROD: ${{ secrets.API_DATABASE_USERNAME_PROD }}
           API_DATABASE_PASSWORD_PROD: ${{ secrets.API_DATABASE_PASSWORD_PROD }}
@@ -121,7 +121,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           set -euo pipefail
           ORG="${FLY_ORG_PROD:-$FLY_ORG}"
@@ -134,7 +134,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           ORG="${FLY_ORG_PROD:-$FLY_ORG}"
           ORG_ARG=""
@@ -179,7 +179,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           set -euo pipefail
           APP_NAME="church-registry"
@@ -198,7 +198,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
         run: |
           set -euo pipefail
@@ -222,4 +222,4 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
-          FLY_ORG_PROD: ${{ vars.FLY_ORG_PROD }}
+          FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
