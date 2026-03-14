@@ -21,17 +21,17 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/context/ParishContext', () => ({
-  useParish: () => ({
+  useParish: jest.fn(() => ({
     parishId: 10,
     setParishId: jest.fn(),
-    dioceseId: null,
+    dioceseId: 1,
     setDioceseId: jest.fn(),
     parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
-    dioceses: [],
+    dioceses: [{ id: 1, dioceseName: 'Test Diocese', parishes: [] }],
     loading: false,
     error: null,
     refetch: jest.fn(),
-  }),
+  })),
 }));
 
 function toDashboard(
@@ -68,6 +68,18 @@ const mockReplace = jest.fn();
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace, push: mockPush });
 
+const defaultParishContext = {
+  parishId: 10,
+  setParishId: jest.fn(),
+  dioceseId: 1,
+  setDioceseId: jest.fn(),
+  parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+  dioceses: [{ id: 1, dioceseName: 'Test Diocese', parishes: [] }],
+  loading: false,
+  error: null,
+  refetch: jest.fn(),
+};
+
 describe('Dashboard page', () => {
   beforeEach(() => {
     mockReplace.mockClear();
@@ -75,6 +87,8 @@ describe('Dashboard page', () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue(null);
     api.getStoredToken.mockReturnValue(null);
+    const { useParish } = require('@/context/ParishContext');
+    useParish.mockReturnValue(defaultParishContext);
   });
 
   it('when not authenticated redirects to login', async () => {
@@ -82,6 +96,118 @@ describe('Dashboard page', () => {
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/login');
     });
+  });
+
+  it('shows select-diocese message when admin has All dioceses selected', async () => {
+    const { useParish } = require('@/context/ParishContext');
+    useParish.mockReturnValue({
+      parishId: 10,
+      setParishId: jest.fn(),
+      dioceseId: null,
+      setDioceseId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      dioceses: [{ id: 1, dioceseName: 'Test Diocese', parishes: [] }],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'superadmin',
+      displayName: 'Super Admin',
+      role: 'SUPER_ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem('church_registry_user', JSON.stringify({
+      username: 'superadmin',
+      displayName: 'Super Admin',
+      role: 'SUPER_ADMIN',
+    }));
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText('Select a diocese in the sidebar to view the diocesan dashboard.')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Welcome to St Mary Parish Registry/)).not.toBeInTheDocument();
+  });
+
+  it('shows select-diocese message when ADMIN (not super) has All dioceses selected', async () => {
+    const { useParish } = require('@/context/ParishContext');
+    useParish.mockReturnValue({
+      parishId: 10,
+      setParishId: jest.fn(),
+      dioceseId: null,
+      setDioceseId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      dioceses: [{ id: 1, dioceseName: 'Test Diocese', parishes: [] }],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'admin',
+      displayName: 'Diocese Admin',
+      role: 'ADMIN',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem('church_registry_user', JSON.stringify({
+      username: 'admin',
+      displayName: 'Diocese Admin',
+      role: 'ADMIN',
+    }));
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText('Select a diocese in the sidebar to view the diocesan dashboard.')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Welcome to St Mary Parish Registry/)).not.toBeInTheDocument();
+  });
+
+  it('shows parish dashboard when non-admin has parish selected (diocese prompt only for admins)', async () => {
+    const { useParish } = require('@/context/ParishContext');
+    useParish.mockReturnValue({
+      parishId: 10,
+      setParishId: jest.fn(),
+      dioceseId: null,
+      setDioceseId: jest.fn(),
+      parishes: [{ id: 10, parishName: 'St Mary', dioceseId: 1 }],
+      dioceses: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+    const api = require('@/lib/api');
+    api.getStoredUser.mockReturnValue({
+      username: 'parishuser',
+      displayName: 'Parish User',
+      role: 'USER',
+    });
+    api.getStoredToken.mockReturnValue('jwt-123');
+    api.fetchDashboard.mockResolvedValue(toDashboard(
+      { baptisms: 1, communions: 0, confirmations: 0, marriages: 0 },
+      [{ id: 1, baptismName: 'John', surname: 'Doe', parishId: 10, dateOfBirth: '2020-01-01' }],
+      [],
+      [],
+      []
+    ));
+    localStorage.setItem('church_registry_token', 'jwt-123');
+    localStorage.setItem('church_registry_user', JSON.stringify({
+      username: 'parishuser',
+      displayName: 'Parish User',
+      role: 'USER',
+    }));
+
+    render(<TestWrapper><DashboardPage /></TestWrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome to St Mary Parish Registry/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Select a diocese in the sidebar to view the diocesan dashboard.')).not.toBeInTheDocument();
   });
 
   it('when authenticated shows greeting and user display name', async () => {

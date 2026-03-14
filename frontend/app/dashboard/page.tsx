@@ -196,7 +196,9 @@ function useDashboardData(parishId: number | null) {
 export default function DashboardPage() {
   const router = useRouter();
   const user = getStoredUser();
-  const { parishId, parishes } = useParish();
+  const { parishId, dioceseId, parishes } = useParish();
+
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
     const token = getStoredToken();
@@ -224,7 +226,11 @@ export default function DashboardPage() {
               {greeting}, {displayName}
             </h1>
             <p className="mt-1 text-gray-600">
-              {welcomeTitle ? `Welcome to ${welcomeTitle}` : 'Select a parish in the sidebar'}
+              {isAdmin && dioceseId == null
+                ? 'Select a diocese in the sidebar to view the diocesan dashboard'
+                : welcomeTitle
+                  ? `Welcome to ${welcomeTitle}`
+                  : 'Select a parish in the sidebar'}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
@@ -232,15 +238,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {error && (
+        {error && (!isAdmin || dioceseId != null) && (
           <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700" role="alert">
             {error}
           </p>
         )}
 
-        {parishId && loading && <DashboardSkeleton />}
+        {parishId && loading && (!isAdmin || dioceseId != null) && <DashboardSkeleton />}
 
-        {parishId && !loading && (
+        {isAdmin && dioceseId == null && !loading && (
+          <p className="text-gray-600">Select a diocese in the sidebar to view the diocesan dashboard.</p>
+        )}
+
+        {parishId && !loading && (!isAdmin || dioceseId != null) && (
           <>
             {/* Summary cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
