@@ -62,10 +62,11 @@ jobs:
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           if ! flyctl apps show "$APP_NAME" $ORG_ARG >/dev/null 2>&1; then
             if [ -n "${ORG:-}" ]; then
-              flyctl apps create "$APP_NAME" --org "$ORG"
+              flyctl apps create "$APP_NAME" --org "$ORG" || true
             else
-              flyctl apps create "$APP_NAME"
+              flyctl apps create "$APP_NAME" || true
             fi
+            # "Name has already been taken" = app exists; continue to deploy
           fi
 
       - name: Sync API secrets
@@ -193,10 +194,11 @@ jobs:
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           if ! flyctl apps show "$APP_NAME" $ORG_ARG >/dev/null 2>&1; then
             if [ -n "${ORG:-}" ]; then
-              flyctl apps create "$APP_NAME" --org "$ORG"
+              flyctl apps create "$APP_NAME" --org "$ORG" || true
             else
-              flyctl apps create "$APP_NAME"
+              flyctl apps create "$APP_NAME" || true
             fi
+            # "Name has already been taken" = app exists; continue to deploy
           fi
 
       - name: Sync frontend runtime env
