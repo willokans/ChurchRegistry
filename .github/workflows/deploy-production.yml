@@ -41,12 +41,12 @@ jobs:
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           if [ -z "${ORG:-}" ]; then
-            echo "::error::FLY_ORG_PROD or FLY_ORG must be set. Add secret: Settings → Secrets and variables → Actions → Secrets → FLY_ORG_PROD = wyloks (or your prod org slug)"
+            echo "::error::FLY_ORG_PROD or FLY_ORG must be set. Add secret: Settings → Secrets and variables → Actions → Secrets → FLY_ORG_PROD = wyloks-166 (use 'fly orgs list' for your slug)"
             exit 1
           fi
-          echo "Using Fly org: $ORG"
+          echo "Using Fly org (slug length: ${#ORG})"
 
       - name: Ensure Fly API app exists
         env:
@@ -56,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME="church-registry-api"
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           if ! flyctl apps show "$APP_NAME" $ORG_ARG >/dev/null 2>&1; then
@@ -83,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME="church-registry-api"
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
 
@@ -124,7 +124,7 @@ jobs:
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
           set -euo pipefail
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           flyctl deploy -c fly.api.prod.toml --remote-only --app church-registry-api $ORG_ARG
@@ -136,7 +136,7 @@ jobs:
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           echo "=== Fly API logs (last 150 lines) - check for startup errors ==="
@@ -183,7 +183,7 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME="church-registry"
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           if ! flyctl apps show "$APP_NAME" $ORG_ARG >/dev/null 2>&1; then
@@ -203,7 +203,7 @@ jobs:
         run: |
           set -euo pipefail
           FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
 
@@ -215,7 +215,7 @@ jobs:
       - name: Deploy to Fly production
         working-directory: frontend
         run: |
-          ORG="${FLY_ORG_PROD:-$FLY_ORG}"
+          ORG="$(printf '%s' "${FLY_ORG_PROD:-$FLY_ORG}" | tr -d '[:space:]')"
           ORG_ARG=""
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           flyctl deploy -c fly.prod.toml --remote-only --app church-registry $ORG_ARG

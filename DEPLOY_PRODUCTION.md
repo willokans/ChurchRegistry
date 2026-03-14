@@ -50,7 +50,7 @@ If production apps (`church-registry-api`, `church-registry`) are in a different
 
 | Secret | Value |
 |--------|-------|
-| `FLY_ORG_PROD` | Production org slug (e.g. `wyloks`, `personal`) |
+| `FLY_ORG_PROD` | Production org slug (run `fly orgs list` for exact value, e.g. `wyloks-166`) |
 
 Add in **Settings → Secrets and variables → Actions → Secrets**. The workflow uses `FLY_ORG_PROD` when set; otherwise falls back to `FLY_ORG` (variable).
 
