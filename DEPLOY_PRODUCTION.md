@@ -51,7 +51,7 @@ If production apps (`church-registry-api`, `church-registry`) are in a different
 | Secret | Value |
 |--------|-------|
 | `FLY_ORG_PROD` | Production org slug (run `fly orgs list` for exact value, e.g. `wyloks-166`) |
-| `FLY_API_TOKEN_PROD` | Fly token with access to prod org. Create: `fly tokens create org --org wyloks-166` |
+| `FLY_API_TOKEN_PROD` | Fly token with access to prod org. Options: (1) `fly auth token` for personal token (access to all orgs), or (2) `fly tokens create org -o wyloks-166` for org-scoped token |
 
 Add in **Settings → Secrets and variables → Actions → Secrets**. The workflow uses `FLY_API_TOKEN_PROD` when set; otherwise falls back to `FLY_API_TOKEN`.
 

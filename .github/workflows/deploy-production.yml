@@ -51,6 +51,7 @@ jobs:
       - name: Ensure Fly API app exists
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -61,15 +62,17 @@ jobs:
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           if ! flyctl apps show "$APP_NAME" $ORG_ARG >/dev/null 2>&1; then
             if [ -n "${ORG:-}" ]; then
-              flyctl apps create "$APP_NAME" --org "$ORG"
+              flyctl apps create "$APP_NAME" --org "$ORG" || true
             else
-              flyctl apps create "$APP_NAME"
+              flyctl apps create "$APP_NAME" || true
             fi
+            # "Name has already been taken" = app exists; continue to deploy
           fi
 
       - name: Sync API secrets
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           API_DATABASE_URL_PROD: ${{ secrets.API_DATABASE_URL_PROD }}
@@ -120,6 +123,7 @@ jobs:
         id: deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -133,6 +137,7 @@ jobs:
         if: failure()
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -178,6 +183,7 @@ jobs:
       - name: Ensure Fly frontend app exists
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -188,15 +194,17 @@ jobs:
           [ -n "${ORG:-}" ] && ORG_ARG="--org $ORG"
           if ! flyctl apps show "$APP_NAME" $ORG_ARG >/dev/null 2>&1; then
             if [ -n "${ORG:-}" ]; then
-              flyctl apps create "$APP_NAME" --org "$ORG"
+              flyctl apps create "$APP_NAME" --org "$ORG" || true
             else
-              flyctl apps create "$APP_NAME"
+              flyctl apps create "$APP_NAME" || true
             fi
+            # "Name has already been taken" = app exists; continue to deploy
           fi
 
       - name: Sync frontend runtime env
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
@@ -221,5 +229,6 @@ jobs:
           flyctl deploy -c fly.prod.toml --remote-only --app church-registry $ORG_ARG
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
