@@ -9,6 +9,7 @@ import com.wyloks.churchRegistry.repository.projection.ParishDashboardCounts;
 import com.wyloks.churchRegistry.service.impl.DashboardServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,6 +22,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -103,5 +105,45 @@ class DashboardServiceImplTest {
         assertThat(result.getCommunions()).isEmpty();
         assertThat(result.getConfirmations()).isEmpty();
         assertThat(result.getMarriages()).isEmpty();
+    }
+
+    @Test
+    void getDashboard_requestsPageSize20ForLowBandwidthOptimization() {
+        long parishId = 1L;
+        ParishDashboardCounts counts = new ParishDashboardCounts() {
+            @Override
+            public long getBaptisms() { return 0; }
+            @Override
+            public long getCommunions() { return 0; }
+            @Override
+            public long getConfirmations() { return 0; }
+            @Override
+            public long getMarriages() { return 0; }
+            @Override
+            public long getHolyOrders() { return 0; }
+        };
+        when(dashboardRepository.getParishCounts(parishId)).thenReturn(counts);
+        when(baptismService.findByParishId(eq(parishId), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(communionService.findByParishId(eq(parishId), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(confirmationService.findByParishId(eq(parishId), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(marriageService.findByParishId(eq(parishId), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        dashboardService.getDashboard(parishId);
+
+        ArgumentCaptor<PageRequest> pageCaptor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(baptismService).findByParishId(eq(parishId), pageCaptor.capture());
+        assertThat(pageCaptor.getValue().getPageSize()).isEqualTo(20);
+        assertThat(pageCaptor.getValue().getPageNumber()).isZero();
+
+        verify(communionService).findByParishId(eq(parishId), pageCaptor.capture());
+        assertThat(pageCaptor.getValue().getPageSize()).isEqualTo(20);
+        verify(confirmationService).findByParishId(eq(parishId), pageCaptor.capture());
+        assertThat(pageCaptor.getValue().getPageSize()).isEqualTo(20);
+        verify(marriageService).findByParishId(eq(parishId), pageCaptor.capture());
+        assertThat(pageCaptor.getValue().getPageSize()).isEqualTo(20);
     }
 }

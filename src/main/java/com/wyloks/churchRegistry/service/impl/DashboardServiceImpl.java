@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class DashboardServiceImpl implements DashboardService {
 
-    private static final int DASHBOARD_PAGE_SIZE = 50;
+    private static final int DASHBOARD_PAGE_SIZE = 20;
 
     private final DashboardRepository dashboardRepository;
     private final BaptismService baptismService;
