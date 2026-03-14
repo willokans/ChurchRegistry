@@ -44,6 +44,16 @@ Copy staging values into the `_PROD` secrets. CORS must include prod frontend UR
 
 Optional: `API_JWT_EXPIRATION_MS_PROD`, `API_JWT_REFRESH_EXPIRATION_MS_PROD`.
 
+### 2b. GitHub Variables (if prod apps are in a different org)
+
+If production apps (`church-registry-api`, `church-registry`) are in a different Fly org than staging (e.g. **Personal** vs Team):
+
+| Variable | Value |
+|----------|-------|
+| `FLY_ORG_PROD` | Production org slug (e.g. `personal` for Personal org) |
+
+The workflow uses `FLY_ORG_PROD` when set; otherwise falls back to `FLY_ORG`.
+
 ### 3. Deploy
 
 Push to `main` or run the workflow manually. The workflow uses `fly.api.prod.toml` and `frontend/fly.prod.toml`.
