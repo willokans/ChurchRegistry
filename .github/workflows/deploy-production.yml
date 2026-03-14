@@ -51,6 +51,7 @@ jobs:
       - name: Ensure Fly API app exists
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -70,6 +71,7 @@ jobs:
       - name: Sync API secrets
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           API_DATABASE_URL_PROD: ${{ secrets.API_DATABASE_URL_PROD }}
@@ -120,6 +122,7 @@ jobs:
         id: deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -133,6 +136,7 @@ jobs:
         if: failure()
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -178,6 +182,7 @@ jobs:
       - name: Ensure Fly frontend app exists
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
         run: |
@@ -197,6 +202,7 @@ jobs:
       - name: Sync frontend runtime env
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
@@ -221,5 +227,6 @@ jobs:
           flyctl deploy -c fly.prod.toml --remote-only --app church-registry $ORG_ARG
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
+          FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ORG: ${{ vars.FLY_ORG }}
           FLY_ORG_PROD: ${{ secrets.FLY_ORG_PROD }}
