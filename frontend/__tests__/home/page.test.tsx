@@ -5,11 +5,12 @@
  * - When authenticated, redirects to /dashboard
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LandingPage from '@/app/page';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -19,6 +20,7 @@ jest.mock('@/lib/api', () => ({
 
 const mockReplace = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });
+(usePathname as jest.Mock).mockReturnValue('/');
 
 describe('Landing page (home)', () => {
   beforeEach(() => {

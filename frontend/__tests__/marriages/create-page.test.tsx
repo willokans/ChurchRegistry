@@ -5,7 +5,7 @@
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MarriageCreatePage from '@/app/marriages/new/page';
 import {
   getStoredToken,
@@ -21,6 +21,7 @@ import { defaultParishContext } from '../test-utils';
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useSearchParams: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -39,6 +40,7 @@ jest.mock('@/context/ParishContext', () => ({
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/marriages/new');
 
 describe('Marriage create page', () => {
   beforeEach(() => {

@@ -48,9 +48,7 @@ export default function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  // In some unit tests, `next/navigation` is mocked without `usePathname`.
-  // Guard so the layout doesn't crash in those environments.
-  const pathname = typeof usePathname === 'function' ? usePathname() : '';
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { parishId, setParishId, dioceseId, setDioceseId, parishes = [], dioceses = [], loading: parishLoading, error: parishError, refetch } = useParish();

@@ -5,13 +5,14 @@
  * - Shows error when communion not found or invalid id
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, usePathname } from 'next/navigation';
 import CommunionCertificatePage from '@/app/communions/[id]/certificate/page';
 import { fetchCommunion } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useParams: jest.fn(),
   useSearchParams: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('next/image', () => ({
@@ -27,6 +28,7 @@ jest.mock('@/lib/api', () => ({
 
 (useParams as jest.Mock).mockReturnValue({ id: '42' });
 (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());
+(usePathname as jest.Mock).mockReturnValue('/communions/42/certificate');
 
 describe('Communion certificate page', () => {
   beforeEach(() => {

@@ -5,7 +5,7 @@
  * - When no parish available, shows message
  */
 import { screen, waitFor, within } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import HolyOrdersPage from '@/app/holy-orders/page';
 import { getStoredToken, getStoredUser, fetchHolyOrders } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
@@ -13,6 +13,7 @@ import { defaultParishContext, renderWithSWR } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -26,6 +27,7 @@ jest.mock('@/context/ParishContext', () => ({
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+(usePathname as jest.Mock).mockReturnValue('/holy-orders');
 
 describe('Holy Orders list page', () => {
   beforeEach(() => {

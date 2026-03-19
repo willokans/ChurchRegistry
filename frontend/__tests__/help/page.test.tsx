@@ -4,7 +4,7 @@
  * - When not authenticated: redirects to /login
  */
 import { render, screen, within } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { defaultParishContext } from '../test-utils';
@@ -12,6 +12,7 @@ import HelpPage from '@/app/help/page';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -25,6 +26,7 @@ jest.mock('@/context/ParishContext', () => ({
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/help');
 
 describe('Help page', () => {
   beforeEach(() => {

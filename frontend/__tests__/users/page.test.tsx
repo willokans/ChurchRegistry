@@ -7,7 +7,7 @@
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import UsersPage from '@/app/users/page';
 import {
   listUsersWithParishAccess,
@@ -21,6 +21,7 @@ import { defaultParishContext } from '../test-utils';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -39,6 +40,7 @@ jest.mock('@/context/ParishContext', () => ({
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush, replace: mockReplace });
+(usePathname as jest.Mock).mockReturnValue('/users');
 
 const mockUsers = [
   {

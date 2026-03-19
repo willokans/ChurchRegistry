@@ -4,13 +4,14 @@
  * - When not found, shows not-found message
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import HolyOrderViewPage from '@/app/holy-orders/[id]/page';
 import { getStoredToken, getStoredUser, fetchHolyOrder } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -34,6 +35,7 @@ jest.mock('@/context/ParishContext', () => ({
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+(usePathname as jest.Mock).mockReturnValue('/holy-orders');
 
 describe('Holy Order view page', () => {
   beforeEach(() => {

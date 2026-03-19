@@ -4,7 +4,7 @@
  * - When authenticated, shows time-based greeting and user display name
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SWRConfig } from 'swr';
 import DashboardPage from '@/app/dashboard/page';
 
@@ -18,6 +18,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -67,6 +68,7 @@ jest.mock('@/lib/api', () => ({
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace, push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/dashboard');
 
 const defaultParishContext = {
   parishId: 10,
