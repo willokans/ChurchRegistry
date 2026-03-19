@@ -155,6 +155,52 @@ export default function MarriageCreateContent() {
     };
   }, [effectiveParishId, parishes]);
 
+  const witnessList = witnesses.filter((w) => w.fullName.trim());
+
+  // Enable "Save marriage" only when required fields are present.
+  // This mirrors the same checks performed in `handleSubmit`.
+  const canSaveMarriage =
+    effectiveParishId != null &&
+    !Number.isNaN(effectiveParishId) &&
+    groom.fullName.trim() !== '' &&
+    bride.fullName.trim() !== '' &&
+    !!marriageDetails.marriageDate &&
+    marriageDetails.diocese.trim() !== '' &&
+    marriageDetails.officiatingPriest.trim() !== '' &&
+    marriageDetails.parish.trim() !== '' &&
+    groom.maritalStatus != null && groom.maritalStatus.trim() !== '' &&
+    bride.maritalStatus != null && bride.maritalStatus.trim() !== '' &&
+    groom.residentialAddress != null && groom.residentialAddress.trim() !== '' &&
+    bride.residentialAddress != null && bride.residentialAddress.trim() !== '' &&
+    groom.nationality != null && groom.nationality.trim() !== '' &&
+    bride.nationality != null && bride.nationality.trim() !== '' &&
+    groom.dateOfBirth != null && String(groom.dateOfBirth).trim() !== '' &&
+    bride.dateOfBirth != null && String(bride.dateOfBirth).trim() !== '' &&
+    witnessList.length >= 2 &&
+    // External baptism requires uploaded certificate + entered required names.
+    (groomBaptismSource !== 'external' ||
+      (!!groom.baptismCertificatePath &&
+        groomExternalBaptism.baptismName.trim() !== '' &&
+        groomExternalBaptism.surname.trim() !== '' &&
+        groomExternalBaptism.fathersName.trim() !== '' &&
+        groomExternalBaptism.mothersName.trim() !== '')) &&
+    // Baptism must be selected/created when in-this-parish mode.
+    (groomBaptismSource !== 'external' || !!groom.baptismId) &&
+    (brideBaptismSource !== 'external' ||
+      (!!bride.baptismCertificatePath &&
+        brideExternalBaptism.baptismName.trim() !== '' &&
+        brideExternalBaptism.surname.trim() !== '' &&
+        brideExternalBaptism.fathersName.trim() !== '' &&
+        brideExternalBaptism.mothersName.trim() !== '')) &&
+    (brideBaptismSource !== 'external' || !!bride.baptismId) &&
+    // External communion requires uploaded certificate.
+    (groomCommunionSource !== 'external' || !!groom.communionCertificatePath) &&
+    (brideCommunionSource !== 'external' || !!bride.communionCertificatePath) &&
+    // External confirmation requires uploaded certificate (UI requirement).
+    (groomConfirmationSource !== 'external' || !!groom.confirmationCertificatePath) &&
+    (brideConfirmationSource !== 'external' || !!bride.confirmationCertificatePath) &&
+    true;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!effectiveParishId) return;
@@ -170,6 +216,42 @@ export default function MarriageCreateContent() {
       setError('Marriage date, officiating priest, and parish are required.');
       return;
     }
+    if (!marriageDetails.diocese.trim()) {
+      setError('Diocese is required.');
+      return;
+    }
+    if (!groom.maritalStatus?.trim()) {
+      setError("Groom marital status is required.");
+      return;
+    }
+    if (!bride.maritalStatus?.trim()) {
+      setError("Bride marital status is required.");
+      return;
+    }
+    if (!groom.residentialAddress?.trim()) {
+      setError("Groom residential address is required.");
+      return;
+    }
+    if (!bride.residentialAddress?.trim()) {
+      setError("Bride residential address is required.");
+      return;
+    }
+    if (!groom.nationality?.trim()) {
+      setError("Groom nationality is required.");
+      return;
+    }
+    if (!bride.nationality?.trim()) {
+      setError("Bride nationality is required.");
+      return;
+    }
+    if (!groom.dateOfBirth?.toString().trim()) {
+      setError("Groom date of birth is required.");
+      return;
+    }
+    if (!bride.dateOfBirth?.toString().trim()) {
+      setError("Bride date of birth is required.");
+      return;
+    }
     if (groomBaptismSource === 'external') {
       if (!groom.baptismCertificatePath) {
         setError('Upload the groom baptism certificate for Baptism done elsewhere.');
@@ -183,6 +265,9 @@ export default function MarriageCreateContent() {
         setError("Groom external baptism father's and mother's names are required.");
         return;
       }
+    } else if (!groom.baptismId) {
+      setError('Select the groom baptism record.');
+      return;
     }
     if (brideBaptismSource === 'external') {
       if (!bride.baptismCertificatePath) {
@@ -197,6 +282,9 @@ export default function MarriageCreateContent() {
         setError("Bride external baptism father's and mother's names are required.");
         return;
       }
+    } else if (!bride.baptismId) {
+      setError('Select the bride baptism record.');
+      return;
     }
     if (groomCommunionSource === 'external' && !groom.communionCertificatePath) {
       setError('Upload the groom Holy Communion certificate for Communion done elsewhere.');
@@ -339,6 +427,10 @@ export default function MarriageCreateContent() {
         </div>
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Create Marriage Record</h1>
 
+        <p className="text-xs text-gray-500 -mt-2">
+          <span className="text-red-500">*</span> Fields marked with this symbol are mandatory.
+        </p>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Groom & Bride: two columns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -359,7 +451,7 @@ export default function MarriageCreateContent() {
                   <input id="groom-fullName" type="text" required value={groom.fullName} onChange={(e) => setGroom((p) => ({ ...p, fullName: e.target.value }))} placeholder="Full Name" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-dob" className={labelClass}>Date of Birth</label>
+                  <label htmlFor="groom-dob" className={labelClass}>Date of Birth <span className="text-red-500">*</span></label>
                   <input id="groom-dob" type="date" value={groom.dateOfBirth ?? ''} onChange={(e) => setGroom((p) => ({ ...p, dateOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -367,11 +459,11 @@ export default function MarriageCreateContent() {
                   <input id="groom-pob" type="text" value={groom.placeOfBirth ?? ''} onChange={(e) => setGroom((p) => ({ ...p, placeOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-nationality" className={labelClass}>Nationality</label>
+                  <label htmlFor="groom-nationality" className={labelClass}>Nationality <span className="text-red-500">*</span></label>
                   <input id="groom-nationality" type="text" value={groom.nationality ?? ''} onChange={(e) => setGroom((p) => ({ ...p, nationality: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-address" className={labelClass}>Residential Address</label>
+                  <label htmlFor="groom-address" className={labelClass}>Residential Address <span className="text-red-500">*</span></label>
                   <input id="groom-address" type="text" value={groom.residentialAddress ?? ''} onChange={(e) => setGroom((p) => ({ ...p, residentialAddress: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -387,7 +479,7 @@ export default function MarriageCreateContent() {
                   <input id="groom-occupation" type="text" value={groom.occupation ?? ''} onChange={(e) => setGroom((p) => ({ ...p, occupation: e.target.value || undefined }))} placeholder="Select Occupation" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-maritalStatus" className={labelClass}>Marital Status</label>
+                  <label htmlFor="groom-maritalStatus" className={labelClass}>Marital Status <span className="text-red-500">*</span></label>
                   <select id="groom-maritalStatus" value={groom.maritalStatus ?? ''} onChange={(e) => setGroom((p) => ({ ...p, maritalStatus: e.target.value || undefined }))} className={inputClass}>
                     <option value="">Select</option>
                     <option value="Bachelor / Widower">Bachelor / Widower</option>
@@ -397,6 +489,7 @@ export default function MarriageCreateContent() {
                 {/* Groom sacraments: Baptism */}
                 <SacramentSection
                   title="Baptism"
+                  required
                   labelSearch="Select Baptism Record"
                   source={groomBaptismSource}
                   setSource={setGroomBaptismSource}
@@ -475,7 +568,7 @@ export default function MarriageCreateContent() {
                   <input id="bride-fullName" type="text" required value={bride.fullName} onChange={(e) => setBride((p) => ({ ...p, fullName: e.target.value }))} placeholder="Full Name" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-dob" className={labelClass}>Date of Birth</label>
+                  <label htmlFor="bride-dob" className={labelClass}>Date of Birth <span className="text-red-500">*</span></label>
                   <input id="bride-dob" type="date" value={bride.dateOfBirth ?? ''} onChange={(e) => setBride((p) => ({ ...p, dateOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -483,11 +576,11 @@ export default function MarriageCreateContent() {
                   <input id="bride-pob" type="text" value={bride.placeOfBirth ?? ''} onChange={(e) => setBride((p) => ({ ...p, placeOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-nationality" className={labelClass}>Nationality</label>
+                  <label htmlFor="bride-nationality" className={labelClass}>Nationality <span className="text-red-500">*</span></label>
                   <input id="bride-nationality" type="text" value={bride.nationality ?? ''} onChange={(e) => setBride((p) => ({ ...p, nationality: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-address" className={labelClass}>Residential Address</label>
+                  <label htmlFor="bride-address" className={labelClass}>Residential Address <span className="text-red-500">*</span></label>
                   <input id="bride-address" type="text" value={bride.residentialAddress ?? ''} onChange={(e) => setBride((p) => ({ ...p, residentialAddress: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -503,7 +596,7 @@ export default function MarriageCreateContent() {
                   <input id="bride-occupation" type="text" value={bride.occupation ?? ''} onChange={(e) => setBride((p) => ({ ...p, occupation: e.target.value || undefined }))} placeholder="Select Occupation" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-maritalStatus" className={labelClass}>Marital Status</label>
+                  <label htmlFor="bride-maritalStatus" className={labelClass}>Marital Status <span className="text-red-500">*</span></label>
                   <select id="bride-maritalStatus" value={bride.maritalStatus ?? ''} onChange={(e) => setBride((p) => ({ ...p, maritalStatus: e.target.value || undefined }))} className={inputClass}>
                     <option value="">Select</option>
                     <option value="Bachelor / Widower">Bachelor / Widower</option>
@@ -512,6 +605,7 @@ export default function MarriageCreateContent() {
                 </div>
                 <SacramentSection
                   title="Baptism"
+                  required
                   labelSearch="Select Baptism Record"
                   source={brideBaptismSource}
                   setSource={setBrideBaptismSource}
@@ -601,7 +695,7 @@ export default function MarriageCreateContent() {
                 <input id="marriageRegister" type="text" value={marriageDetails.marriageRegister} onChange={(e) => setMarriageDetails((d) => ({ ...d, marriageRegister: e.target.value }))} className={inputClass} />
               </div>
               <div>
-                <label htmlFor="diocese" className={labelClass}>Diocese</label>
+                <label htmlFor="diocese" className={labelClass}>Diocese <span className="text-red-500">*</span></label>
                 <input id="diocese" type="text" value={marriageDetails.diocese} onChange={(e) => setMarriageDetails((d) => ({ ...d, diocese: e.target.value }))} className={inputClass} />
               </div>
               <div>
@@ -696,7 +790,7 @@ export default function MarriageCreateContent() {
           <div className="flex gap-4">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !canSaveMarriage}
               className="rounded-xl bg-sancta-maroon px-5 py-3 text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
             >
               {submitting ? 'Saving…' : 'Save marriage'}
@@ -714,6 +808,7 @@ export default function MarriageCreateContent() {
 // Reusable sacrament block: link parish record or upload certificate
 function SacramentSection<T extends { id: number }>({
   title,
+  required,
   labelSearch,
   source,
   setSource,
@@ -728,6 +823,7 @@ function SacramentSection<T extends { id: number }>({
   externalDetails,
 }: {
   title: string;
+  required?: boolean;
   labelSearch: string;
   source: SacramentSource;
   setSource: (s: SacramentSource) => void;
@@ -770,7 +866,9 @@ function SacramentSection<T extends { id: number }>({
 
   return (
     <div className="border-t border-gray-100 pt-4 mt-4">
-      <span className="text-sm font-medium text-gray-700">{title}</span>
+      <span className="text-sm font-medium text-gray-700">
+        {title} {required ? <span className="text-red-500">*</span> : null}
+      </span>
       <div className="mt-2 flex flex-wrap gap-4">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="radio" checked={source === 'this_parish'} onChange={() => setSource('this_parish')} className="text-sancta-maroon focus:ring-sancta-maroon" />

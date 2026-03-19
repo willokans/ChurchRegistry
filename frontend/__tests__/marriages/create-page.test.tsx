@@ -55,7 +55,24 @@ describe('Marriage create page', () => {
       loading: false,
       error: null,
     });
-    (fetchBaptisms as jest.Mock).mockResolvedValue({ content: [] });
+    (fetchBaptisms as jest.Mock).mockResolvedValue({
+      content: [
+        {
+          id: 1,
+          baptismName: 'John',
+          otherNames: '',
+          surname: 'Doe',
+          gender: 'MALE',
+          dateOfBirth: '1990-01-01',
+          fathersName: 'Father Doe',
+          mothersName: 'Mother Doe',
+          sponsorNames: 'Sponsor',
+          officiatingPriest: 'Fr. A',
+          parishId: 10,
+          parishName: 'St Mary',
+        },
+      ],
+    });
     (fetchCommunions as jest.Mock).mockResolvedValue({ content: [] });
     (fetchConfirmations as jest.Mock).mockResolvedValue({ content: [] });
     (createMarriageWithParties as jest.Mock).mockResolvedValue({ id: 99 });
@@ -90,7 +107,37 @@ describe('Marriage create page', () => {
     await user.type(fullNameInputs[1], 'Jane Smith');
     await user.type(screen.getByLabelText(/marriage date/i), '2025-06-15');
     await user.type(screen.getByLabelText(/church name/i), 'St Mary');
+    await user.type(screen.getByLabelText(/diocese/i), 'Enugu Diocese');
     await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
+    // Groom/Bride mandatory fields
+    const dobInputs = screen.getAllByLabelText(/date of birth/i);
+    await user.type(dobInputs[0], '1990-01-01');
+    await user.type(dobInputs[1], '1992-02-02');
+    const maritalStatusInputs = screen.getAllByLabelText(/marital status/i);
+    await user.selectOptions(maritalStatusInputs[0], 'Bachelor / Widower');
+    await user.selectOptions(maritalStatusInputs[1], 'Single / Widow');
+    const nationalityInputs = screen.getAllByLabelText(/nationality/i);
+    await user.type(nationalityInputs[0], 'Nigerian');
+    await user.type(nationalityInputs[1], 'Nigerian');
+    const residentialAddressInputs = screen.getAllByLabelText(/residential address/i);
+    await user.type(residentialAddressInputs[0], '12 Main Street');
+    await user.type(residentialAddressInputs[1], '34 Second Street');
+
+    // Baptism: select groom + bride baptism record (default mode is "In this parish")
+    const baptismSearchInputs = screen.getAllByPlaceholderText(/select baptism record/i);
+    // Groom baptism
+    await user.type(baptismSearchInputs[0], 'John');
+    const groomListItems = await screen.findAllByRole('listitem');
+    const groomBaptismOption = groomListItems.find((li) => /John/i.test(li.textContent || ''));
+    expect(groomBaptismOption).toBeTruthy();
+    await user.click(groomBaptismOption as HTMLElement);
+    // Bride baptism
+    await user.type(baptismSearchInputs[1], 'John');
+    const brideListItems = await screen.findAllByRole('listitem');
+    const brideBaptismOption = brideListItems.find((li) => /John/i.test(li.textContent || ''));
+    expect(brideBaptismOption).toBeTruthy();
+    await user.click(brideBaptismOption as HTMLElement);
+
     // Parish is pre-filled from context
     const main = screen.getByRole('main');
     const parishInput = within(main).getByLabelText(/parish \*/i);

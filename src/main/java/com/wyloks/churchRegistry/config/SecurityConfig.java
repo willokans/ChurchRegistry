@@ -60,7 +60,8 @@ public class SecurityConfig {
                                 "/api/parishes/*/baptisms",
                                 "/api/communions",
                                 "/api/confirmations",
-                                "/api/marriages")
+                                "/api/marriages",
+                                "/api/marriages/with-parties")
                         .hasAnyRole("ADMIN", "PRIEST", "PARISH_PRIEST", "PARISH_SECRETARY")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())

@@ -3,6 +3,7 @@ package com.wyloks.churchRegistry.service.impl;
 import com.wyloks.churchRegistry.dto.MarriageRequest;
 import com.wyloks.churchRegistry.dto.MarriagePartyResponse;
 import com.wyloks.churchRegistry.dto.MarriageResponse;
+import com.wyloks.churchRegistry.dto.CreateMarriageWithPartiesRequest;
 import com.wyloks.churchRegistry.dto.MarriageWitnessResponse;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.entity.Baptism;
@@ -29,6 +30,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.Locale;
@@ -142,6 +145,118 @@ public class MarriageServiceImpl implements MarriageService {
                 .build();
         entity = marriageRepository.save(entity);
         return toResponse(entity);
+    }
+
+    @Override
+    @Transactional
+    public MarriageResponse createWithParties(CreateMarriageWithPartiesRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request is required");
+        }
+        if (request.getGroom() == null || request.getBride() == null || request.getMarriage() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "groom, bride, and marriage are required");
+        }
+
+        Long confirmationId = resolveConfirmationId(request);
+        String partnersName = request.getMarriage().getPartnersName();
+        if (partnersName == null || partnersName.isBlank()) {
+            partnersName = (request.getGroom().getFullName() + " & " + request.getBride().getFullName()).trim();
+        }
+
+        MarriageRequest marriageRequest = MarriageRequest.builder()
+                .confirmationId(confirmationId)
+                .partnersName(partnersName)
+                .marriageDate(request.getMarriage().getMarriageDate())
+                .marriageTime(request.getMarriage().getMarriageTime())
+                .churchName(request.getMarriage().getChurchName())
+                .marriageRegister(request.getMarriage().getMarriageRegister())
+                .diocese(request.getMarriage().getDiocese())
+                .civilRegistryNumber(request.getMarriage().getCivilRegistryNumber())
+                .dispensationGranted(request.getMarriage().getDispensationGranted())
+                .canonicalNotes(request.getMarriage().getCanonicalNotes())
+                .officiatingPriest(request.getMarriage().getOfficiatingPriest())
+                .parish(request.getMarriage().getParish())
+                .build();
+
+        // Create the core marriage record (which links the Confirmation->Baptism/Communion sacrament records).
+        MarriageResponse created = create(marriageRequest);
+
+        Integer marriageId = toIntId(created.getId());
+        if (marriageId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid marriage id");
+        }
+
+        // Persist parties.
+        MarriagePartyLegacy groomParty = toPartyLegacy(marriageId, "GROOM", request.getGroom());
+        MarriagePartyLegacy brideParty = toPartyLegacy(marriageId, "BRIDE", request.getBride());
+        marriagePartyLegacyRepository.save(groomParty);
+        marriagePartyLegacyRepository.save(brideParty);
+
+        // Persist witnesses.
+        if (request.getWitnesses() != null && !request.getWitnesses().isEmpty()) {
+            List<MarriageWitnessLegacy> witnessEntities = new java.util.ArrayList<>();
+            int idx = 0;
+            for (CreateMarriageWithPartiesRequest.WitnessDetails w : request.getWitnesses()) {
+                if (w == null || w.getFullName() == null || w.getFullName().isBlank()) continue;
+                Integer sortOrder = w.getSortOrder() != null ? w.getSortOrder() : idx;
+                witnessEntities.add(MarriageWitnessLegacy.builder()
+                        .marriageId(marriageId)
+                        .fullName(w.getFullName().trim())
+                        .phone(w.getPhone() != null ? w.getPhone().trim() : null)
+                        .address(w.getAddress() != null ? w.getAddress().trim() : null)
+                        .sortOrder(sortOrder)
+                        .build());
+                idx++;
+            }
+            if (!witnessEntities.isEmpty()) {
+                marriageWitnessLegacyRepository.saveAll(witnessEntities);
+            }
+        }
+
+        // Re-load so the response includes persisted parties/witnesses.
+        return findById(created.getId()).orElse(created);
+    }
+
+    private Long resolveConfirmationId(CreateMarriageWithPartiesRequest request) {
+        Integer groomConfirmationId = request.getGroom().getConfirmationId();
+        if (groomConfirmationId != null) return groomConfirmationId.longValue();
+        Integer brideConfirmationId = request.getBride().getConfirmationId();
+        if (brideConfirmationId != null) return brideConfirmationId.longValue();
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "confirmationId is required (groom or bride confirmationId)");
+    }
+
+    private MarriagePartyLegacy toPartyLegacy(Integer marriageId, String role, CreateMarriageWithPartiesRequest.PartyDetails party) {
+        if (party == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Party is required");
+        }
+        return MarriagePartyLegacy.builder()
+                .marriageId(marriageId)
+                .role(role)
+                .fullName(party.getFullName().trim())
+                .dateOfBirth(party.getDateOfBirth())
+                .placeOfBirth(trimToNull(party.getPlaceOfBirth()))
+                .nationality(trimToNull(party.getNationality()))
+                .residentialAddress(trimToNull(party.getResidentialAddress()))
+                .phone(trimToNull(party.getPhone()))
+                .email(trimToNull(party.getEmail()))
+                .occupation(trimToNull(party.getOccupation()))
+                .maritalStatus(trimToNull(party.getMaritalStatus()))
+                .baptismId(party.getBaptismId())
+                .communionId(party.getCommunionId())
+                .confirmationId(party.getConfirmationId())
+                .baptismCertificatePath(trimToNull(party.getBaptismCertificatePath()))
+                .communionCertificatePath(trimToNull(party.getCommunionCertificatePath()))
+                .confirmationCertificatePath(trimToNull(party.getConfirmationCertificatePath()))
+                .baptismChurch(trimToNull(party.getBaptismChurch()))
+                .communionChurch(trimToNull(party.getCommunionChurch()))
+                .confirmationChurch(trimToNull(party.getConfirmationChurch()))
+                .build();
+    }
+
+    private String trimToNull(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        return t.isEmpty() ? null : t;
     }
 
     @Override

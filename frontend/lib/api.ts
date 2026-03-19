@@ -1045,7 +1045,7 @@ export async function createMarriage(body: MarriageRequest): Promise<MarriageRes
 }
 
 export async function createMarriageWithParties(body: CreateMarriageWithPartiesRequest): Promise<MarriageResponse> {
-  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages`, {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/marriages/with-parties`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),

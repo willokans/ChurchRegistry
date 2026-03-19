@@ -2,6 +2,7 @@ package com.wyloks.churchRegistry.service;
 
 import com.wyloks.churchRegistry.dto.MarriageRequest;
 import com.wyloks.churchRegistry.dto.MarriageResponse;
+import com.wyloks.churchRegistry.dto.CreateMarriageWithPartiesRequest;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,8 @@ public interface MarriageService {
     Optional<MarriageResponse> findByConfirmationId(Long confirmationId);
 
     MarriageResponse create(MarriageRequest request);
+
+    MarriageResponse createWithParties(CreateMarriageWithPartiesRequest request);
 
     MarriageResponse updateNote(Long id, String note);
 

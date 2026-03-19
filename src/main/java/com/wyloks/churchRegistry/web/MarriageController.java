@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.web;
 
 import com.wyloks.churchRegistry.dto.MarriageRequest;
+import com.wyloks.churchRegistry.dto.CreateMarriageWithPartiesRequest;
 import com.wyloks.churchRegistry.dto.MarriageResponse;
 import com.wyloks.churchRegistry.dto.NoteUpdateRequest;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
@@ -59,6 +60,18 @@ public class MarriageController {
         authorizationService.requireWriteAccessForParish(parishId);
         MarriageResponse created = marriageService.create(request);
         auditService.logCreate(SacramentType.MARRIAGE, created.getId(), parishId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping("/marriages/with-parties")
+    public ResponseEntity<MarriageResponse> createWithParties(@Valid @RequestBody CreateMarriageWithPartiesRequest request) {
+        MarriageResponse created = marriageService.createWithParties(request);
+
+        // Best-effort audit logging if we can resolve the parish via the same confirmation used by MarriageRequest.
+        authorizationService
+                .findMarriageParishIdByConfirmationId(created.getConfirmationId())
+                .ifPresent(parishId -> auditService.logCreate(SacramentType.MARRIAGE, created.getId(), parishId));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
