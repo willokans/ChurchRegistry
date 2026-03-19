@@ -214,15 +214,18 @@ class SacramentAuthorizationIntegrationTest {
                 .andExpect(status().isOk());
 
         // Create baptism in parish A
-        Map<String, Object> baptismReqA = Map.of(
-                "baptismName", "New Child A",
-                "surname", "Family",
-                "gender", "F",
-                "dateOfBirth", "2018-04-10",
-                "fathersName", "Father",
-                "mothersName", "Mother",
-                "sponsorNames", "Sponsor",
-                "parishId", parishA.getId()
+        Map<String, Object> baptismReqA = Map.ofEntries(
+                Map.entry("baptismName", "New Child A"),
+                Map.entry("surname", "Family"),
+                Map.entry("gender", "F"),
+                Map.entry("dateOfBirth", "2018-04-10"),
+                Map.entry("fathersName", "Father"),
+                Map.entry("mothersName", "Mother"),
+                Map.entry("sponsorNames", "Sponsor"),
+                Map.entry("parishId", parishA.getId()),
+                Map.entry("placeOfBirth", "Lagos"),
+                Map.entry("placeOfBaptism", "Parish A"),
+                Map.entry("dateOfBaptism", "2018-05-15")
         );
         mvc.perform(post("/api/parishes/" + parishA.getId() + "/baptisms")
                         .header("Authorization", bearer(token))
@@ -231,15 +234,18 @@ class SacramentAuthorizationIntegrationTest {
                 .andExpect(status().isCreated());
 
         // Create baptism in parish B
-        Map<String, Object> baptismReqB = Map.of(
-                "baptismName", "New Child B",
-                "surname", "Family",
-                "gender", "M",
-                "dateOfBirth", "2019-05-15",
-                "fathersName", "Father B",
-                "mothersName", "Mother B",
-                "sponsorNames", "Sponsor B",
-                "parishId", parishB.getId()
+        Map<String, Object> baptismReqB = Map.ofEntries(
+                Map.entry("baptismName", "New Child B"),
+                Map.entry("surname", "Family"),
+                Map.entry("gender", "M"),
+                Map.entry("dateOfBirth", "2019-05-15"),
+                Map.entry("fathersName", "Father B"),
+                Map.entry("mothersName", "Mother B"),
+                Map.entry("sponsorNames", "Sponsor B"),
+                Map.entry("parishId", parishB.getId()),
+                Map.entry("placeOfBirth", "Abuja"),
+                Map.entry("placeOfBaptism", "Parish B"),
+                Map.entry("dateOfBaptism", "2019-06-20")
         );
         mvc.perform(post("/api/parishes/" + parishB.getId() + "/baptisms")
                         .header("Authorization", bearer(token))
