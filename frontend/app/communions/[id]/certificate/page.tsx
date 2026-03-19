@@ -5,6 +5,10 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { fetchCommunion, type FirstHolyCommunionResponse } from '@/lib/api';
 
+const BG_CREAM = '#FDF5E6';
+const TEXT_MAROON = '#4A0E0E';
+const GOLD = '#b8860b';
+
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return '';
   const d = new Date(isoDate + 'T00:00:00');
@@ -97,6 +101,8 @@ export default function CommunionCertificatePage() {
   const displayName = [data.baptismName, data.otherNames, data.surname].filter(Boolean).join(' ').trim() || '—';
   const parishName = data.parish || '';
   const communionDateStr = formatDisplayDate(data.communionDate) || '—';
+  const parishMain = parishName.split(',')[0]?.trim() || parishName;
+  const parishLocation = parishName.includes(',') ? parishName.split(',').slice(1).join(',').trim() : '';
 
   return (
     <>
@@ -105,11 +111,13 @@ export default function CommunionCertificatePage() {
         .cert-script { font-family: 'Dancing Script', cursive; }
         @media print {
           @page { size: A4 landscape; }
+          body { background: #FDF5E6 !important; }
         }
       `}</style>
       <div
         ref={isEmbed ? containerRef : undefined}
-        className={`print:bg-[#faf8f3] ${isEmbed ? 'fixed inset-0 flex items-center justify-center overflow-hidden bg-[#faf8f3]' : 'min-h-screen p-8 bg-[#faf8f3]'}`}
+        className={`${isEmbed ? 'fixed inset-0 flex items-center justify-center overflow-hidden' : 'min-h-screen p-8'}`}
+        style={{ backgroundColor: BG_CREAM }}
       >
         <div
           ref={isEmbed ? contentRef : undefined}
@@ -121,7 +129,8 @@ export default function CommunionCertificatePage() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex items-center gap-2 rounded-lg bg-sancta-maroon px-4 py-2 font-medium text-white hover:bg-sancta-maroon-dark"
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-white"
+                style={{ backgroundColor: TEXT_MAROON }}
               >
                 <PrinterIcon className="h-5 w-5" />
                 Print / Save as PDF
@@ -130,10 +139,11 @@ export default function CommunionCertificatePage() {
           )}
 
           <article
-            className="relative overflow-hidden rounded-sm bg-[#faf8f3] p-10 shadow-lg print:shadow-none"
+            className="relative overflow-hidden rounded-sm p-10 shadow-lg print:shadow-none"
             style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h2v2H0V0zm4 0h2v2H4V0z' fill='%23e8e0d0' fill-opacity='0.35' fill-rule='evenodd'/%3E%3C/svg%3E")`,
-              border: '3px double #b8860b',
+              backgroundColor: BG_CREAM,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h2v2H0V0zm4 0h2v2H4V0z' fill='%23e8e0d0' fill-opacity='0.25' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+              border: '3px double #c9a227',
             }}
           >
             <CornerFiligree position="top-left" />
@@ -142,75 +152,88 @@ export default function CommunionCertificatePage() {
             <CornerFiligree position="bottom-right" />
 
             {/* Chalice illustration - top left */}
-            <div className="absolute top-4 left-4 w-24 h-28 text-sancta-gold opacity-80" aria-hidden>
+            <div className="absolute top-6 left-6 w-28 h-36" aria-hidden>
               <ChaliceIllustration />
             </div>
             {/* Chalice illustration - bottom right (mirrored) */}
-            <div className="absolute bottom-4 right-4 w-24 h-28 text-sancta-gold opacity-80 scale-x-[-1] scale-y-[-1]" aria-hidden>
+            <div className="absolute bottom-6 right-6 w-24 h-32 scale-x-[-1] scale-y-[-1]" aria-hidden>
               <ChaliceIllustration />
             </div>
 
-            {/* Header */}
+            {/* Header: cross, CERTIFICATE flanked by lines, OF FIRST HOLY COMMUNION */}
             <header className="text-center pb-2 relative z-10">
-              <CrossIcon className="mx-auto h-8 w-8 text-sancta-gold" />
-              <p className="mt-3 text-sm font-serif text-sancta-maroon tracking-widest">— CERTIFICATE —</p>
-              <h1 className="mt-1 text-xl font-serif font-bold uppercase tracking-wider text-sancta-maroon print:text-2xl">
+              <CrossIcon className="mx-auto h-6 w-6" style={{ color: GOLD }} />
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <span className="flex-1 max-w-[80px] h-px" style={{ backgroundColor: GOLD }} />
+                <p className="text-sm font-serif font-bold uppercase tracking-[0.2em]" style={{ color: TEXT_MAROON }}>
+                  Certificate
+                </p>
+                <span className="flex-1 max-w-[80px] h-px" style={{ backgroundColor: GOLD }} />
+              </div>
+              <h1 className="mt-1 text-lg font-serif font-bold uppercase tracking-wider print:text-xl" style={{ color: TEXT_MAROON }}>
                 Of First Holy Communion
               </h1>
             </header>
 
             <DecorativeLine />
 
-            {/* Body: certification text with date and location inline */}
+            {/* Body: certification text */}
             <div className="py-8 text-center relative z-10 max-w-2xl mx-auto">
-              <p className="text-gray-700">
-                This is to certify that{' '}
-                <span className="cert-script text-xl font-semibold text-gray-900 print:text-2xl">{displayName}</span>
-                {' '}has received the Sacrament of First Holy Communion on{' '}
-                <strong className="text-gray-900">{communionDateStr}</strong>
-                {parishName && <> at <strong className="text-gray-900">{parishName}</strong></>}.
+              <p className="text-sm font-sans" style={{ color: TEXT_MAROON }}>
+                This is to certify that
+              </p>
+              <p className="cert-script mt-2 text-2xl font-semibold print:text-3xl" style={{ color: TEXT_MAROON }}>
+                {displayName}
+              </p>
+              <p className="mt-2 text-sm font-sans" style={{ color: TEXT_MAROON }}>
+                has received the Sacrament of First Holy Communion on{' '}
+                <strong>{communionDateStr}</strong>
+                {parishName && <> at <strong>{parishName}</strong></>}.
               </p>
             </div>
 
             <DecorativeLine />
 
             {/* Footer: Seal (left) | Signature (center) | Metadata (right) */}
-            <footer className="mt-10 pt-6 relative z-10">
-              <div className="flex flex-wrap items-end justify-between gap-6">
-                {/* Left: Church seal */}
+            <footer className="mt-8 pt-6 relative z-10">
+              <div className="flex flex-wrap items-end justify-between gap-8">
+                {/* Left: Church seal - circular with church building */}
                 <div className="flex flex-col items-center shrink-0">
-                  <div className="h-20 w-20 rounded-full border-2 border-sancta-gold flex items-center justify-center overflow-hidden bg-white/90 shadow-inner">
+                  <div
+                    className="h-24 w-24 rounded-full flex items-center justify-center overflow-hidden shadow-inner"
+                    style={{ border: '2px solid #c9a227', backgroundColor: 'rgba(255,255,255,0.9)' }}
+                  >
                     <Image
                       src="/images/holy-family-church-logo.png"
                       alt=""
-                      width={64}
-                      height={64}
-                      className="object-contain w-14 h-14"
+                      width={80}
+                      height={80}
+                      className="object-contain w-16 h-16"
                       unoptimized
                     />
                   </div>
-                  <p className="mt-2 text-[9px] font-bold uppercase text-center text-gray-700 leading-tight max-w-[100px]">
-                    {parishName.split(',')[0]?.trim() || parishName}
+                  <p className="mt-2 text-[9px] font-bold uppercase text-center leading-tight max-w-[110px]" style={{ color: TEXT_MAROON }}>
+                    {parishMain}
                   </p>
-                  {parishName.includes(',') && (
-                    <p className="text-[8px] font-medium uppercase text-center text-gray-600">
-                      {parishName.split(',').slice(1).join(',').trim()}
+                  {parishLocation && (
+                    <p className="text-[8px] font-medium uppercase text-center" style={{ color: TEXT_MAROON, opacity: 0.9 }}>
+                      {parishLocation}
                     </p>
                   )}
                 </div>
 
-                {/* Center: Signature */}
-                <div className="flex-1 min-w-[200px] text-center">
-                  <p className="cert-script text-base text-gray-800 italic">{data.officiatingPriest || '—'}</p>
-                  <div className="h-8 border-b border-gray-600 mx-auto max-w-[180px] mt-0.5" />
-                  <p className="mt-2 text-sm font-bold text-gray-900">{data.officiatingPriest || '—'}</p>
-                  <p className="text-xs font-bold uppercase text-gray-600">Officiating Priest</p>
-                  <p className="mt-2 text-sm font-medium text-gray-800">{parishName}</p>
-                  <p className="mt-1 text-xs italic text-gray-600">This certificate is issued for official use.</p>
+                {/* Center: Signature section */}
+                <div className="flex-1 min-w-[220px] text-center">
+                  <p className="cert-script text-lg italic" style={{ color: TEXT_MAROON }}>{data.officiatingPriest || '—'}</p>
+                  <div className="h-6 border-b mx-auto max-w-[160px] mt-1" style={{ borderColor: TEXT_MAROON }} />
+                  <p className="mt-2 text-sm font-bold" style={{ color: TEXT_MAROON }}>{data.officiatingPriest || '—'}</p>
+                  <p className="text-xs font-bold uppercase tracking-wider" style={{ color: TEXT_MAROON, opacity: 0.85 }}>Officiating Priest</p>
+                  <p className="mt-2 text-sm font-medium" style={{ color: TEXT_MAROON }}>{parishName}</p>
+                  <p className="mt-1 text-xs italic" style={{ color: TEXT_MAROON, opacity: 0.8 }}>This certificate is issued for official use.</p>
                 </div>
 
-                {/* Right: Metadata */}
-                <div className="text-right shrink-0 text-sm text-gray-700 space-y-0.5">
+                {/* Right: Administrative details */}
+                <div className="text-right shrink-0 text-sm space-y-0.5" style={{ color: TEXT_MAROON }}>
                   <p><span className="font-medium">Date Issued:</span> {formatDateIssued()}</p>
                   <p><span className="font-medium">Certificate No:</span> {certificateNo(data.id, parishName)}</p>
                   <p><span className="font-medium">Register:</span> Communion Register — Book —</p>
@@ -227,7 +250,7 @@ export default function CommunionCertificatePage() {
 }
 
 function CornerFiligree({ position }: { position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) {
-  const base = 'absolute w-20 h-20 text-sancta-gold pointer-events-none';
+  const base = 'absolute w-20 h-20 pointer-events-none';
   const pos = {
     'top-left': 'top-2 left-2',
     'top-right': 'top-2 right-2 scale-x-[-1]',
@@ -235,8 +258,8 @@ function CornerFiligree({ position }: { position: 'top-left' | 'top-right' | 'bo
     'bottom-right': 'bottom-2 right-2 scale-x-[-1] scale-y-[-1]',
   }[position];
   return (
-    <div className={`${base} ${pos}`} aria-hidden>
-      <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" strokeWidth="1" className="w-full h-full opacity-70">
+    <div className={`${base} ${pos}`} style={{ color: GOLD }} aria-hidden>
+      <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" strokeWidth="1" className="w-full h-full opacity-75">
         <path d="M0 0 L40 0 M0 0 L0 40" strokeWidth="1.2" />
         <path d="M4 4 L36 4 M4 4 L4 36" strokeWidth="0.8" />
         <path d="M8 8 Q24 8 36 8 M8 8 Q8 24 8 36" strokeWidth="0.6" strokeLinecap="round" />
@@ -249,27 +272,29 @@ function CornerFiligree({ position }: { position: 'top-left' | 'top-right' | 'bo
 function DecorativeLine() {
   return (
     <div className="flex items-center justify-center gap-2 py-2" aria-hidden>
-      <span className="flex-1 h-px bg-sancta-gold/70" />
-      <span className="text-sancta-gold/80 text-xs">◆</span>
-      <span className="flex-1 h-px bg-sancta-gold/70" />
+      <span className="flex-1 h-px max-w-[120px]" style={{ backgroundColor: GOLD, opacity: 0.8 }} />
+      <span className="text-xs" style={{ color: GOLD }}>◆</span>
+      <span className="flex-1 h-px max-w-[120px]" style={{ backgroundColor: GOLD, opacity: 0.8 }} />
     </div>
   );
 }
 
 function ChaliceIllustration() {
   return (
-    <svg viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="1" className="w-full h-full">
-      <path d="M50 10 L50 52 L36 88 L64 88 L50 52 Z" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <ellipse cx="50" cy="10" rx="14" ry="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <circle cx="50" cy="8" r="4" fill="white" fillOpacity="0.95" stroke="currentColor" strokeWidth="0.6" />
-      <path d="M50 5.5 v5 M47.5 8 h5" stroke="currentColor" strokeWidth="0.5" />
-      <ellipse cx="50" cy="92" rx="9" ry="3" fill="none" stroke="currentColor" strokeWidth="0.8" />
-      <path d="M28 65 Q30 45 32 28" strokeWidth="0.6" strokeLinecap="round" />
-      <path d="M72 65 Q70 45 68 28" strokeWidth="0.6" strokeLinecap="round" />
-      <circle cx="24" cy="72" r="6" fill="#6b2d6b" fillOpacity="0.5" stroke="currentColor" strokeWidth="0.5" />
-      <circle cx="76" cy="72" r="6" fill="#6b2d6b" fillOpacity="0.5" stroke="currentColor" strokeWidth="0.5" />
-      <rect x="47" y="22" width="6" height="32" rx="1" fill="white" fillOpacity="0.9" stroke="currentColor" strokeWidth="0.5" />
-      <path d="M47 22 L50 18 L53 22 Z" fill="#fef3c7" stroke="currentColor" strokeWidth="0.5" />
+    <svg viewBox="0 0 120 140" fill="none" stroke="#c9a227" strokeWidth="1" className="w-full h-full">
+      <path d="M60 12 L60 58 L44 98 L76 98 L60 58 Z" fill="none" strokeWidth="1.5" />
+      <ellipse cx="60" cy="12" rx="18" ry="6" fill="none" strokeWidth="1.5" />
+      <circle cx="60" cy="9" r="6" fill="white" fillOpacity="0.95" stroke="#c9a227" strokeWidth="0.8" />
+      <path d="M60 5 v8 M56 9 h8" stroke="#c9a227" strokeWidth="0.6" />
+      <ellipse cx="60" cy="105" rx="12" ry="4" fill="none" strokeWidth="1" />
+      <path d="M30 75 Q34 55 38 38" strokeWidth="0.8" strokeLinecap="round" />
+      <path d="M90 75 Q86 55 82 38" strokeWidth="0.8" strokeLinecap="round" />
+      <ellipse cx="24" cy="82" rx="8" ry="9" fill="#6b2d6b" fillOpacity="0.6" stroke="#c9a227" strokeWidth="0.5" />
+      <ellipse cx="96" cy="82" rx="8" ry="9" fill="#6b2d6b" fillOpacity="0.6" stroke="#c9a227" strokeWidth="0.5" />
+      <path d="M18 70 Q22 65 26 68" strokeWidth="0.5" stroke="#2d5016" />
+      <path d="M94 70 Q90 65 86 68" strokeWidth="0.5" stroke="#2d5016" />
+      <rect x="56" y="25" width="8" height="38" rx="1" fill="white" fillOpacity="0.95" stroke="#c9a227" strokeWidth="0.5" />
+      <path d="M56 25 L60 20 L64 25 Z" fill="#fef3c7" stroke="#c9a227" strokeWidth="0.5" />
     </svg>
   );
 }
