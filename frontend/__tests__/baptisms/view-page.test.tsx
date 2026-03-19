@@ -77,9 +77,41 @@ describe('Baptism view page', () => {
     });
     const main = screen.getByRole('main');
     expect(within(main).getByText(/James/i)).toBeInTheDocument();
+    expect(within(main).getByText(/Baptism Date/i)).toBeInTheDocument();
     expect(within(main).getByText(/^Mary$/)).toBeInTheDocument();
     expect(within(main).getByText(/Peter, Anne/i)).toBeInTheDocument();
     expect(within(main).getByText(/Fr\. Williams/i)).toBeInTheDocument();
+  });
+
+  it('shows place of birth, place of baptism, date of baptism, liber no when present', async () => {
+    (fetchBaptism as jest.Mock).mockResolvedValue({
+      id: 125,
+      baptismName: 'Jane',
+      otherNames: '',
+      surname: 'Smith',
+      gender: 'FEMALE',
+      dateOfBirth: '2020-06-01',
+      placeOfBirth: 'Lagos General Hospital',
+      placeOfBaptism: 'St Mary Catholic Church',
+      dateOfBaptism: '2020-07-15',
+      liberNo: 'BAP-2020-001',
+      fathersName: 'John',
+      mothersName: 'Mary',
+      sponsorNames: 'Peter',
+      officiatingPriest: 'Fr. Williams',
+      parishId: 10,
+    });
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Jane Smith/i)).toBeInTheDocument();
+    });
+    const main = screen.getByRole('main');
+    expect(within(main).getByText(/Place of Birth/i)).toBeInTheDocument();
+    expect(within(main).getByText(/Lagos General Hospital/i)).toBeInTheDocument();
+    expect(within(main).getByText(/Place of Baptism/i)).toBeInTheDocument();
+    expect(within(main).getByText(/St Mary Catholic Church/i)).toBeInTheDocument();
+    expect(within(main).getByText(/Liber No\./i)).toBeInTheDocument();
+    expect(within(main).getByText(/BAP-2020-001/i)).toBeInTheDocument();
   });
 
   it('shows other names when present', async () => {

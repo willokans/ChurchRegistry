@@ -55,6 +55,7 @@ export async function POST(
     const diocese = parish ? dioceses.find((d) => d.id === parish.dioceseId) : undefined;
     const certificateData = {
       baptism: {
+        id: baptism.id,
         baptismName: baptism.baptismName,
         otherNames: baptism.otherNames ?? '',
         surname: baptism.surname,
@@ -66,6 +67,10 @@ export async function POST(
         officiatingPriest: baptism.officiatingPriest,
         parentAddress: baptism.parentAddress,
         address: baptism.address,
+        placeOfBirth: baptism.placeOfBirth,
+        placeOfBaptism: baptism.placeOfBaptism,
+        dateOfBaptism: baptism.dateOfBaptism,
+        liberNo: baptism.liberNo,
       },
       parishName: parish?.parishName ?? '',
       dioceseName: diocese?.name ?? '',

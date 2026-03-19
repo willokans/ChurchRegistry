@@ -38,6 +38,10 @@ export interface Baptism {
   parishAddress?: string;
   parentAddress?: string;
   note?: string;
+  placeOfBirth?: string | null;
+  placeOfBaptism?: string | null;
+  dateOfBaptism?: string | null;
+  liberNo?: string | null;
 }
 
 export interface BaptismNote {

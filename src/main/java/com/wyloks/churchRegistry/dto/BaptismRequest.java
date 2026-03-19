@@ -68,4 +68,18 @@ public class BaptismRequest {
 
     @Size(max = 255)
     private String externalCertificateIssuingParish;
+
+    @NotBlank(message = "placeOfBirth is required")
+    @Size(max = 255)
+    private String placeOfBirth;
+
+    @NotBlank(message = "placeOfBaptism is required")
+    @Size(max = 255)
+    private String placeOfBaptism;
+
+    @NotNull(message = "dateOfBaptism is required")
+    private LocalDate dateOfBaptism;
+
+    @Size(max = 50)
+    private String liberNo;
 }

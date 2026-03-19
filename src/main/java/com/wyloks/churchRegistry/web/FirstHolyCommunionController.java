@@ -204,6 +204,8 @@ public class FirstHolyCommunionController {
         }
         String baptismCertStoredPath = BAPTISM_CERTIFICATES_BUCKET + "/" + certPath;
 
+        String placeOfBaptism = externalBaptisedChurchAddress != null && !externalBaptisedChurchAddress.isBlank()
+                ? externalBaptisedChurchAddress.trim() : "See Certificate";
         BaptismRequest baptismRequest = BaptismRequest.builder()
                 .baptismName(NameUtils.capitalizeNameOrEmpty(externalBaptismName))
                 .surname(NameUtils.capitalizeNameOrEmpty(externalSurname))
@@ -218,6 +220,9 @@ public class FirstHolyCommunionController {
                 .parishAddress(externalBaptisedChurchAddress != null ? externalBaptisedChurchAddress.trim() : null)
                 .externalCertificatePath(baptismCertStoredPath)
                 .externalCertificateIssuingParish(parish)
+                .placeOfBirth("See Certificate")
+                .placeOfBaptism(placeOfBaptism)
+                .dateOfBaptism(LocalDate.now())
                 .build();
         BaptismResponse baptism = baptismService.create(parishId, baptismRequest);
 

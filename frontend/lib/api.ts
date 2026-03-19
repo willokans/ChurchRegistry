@@ -195,6 +195,10 @@ export interface BaptismResponse {
   externalCertificatePath?: string | null;
   /** Issuing parish name for the external certificate. */
   externalCertificateIssuingParish?: string | null;
+  placeOfBirth?: string | null;
+  placeOfBaptism?: string | null;
+  dateOfBaptism?: string | null;
+  liberNo?: string | null;
 }
 
 export interface BaptismRequest {
@@ -211,6 +215,10 @@ export interface BaptismRequest {
   address?: string;
   parishAddress?: string;
   parentAddress?: string;
+  placeOfBirth: string;
+  placeOfBaptism: string;
+  dateOfBaptism: string;
+  liberNo?: string;
 }
 
 export interface ParishResponse {

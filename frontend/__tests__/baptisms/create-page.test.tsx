@@ -50,6 +50,9 @@ describe('Baptism create page', () => {
     render(<BaptismCreatePage />);
     expect(screen.getByRole('heading', { name: /add baptism/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/^baptism name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/place of birth/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/place of baptism/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/date of baptism/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/other names/i)).toBeInTheDocument();
     expect(document.getElementById('surname')).toBeInTheDocument();
     expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument();
@@ -66,7 +69,10 @@ describe('Baptism create page', () => {
     render(<BaptismCreatePage />);
     await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
     await user.type(document.getElementById('surname')!, 'Doe');
-    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/^date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/place of birth/i), 'Lagos');
+    await user.type(screen.getByLabelText(/place of baptism/i), 'St Mary Church');
+    await user.type(screen.getByLabelText(/date of baptism/i), '2021-06-15');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
@@ -126,6 +132,13 @@ describe('Baptism create page', () => {
     expect(stateSelect).toBeRequired();
   });
 
+  it('Place of birth, Place of baptism, and Date of baptism are required', () => {
+    render(<BaptismCreatePage />);
+    expect(screen.getByLabelText(/place of birth/i)).toBeRequired();
+    expect(screen.getByLabelText(/place of baptism/i)).toBeRequired();
+    expect(screen.getByLabelText(/date of baptism/i)).toBeRequired();
+  });
+
   it('date of birth input has max set so future dates cannot be selected', () => {
     render(<BaptismCreatePage />);
     const dobInput = screen.getByLabelText(/date of birth/i);
@@ -138,7 +151,10 @@ describe('Baptism create page', () => {
     render(<BaptismCreatePage />);
     await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
     await user.type(document.getElementById('surname')!, 'Doe');
-    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/^date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/place of birth/i), 'Lagos');
+    await user.type(screen.getByLabelText(/place of baptism/i), 'St Mary Church');
+    await user.type(screen.getByLabelText(/date of baptism/i), '2021-06-15');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
@@ -163,7 +179,10 @@ describe('Baptism create page', () => {
     render(<BaptismCreatePage />);
     await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
     await user.type(document.getElementById('surname')!, 'Doe');
-    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/^date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/place of birth/i), 'Lagos');
+    await user.type(screen.getByLabelText(/place of baptism/i), 'St Mary Church');
+    await user.type(screen.getByLabelText(/date of baptism/i), '2021-06-15');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
@@ -181,13 +200,46 @@ describe('Baptism create page', () => {
     expect(createBaptism).not.toHaveBeenCalled();
   });
 
+  it('submits required place of birth, place of baptism, date of baptism', async () => {
+    (createBaptism as jest.Mock).mockClear();
+    const user = userEvent.setup();
+    render(<BaptismCreatePage />);
+    await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
+    await user.type(document.getElementById('surname')!, 'Doe');
+    await user.type(screen.getByLabelText(/^date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/place of birth/i), 'Lagos General Hospital');
+    await user.type(screen.getByLabelText(/place of baptism/i), 'St Mary Church');
+    await user.type(screen.getByLabelText(/date of baptism/i), '2021-06-15');
+    await user.type(screen.getByLabelText(/father|father's name/i), 'John');
+    await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
+    await user.type(document.getElementById('sponsor-first-0')!, 'Peter');
+    await user.type(document.getElementById('sponsor-last-0')!, 'Doe');
+    await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Smith');
+    await user.type(screen.getByLabelText(/address: e\.g|town, area, street/i), '10 Main St');
+    await user.selectOptions(screen.getByLabelText(/select state/i), 'Lagos');
+    const genderSelect = screen.getByLabelText(/gender/i);
+    await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
+    await user.click(screen.getByRole('button', { name: /save baptism/i }));
+
+    await waitFor(() => {
+      expect(createBaptism).toHaveBeenCalledWith(10, expect.objectContaining({
+        placeOfBirth: 'Lagos General Hospital',
+        placeOfBaptism: 'St Mary Church',
+        dateOfBaptism: '2021-06-15',
+      }));
+    });
+  });
+
   it('allows two sponsors and submits combined sponsorNames', async () => {
     (createBaptism as jest.Mock).mockClear();
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
     await user.type(screen.getByLabelText(/^baptism name/i), 'Jane');
     await user.type(document.getElementById('surname')!, 'Doe');
-    await user.type(screen.getByLabelText(/date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/^date of birth/i), '2021-05-10');
+    await user.type(screen.getByLabelText(/place of birth/i), 'Lagos');
+    await user.type(screen.getByLabelText(/place of baptism/i), 'St Mary Church');
+    await user.type(screen.getByLabelText(/date of baptism/i), '2021-06-15');
     await user.type(screen.getByLabelText(/father|father's name/i), 'John');
     await user.type(screen.getByLabelText(/mother|mother's name/i), 'Mary');
     await user.type(document.getElementById('sponsor-first-0')!, 'John');

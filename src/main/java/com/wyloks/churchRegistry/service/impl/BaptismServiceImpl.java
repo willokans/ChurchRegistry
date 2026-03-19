@@ -92,6 +92,10 @@ public class BaptismServiceImpl implements BaptismService {
                 .note(request.getNote())
                 .externalCertificatePath(request.getExternalCertificatePath())
                 .externalCertificateIssuingParish(NameUtils.capitalizeNameOrEmpty(request.getExternalCertificateIssuingParish()))
+                .placeOfBirth(request.getPlaceOfBirth() != null ? request.getPlaceOfBirth().trim() : null)
+                .placeOfBaptism(request.getPlaceOfBaptism() != null ? request.getPlaceOfBaptism().trim() : null)
+                .dateOfBaptism(request.getDateOfBaptism())
+                .liberNo(request.getLiberNo() != null ? request.getLiberNo().trim() : null)
                 .build();
         entity = baptismRepository.save(entity);
         return toResponse(entity);
@@ -143,6 +147,10 @@ public class BaptismServiceImpl implements BaptismService {
                 .note(e.getNote())
                 .externalCertificatePath(e.getExternalCertificatePath())
                 .externalCertificateIssuingParish(e.getExternalCertificateIssuingParish())
+                .placeOfBirth(e.getPlaceOfBirth())
+                .placeOfBaptism(e.getPlaceOfBaptism())
+                .dateOfBaptism(e.getDateOfBaptism())
+                .liberNo(e.getLiberNo())
                 .createdAt(e.getCreatedAt())
                 .build();
     }

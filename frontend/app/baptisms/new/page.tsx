@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
+import { useParish } from '@/context/ParishContext';
 import { createBaptism, type BaptismRequest } from '@/lib/api';
 import { NIGERIAN_STATES } from '@/lib/nigerian-states';
 
@@ -13,8 +14,10 @@ type SponsorRow = { firstName: string; lastName: string };
 export default function BaptismCreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { dioceses } = useParish();
   const parishIdParam = searchParams.get('parishId');
   const parishId = parishIdParam ? parseInt(parishIdParam, 10) : null;
+  const hasSetPlaceOfBaptismDefault = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,10 +30,28 @@ export default function BaptismCreatePage() {
     fathersName: '',
     mothersName: '',
     officiatingPriest: '',
+    placeOfBirth: '',
+    placeOfBaptism: '',
+    dateOfBaptism: '',
   });
   const [sponsors, setSponsors] = useState<SponsorRow[]>([{ firstName: '', lastName: '' }]);
   const [parentAddressState, setParentAddressState] = useState<string>('');
   const [parentAddressLine, setParentAddressLine] = useState<string>('');
+
+  // Pre-fill Place of baptism with parish name when available; user can edit or clear
+  useEffect(() => {
+    if (parishId == null || Number.isNaN(parishId)) return;
+    hasSetPlaceOfBaptismDefault.current = false;
+  }, [parishId]);
+
+  useEffect(() => {
+    if (parishId == null || Number.isNaN(parishId) || hasSetPlaceOfBaptismDefault.current) return;
+    const parish = dioceses.flatMap((d) => d.parishes ?? []).find((p) => p.id === parishId);
+    if (parish?.parishName) {
+      hasSetPlaceOfBaptismDefault.current = true;
+      setForm((f) => ({ ...f, placeOfBaptism: parish.parishName }));
+    }
+  }, [parishId, dioceses]);
 
   if (parishId === null || Number.isNaN(parishId)) {
     return (
@@ -71,13 +92,33 @@ export default function BaptismCreatePage() {
       setError(sponsorError);
       return;
     }
+    if (!form.placeOfBirth.trim()) {
+      setError('Place of birth is required.');
+      return;
+    }
+    if (!form.placeOfBaptism.trim()) {
+      setError('Place of baptism is required.');
+      return;
+    }
+    if (!form.dateOfBaptism) {
+      setError('Baptism date is required.');
+      return;
+    }
     setSubmitting(true);
     try {
       const line = parentAddressLine.trim();
       const state = parentAddressState.trim();
       const parentAddress = state ? (line ? `${line}, ${state}` : state) : undefined;
       const sponsorNames = buildSponsorNames();
-      await createBaptism(parishId as number, { ...form, sponsorNames, parentAddress });
+      const payload = {
+        ...form,
+        sponsorNames,
+        parentAddress,
+        placeOfBirth: form.placeOfBirth.trim(),
+        placeOfBaptism: form.placeOfBaptism.trim(),
+        dateOfBaptism: form.dateOfBaptism,
+      };
+      await createBaptism(parishId as number, payload);
       router.push('/baptisms');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create baptism');
@@ -134,9 +175,8 @@ export default function BaptismCreatePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="otherNames" className="block text-sm font-medium text-gray-700">
-                Other names
+                Other names (Optional)
               </label>
-              <p className="text-xs text-gray-500 mt-0.5">Optional</p>
               <input
                 id="otherNames"
                 type="text"
@@ -190,6 +230,49 @@ export default function BaptismCreatePage() {
             <p className="mt-1 text-xs text-gray-500">Cannot be a future date</p>
           </div>
           <div>
+            <label htmlFor="placeOfBirth" className="block text-sm font-medium text-gray-700">
+              Place of birth <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-0.5">e.g. city, hospital</p>
+            <input
+              id="placeOfBirth"
+              type="text"
+              required
+              value={form.placeOfBirth}
+              onChange={(e) => setForm((f) => ({ ...f, placeOfBirth: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+            />
+          </div>
+          <div>
+            <label htmlFor="placeOfBaptism" className="block text-sm font-medium text-gray-700">
+              Place of baptism <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-0.5">Defaults to parish name; you can edit or change it</p>
+            <input
+              id="placeOfBaptism"
+              type="text"
+              required
+              value={form.placeOfBaptism}
+              onChange={(e) => setForm((f) => ({ ...f, placeOfBaptism: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+            />
+          </div>
+          <div>
+            <label htmlFor="dateOfBaptism" className="block text-sm font-medium text-gray-700">
+              Date of baptism <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-0.5">Date of the sacrament</p>
+            <input
+              id="dateOfBaptism"
+              type="date"
+              required
+              max={new Date().toISOString().slice(0, 10)}
+              value={form.dateOfBaptism}
+              onChange={(e) => setForm((f) => ({ ...f, dateOfBaptism: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-sancta-maroon focus:outline-none focus:ring-1 focus:ring-sancta-maroon"
+            />
+          </div>
+          <div>
             <label htmlFor="fathersName" className="block text-sm font-medium text-gray-700">
               Father&apos;s name <span className="text-red-500">*</span>
             </label>
@@ -219,7 +302,7 @@ export default function BaptismCreatePage() {
             <p className="block text-sm font-medium text-gray-700 mb-2">
               Sponsor <span className="text-red-500">*</span>
             </p>
-            <p className="text-xs text-gray-500 mb-2">One or two sponsors; each with first and last name.</p>
+            <p className="text-xs text-gray-500 mb-2">Maximum two sponsors; each with first and last name.</p>
             <div className="space-y-3">
               {sponsors.map((s, i) => (
                 <div key={i} className="flex flex-wrap items-end gap-2">

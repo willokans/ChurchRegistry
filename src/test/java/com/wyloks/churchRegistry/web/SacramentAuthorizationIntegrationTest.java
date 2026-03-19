@@ -481,15 +481,18 @@ class SacramentAuthorizationIntegrationTest {
     }
 
     private Map<String, Object> validBaptismRequest() {
-        return Map.of(
-                "baptismName", "New Child",
-                "surname", "Family",
-                "gender", "F",
-                "dateOfBirth", "2018-04-10",
-                "fathersName", "Father",
-                "mothersName", "Mother",
-                "sponsorNames", "Sponsor",
-                "parishId", parishA.getId()
+        return Map.ofEntries(
+                Map.entry("baptismName", "New Child"),
+                Map.entry("surname", "Family"),
+                Map.entry("gender", "F"),
+                Map.entry("dateOfBirth", "2018-04-10"),
+                Map.entry("fathersName", "Father"),
+                Map.entry("mothersName", "Mother"),
+                Map.entry("sponsorNames", "Sponsor"),
+                Map.entry("parishId", parishA.getId()),
+                Map.entry("placeOfBirth", "Lagos"),
+                Map.entry("placeOfBaptism", "St Mary Church"),
+                Map.entry("dateOfBaptism", "2018-05-15")
         );
     }
 

@@ -37,6 +37,10 @@ type BaptismRow = {
   parish_address: string | null;
   parent_address: string | null;
   note: string | null;
+  place_of_birth: string | null;
+  place_of_baptism: string | null;
+  date_of_baptism: string | null;
+  liber_no: string | null;
 };
 type CommunionRow = {
   id: number;
@@ -153,6 +157,10 @@ function toBaptism(r: BaptismRow): Baptism {
     parishAddress: r.parish_address ?? undefined,
     parentAddress: r.parent_address ?? undefined,
     note: r.note ?? undefined,
+    placeOfBirth: r.place_of_birth ?? undefined,
+    placeOfBaptism: r.place_of_baptism ?? undefined,
+    dateOfBaptism: r.date_of_baptism ?? undefined,
+    liberNo: r.liber_no ?? undefined,
   };
 }
 function toCommunion(r: CommunionRow): FirstHolyCommunion {
@@ -326,6 +334,10 @@ export async function addBaptism(record: Baptism): Promise<Baptism> {
     parish_address: record.parishAddress ?? null,
     parent_address: record.parentAddress ?? null,
     note: record.note ?? null,
+    place_of_birth: record.placeOfBirth ?? null,
+    place_of_baptism: record.placeOfBaptism ?? null,
+    date_of_baptism: record.dateOfBaptism ?? null,
+    liber_no: record.liberNo ?? null,
   };
   const { data, error } = await getDb().from('baptisms').insert(row).select('*').single();
   if (error) throw error;

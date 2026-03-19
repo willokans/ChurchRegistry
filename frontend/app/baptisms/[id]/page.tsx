@@ -238,7 +238,6 @@ export default function BaptismViewPage() {
     );
   }
 
-  const displayName = `${baptism.baptismName}${baptism.otherNames ? ` ${baptism.otherNames}` : ''} ${baptism.surname}`.trim();
   const parentAddress = baptism.parentAddress ?? baptism.address ?? '';
 
   return (
@@ -308,9 +307,11 @@ export default function BaptismViewPage() {
               Child&apos;s Information
             </h2>
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
-              <DetailRow label="Full Name" value={displayName || '—'} />
+              <DetailRow label="Baptism Name" value={baptism.baptismName || '—'} />
               <DetailRow label="Other Names" value={baptism.otherNames || '—'} linkToCertificate={isExternalBaptism} onSeeCertificate={openCertificateModal} />
+              <DetailRow label="Surname" value={baptism.surname || '—'} />
               <DetailRow label="Date of Birth" value={formatDisplayDate(baptism.dateOfBirth)} />
+              <DetailRow label="Place of Birth" value={baptism.placeOfBirth || '—'} />
               <DetailRow label="Gender" value={baptism.gender || '—'} />
             </dl>
           </section>
@@ -353,10 +354,12 @@ export default function BaptismViewPage() {
               Baptism Details
             </h2>
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
-              <DetailRow label="Baptism Date" value={formatDisplayDate(baptism.dateOfBirth)} />
+              <DetailRow label="Baptism Date" value={formatDisplayDate(baptism.dateOfBaptism || baptism.dateOfBirth)} />
+              <DetailRow label="Place of Baptism" value={baptism.placeOfBaptism || '—'} />
               {baptism.parishAddress && (
                 <DetailRow label="Baptism Parish (Original)" value={baptism.parishAddress} />
               )}
+              {baptism.liberNo && <DetailRow label="Liber No." value={baptism.liberNo} />}
               <DetailRow label="Officiating Priest" value={baptism.officiatingPriest || '—'} linkToCertificate={isExternalBaptism} onSeeCertificate={openCertificateModal} />
               <DetailRow label="Remarks" value={baptism.note || '—'} />
             </dl>
