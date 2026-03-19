@@ -299,9 +299,9 @@ function ChaliceIllustration() {
   );
 }
 
-function CrossIcon({ className }: { className?: string }) {
+function CrossIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <path d="M12 2v20M2 12h20" />
     </svg>
   );

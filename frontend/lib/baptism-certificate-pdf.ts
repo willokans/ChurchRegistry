@@ -52,10 +52,10 @@ export function buildBaptismCertificatePdf(data: CertificateData): Buffer {
   const pageW = 297; // A4 landscape
   const pageH = 210;
   const centerX = pageW / 2;
-  const gold = [184, 134, 11];
-  const maroon = [107, 45, 60];
-  const labelColor = [107, 114, 128];
-  const valueColor = [17, 24, 39];
+  const gold: [number, number, number] = [184, 134, 11];
+  const maroon: [number, number, number] = [107, 45, 60];
+  const labelColor: [number, number, number] = [107, 114, 128];
+  const valueColor: [number, number, number] = [17, 24, 39];
   let y = 25;
 
   // Gold border
