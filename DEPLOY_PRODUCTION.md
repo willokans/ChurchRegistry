@@ -127,9 +127,15 @@ Use `.github/workflows/deploy-production.yml` (trigger: `push` to `main`). Requi
 
 ## Phase 4: Custom Domains
 
-1. Add custom domains in Fly dashboard: `api.parishregistry.ng` → API app, `app.parishregistry.ng` → frontend app
-2. Add CNAME records: `api` → `church-registry-api.fly.dev`, `app` → `church-registry.fly.dev`
-3. Update `CORS_ALLOWED_ORIGINS` and `NEXT_PUBLIC_API_URL` to use custom domains
+**See [docs/CUSTOM_DOMAIN_SETUP.md](docs/CUSTOM_DOMAIN_SETUP.md)** for the full step-by-step guide.
+
+Summary:
+1. Add domains in Fly: `fly certs add parishregistry.ng --app church-registry`, `fly certs add api.parishregistry.ng --app church-registry-api`
+2. Add DNS records: root (A/AAAA) and `api` (CNAME) per `fly certs setup`
+3. Update GitHub secrets `API_CORS_ALLOWED_ORIGINS_PROD` and `NEXT_PUBLIC_API_URL_PROD` to use custom domains
+4. Redeploy
+
+Production URLs: https://parishregistry.ng (frontend), https://api.parishregistry.ng (API)
 
 ---
 

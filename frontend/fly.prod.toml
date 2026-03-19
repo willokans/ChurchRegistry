@@ -1,18 +1,18 @@
 # Fly.io app config – production. Deploy from frontend/: fly deploy -c fly.prod.toml
 # App: church-registry
-# Create app first: fly apps create church-registry --org YOUR_ORG
-# Set secrets: fly secrets set NEXT_PUBLIC_API_URL=https://church-registry-api.fly.dev
+# Custom domain: app.parishregistry.ng
+# Set secrets: fly secrets set NEXT_PUBLIC_API_URL=https://api.parishregistry.ng
 
 app = "church-registry"
 primary_region = "jnb"
 
 [build]
   [build.args]
-    NEXT_PUBLIC_API_URL = "https://church-registry-api.fly.dev"
+    NEXT_PUBLIC_API_URL = "https://api.parishregistry.ng"
 
 [env]
   PORT = "3000"
-  NEXT_PUBLIC_API_URL = "https://church-registry-api.fly.dev"
+  NEXT_PUBLIC_API_URL = "https://api.parishregistry.ng"
 
 [http_service]
   internal_port = 3000
