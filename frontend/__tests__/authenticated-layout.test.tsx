@@ -3,8 +3,9 @@
  * - When authenticated: renders header with Parish Registry branding and cross, sidebar, and children
  * - When not authenticated: redirects to /login and does not render layout content
  */
-import { render, screen, within } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { render, screen, within, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useRouter, usePathname } from 'next/navigation';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { defaultParishContext } from './test-utils';
@@ -12,6 +13,7 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -25,10 +27,12 @@ jest.mock('@/context/ParishContext', () => ({
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/dashboard');
 
 describe('AuthenticatedLayout', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'admin',
@@ -244,5 +248,30 @@ describe('AuthenticatedLayout', () => {
     );
     expect(screen.getByText('No parish selected')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /add diocese & parish/i })).toBeInTheDocument();
+  });
+
+  it('closes mobile menu overlay when pathname changes', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard content')).toBeInTheDocument();
+    });
+    const openMenuBtn = screen.getByRole('button', { name: /open menu/i });
+    await user.click(openMenuBtn);
+    const overlay = document.querySelector('.bg-black\\/50');
+    expect(overlay).toBeInTheDocument();
+    (usePathname as jest.Mock).mockReturnValue('/baptisms');
+    rerender(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.bg-black\\/50')).not.toBeInTheDocument();
+    });
   });
 });
