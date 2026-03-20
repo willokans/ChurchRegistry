@@ -80,13 +80,13 @@ describe('AuthenticatedLayout', () => {
     expect(screen.getByText('Dashboard content')).toBeInTheDocument();
   });
 
-  it('Dashboard link points to /dashboard', () => {
+  it('Parish Dashboard link points to /dashboard', () => {
     render(
       <AuthenticatedLayout>
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    const dashboardLink = screen.getByRole('link', { name: 'Dashboard' });
+    const dashboardLink = screen.getByRole('link', { name: 'Parish Dashboard' });
     expect(dashboardLink).toHaveAttribute('href', '/dashboard');
   });
 

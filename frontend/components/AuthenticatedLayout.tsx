@@ -265,7 +265,7 @@ export default function AuthenticatedLayout({
               <ul className="space-y-1">
                 {[
                   ...(isAdmin || isSuperAdmin ? [{ href: '/dashboard/diocese', label: 'Diocese Dashboard' }] : []),
-                  { href: '/dashboard', label: 'Dashboard' },
+                  { href: '/dashboard', label: 'Parish Dashboard' },
                   ...(isAdmin || isSuperAdmin
                     ? [
                         { href: '/parishes', label: 'Dioceses & Parishes' },
@@ -416,7 +416,7 @@ export default function AuthenticatedLayout({
                 prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
-                Dashboard
+                Parish Dashboard
               </Link>
             </li>
             {(isAdmin || isSuperAdmin) && (
