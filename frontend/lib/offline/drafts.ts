@@ -1,4 +1,9 @@
 export type OfflineDraftRecord<TPayload> = {
+  /**
+   * Stable key for draft payload references.
+   * Kept as `id` as a legacy field for existing localStorage tests/fixtures.
+   */
+  draftId: string;
   id: string;
   formType: string;
   updatedAt: number;
@@ -12,12 +17,18 @@ const DRAFTS_STORE = 'drafts';
 const FILES_STORE = 'files';
 const QUEUE_STORE = 'queue';
 
+const POINTER_PREFIX = 'church_registry_offline_draft_ptr:';
+
 function hasIndexedDb(): boolean {
   return typeof indexedDB !== 'undefined';
 }
 
-function localKey(id: string) {
-  return `church_registry_offline_draft:${id}`;
+function localKey(draftId: string) {
+  return `church_registry_offline_draft:${draftId}`;
+}
+
+function pointerKey(draftId: string) {
+  return `${POINTER_PREFIX}${draftId}`;
 }
 
 async function openDb(): Promise<IDBDatabase> {
@@ -77,12 +88,15 @@ export async function saveDraft<TPayload>(
   formType: string,
   payload: TPayload
 ): Promise<void> {
-  const record: OfflineDraftRecord<TPayload> = { id, formType, updatedAt: Date.now(), payload };
+  const updatedAt = Date.now();
+  const record: OfflineDraftRecord<TPayload> = { draftId: id, id, formType, updatedAt, payload };
   if (!hasIndexedDb()) {
     localStorage.setItem(localKey(id), JSON.stringify(record));
+    localStorage.setItem(pointerKey(id), JSON.stringify({ draftId: id, formType, updatedAt }));
     return;
   }
   await idbPut(DRAFTS_STORE, record);
+  if (hasLocalStorage()) localStorage.setItem(pointerKey(id), JSON.stringify({ draftId: id, formType, updatedAt }));
 }
 
 export async function loadDraft<TPayload>(id: string): Promise<OfflineDraftRecord<TPayload> | null> {
@@ -90,19 +104,46 @@ export async function loadDraft<TPayload>(id: string): Promise<OfflineDraftRecor
     const raw = localStorage.getItem(localKey(id));
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as OfflineDraftRecord<TPayload>;
+      const parsed = JSON.parse(raw) as Partial<OfflineDraftRecord<TPayload>> & { id?: string };
+      const draftId = parsed.draftId ?? parsed.id ?? id;
+      return { ...(parsed as OfflineDraftRecord<TPayload>), draftId, id: parsed.id ?? draftId };
     } catch {
       return null;
     }
   }
-  return await idbGet<OfflineDraftRecord<TPayload>>(DRAFTS_STORE, id);
+
+  const loaded = await idbGet<OfflineDraftRecord<TPayload> | Partial<OfflineDraftRecord<TPayload>>>(DRAFTS_STORE, id);
+  if (!loaded) return null;
+
+  const anyLoaded = loaded as Partial<OfflineDraftRecord<TPayload>> & { id?: string };
+  const draftId = anyLoaded.draftId ?? anyLoaded.id ?? id;
+  return { ...(anyLoaded as OfflineDraftRecord<TPayload>), draftId, id: anyLoaded.id ?? draftId };
 }
 
 export async function deleteDraft(id: string): Promise<void> {
   if (!hasIndexedDb()) {
     localStorage.removeItem(localKey(id));
+    localStorage.removeItem(pointerKey(id));
     return;
   }
   await idbDelete(DRAFTS_STORE, id);
+  if (hasLocalStorage()) localStorage.removeItem(pointerKey(id));
+}
+
+export async function loadDraftMeta(draftId: string): Promise<{ draftId: string; formType: string; updatedAt: number } | null> {
+  if (!hasLocalStorage()) return null;
+  const raw = localStorage.getItem(pointerKey(draftId));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { draftId: string; formType: string; updatedAt: number };
+    if (!parsed?.draftId || !parsed?.formType || typeof parsed.updatedAt !== 'number') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function hasLocalStorage(): boolean {
+  return typeof localStorage !== 'undefined';
 }
 

@@ -32,12 +32,12 @@ export interface ConfirmationCreateFormProps {
   baptismSource: 'this_parish' | 'external';
   baptisms: BaptismResponse[];
   setBaptismSource: React.Dispatch<React.SetStateAction<'this_parish' | 'external'>>;
-  setCertificateFile: React.Dispatch<React.SetStateAction<File | null>>;
+  setCertificateFile: (file: File | null) => void;
   setExternalBaptism: React.Dispatch<React.SetStateAction<ExternalBaptismState>>;
   setSelectedBaptismId: React.Dispatch<React.SetStateAction<number>>;
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   setCommunionSource: React.Dispatch<React.SetStateAction<'this_church' | 'other_church'>>;
-  setCommunionCertificateFile: React.Dispatch<React.SetStateAction<File | null>>;
+  setCommunionCertificateFile: (file: File | null) => void;
   selectedBaptism: BaptismResponse | null | undefined;
   fullNameBaptism: (b: BaptismResponse) => string;
   formatBaptismDate: (s: string) => string;
@@ -79,6 +79,8 @@ export interface ConfirmationCreateFormProps {
   handleDiscardDraft: () => Promise<void>;
   certificateFileNameFromDraft: string | null;
   communionCertificateFileNameFromDraft: string | null;
+  certificateAttachmentWarning?: string | null;
+  communionAttachmentWarning?: string | null;
 }
 
 export default function ConfirmationCreateForm(props: ConfirmationCreateFormProps) {
@@ -136,6 +138,8 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
     handleDiscardDraft,
     certificateFileNameFromDraft,
     communionCertificateFileNameFromDraft,
+    certificateAttachmentWarning,
+    communionAttachmentWarning,
   } = props;
 
   return React.createElement(
@@ -195,6 +199,8 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
       handleDiscardDraft,
       certificateFileNameFromDraft,
       communionCertificateFileNameFromDraft,
+      certificateAttachmentWarning,
+      communionAttachmentWarning,
     })
   );
 }

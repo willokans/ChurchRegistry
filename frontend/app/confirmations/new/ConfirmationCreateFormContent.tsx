@@ -65,6 +65,8 @@ export default function ConfirmationCreateFormContent(
     handleDiscardDraft,
     certificateFileNameFromDraft,
     communionCertificateFileNameFromDraft,
+    certificateAttachmentWarning,
+    communionAttachmentWarning,
   } = props;
 
   return (
@@ -396,6 +398,11 @@ export default function ConfirmationCreateFormContent(
                           />
                         </label>
                       </div>
+                      {certificateAttachmentWarning && (
+                        <p role="status" className="mt-2 text-xs text-amber-800">
+                          {certificateAttachmentWarning}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -647,6 +654,11 @@ export default function ConfirmationCreateFormContent(
                             <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="sr-only" onChange={(e) => setCommunionCertificateFile(e.target.files?.[0] ?? null)} />
                           </label>
                         </div>
+                        {communionAttachmentWarning && (
+                          <p role="status" className="mt-2 text-xs text-amber-800">
+                            {communionAttachmentWarning}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

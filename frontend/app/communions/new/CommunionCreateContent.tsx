@@ -15,6 +15,7 @@ import {
   type FirstHolyCommunionRequest,
 } from '@/lib/api';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -42,10 +43,16 @@ export default function CommunionCreateContent() {
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
+    fileRefId?: string;
     name: string;
     size: number;
     type?: string;
+    storedBlob: boolean;
+    deferredReason?: string;
   } | null>(null);
+  const [certificateAttachmentWarning, setCertificateAttachmentWarning] = useState<string | null>(null);
+
+  const certificatePersistTaskRef = useRef<Promise<void> | null>(null);
   const [externalBaptism, setExternalBaptism] = useState({
     baptismName: '',
     surname: '',
@@ -79,7 +86,16 @@ export default function CommunionCreateContent() {
     baptismSource: 'this_parish' | 'external';
     form: typeof form;
     externalBaptism: typeof externalBaptism;
-    certificateFileMeta: { name: string; size: number; type?: string } | null;
+    certificateAttachment: {
+      fileRefId?: string;
+      name: string;
+      size: number;
+      type?: string;
+      storedBlob: boolean;
+      deferredReason?: string;
+    } | null;
+    // Legacy (pre-fileRefId) fields (optional) for older drafts.
+    certificateFileMeta?: { name: string; size: number; type?: string } | null;
   };
 
   useEffect(() => {
@@ -168,13 +184,12 @@ export default function CommunionCreateContent() {
     if (!draftId) return;
     setDraftStatus('Saving draft locally…');
     try {
+      if (certificatePersistTaskRef.current) await certificatePersistTaskRef.current;
       const payload: CommunionDraftPayload = {
         baptismSource,
         form,
         externalBaptism,
-        certificateFileMeta: certificateFile
-          ? { name: certificateFile.name, size: certificateFile.size, type: certificateFile.type }
-          : certificateFileMetaFromDraft,
+        certificateAttachment: certificateFileMetaFromDraft,
       };
       await saveDraft<CommunionDraftPayload>(draftId, 'communion_create', payload);
       const loaded = await loadDraft<CommunionDraftPayload>(draftId);
@@ -187,12 +202,39 @@ export default function CommunionCreateContent() {
 
   function handleResumeDraft() {
     if (!draftRecord) return;
-    setBaptismSource(draftRecord.payload.baptismSource);
-    setForm(draftRecord.payload.form);
-    setExternalBaptism(draftRecord.payload.externalBaptism);
-    setCertificateFile(null);
-    setCertificateFileMetaFromDraft(draftRecord.payload.certificateFileMeta);
-    setDraftStatus('Draft loaded from this device.');
+    void (async () => {
+      setBaptismSource(draftRecord.payload.baptismSource);
+      setForm(draftRecord.payload.form);
+      setExternalBaptism(draftRecord.payload.externalBaptism);
+
+      certificatePersistTaskRef.current = null;
+      setCertificateFile(null);
+
+      const legacyMeta = draftRecord.payload.certificateFileMeta;
+      const attachment =
+        draftRecord.payload.certificateAttachment ??
+        (legacyMeta
+          ? {
+              name: legacyMeta.name,
+              size: legacyMeta.size,
+              type: legacyMeta.type,
+              storedBlob: false as const,
+            }
+          : null);
+      setCertificateFileMetaFromDraft(attachment);
+      setCertificateAttachmentWarning(
+        attachment ? (attachment.storedBlob ? null : attachment.deferredReason ?? 'Certificate was not stored offline. Please re-upload when online.') : null
+      );
+
+      if (attachment?.storedBlob && attachment.fileRefId) {
+        const blob = await loadOfflineBlob(attachment.fileRefId);
+        if (blob) {
+          setCertificateFile(new File([blob], attachment.name, { type: attachment.type ?? blob.type }));
+        }
+      }
+
+      setDraftStatus('Draft loaded from this device.');
+    })();
   }
 
   async function handleDiscardDraft() {
@@ -203,6 +245,8 @@ export default function CommunionCreateContent() {
       setDraftRecord(null);
       setCertificateFile(null);
       setCertificateFileMetaFromDraft(null);
+      setCertificateAttachmentWarning(null);
+      certificatePersistTaskRef.current = null;
       setDraftStatus('Draft discarded.');
     } catch {
       setDraftStatus('Failed to discard draft.');
@@ -349,6 +393,8 @@ export default function CommunionCreateContent() {
                         setBaptismSource('this_parish');
                         setCertificateFile(null);
                         setCertificateFileMetaFromDraft(null);
+                        setCertificateAttachmentWarning(null);
+                        certificatePersistTaskRef.current = null;
                         setExternalBaptism({ baptismName: '', surname: '', otherNames: '', gender: 'MALE', fathersName: '', mothersName: '', baptisedChurchAddress: '' });
                       }}
                       className="mt-1 text-sancta-maroon focus:ring-sancta-maroon"
@@ -598,10 +644,39 @@ export default function CommunionCreateContent() {
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
                             className="sr-only"
-                            onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              certificatePersistTaskRef.current = null;
+                              setCertificateAttachmentWarning(null);
+                              setCertificateFileMetaFromDraft(null);
+                              setCertificateFile(file);
+
+                              if (!file) return;
+                              certificatePersistTaskRef.current = persistOfflineAttachmentWithGuardrails(file, {
+                                maxBytesPerFile: 2 * 1024 * 1024,
+                                maxTotalBytes: 25 * 1024 * 1024,
+                              }).then((res) => {
+                                setCertificateFileMetaFromDraft({
+                                  fileRefId: res.fileRefId,
+                                  name: file.name,
+                                  size: file.size,
+                                  type: res.mimeType,
+                                  storedBlob: res.storedBlob,
+                                  deferredReason: res.deferredReason,
+                                });
+                                setCertificateAttachmentWarning(
+                                  res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.'
+                                );
+                              });
+                            }}
                           />
                         </label>
                       </div>
+                      {certificateAttachmentWarning && (
+                        <p role="status" className="mt-2 text-xs text-amber-800">
+                          {certificateAttachmentWarning}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}

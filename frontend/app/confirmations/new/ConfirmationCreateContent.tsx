@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
 
 import ConfirmationCreateForm from './ConfirmationCreateForm';
 
@@ -63,16 +64,28 @@ export default function ConfirmationCreateContent() {
   const [communionSource, setCommunionSource] = useState<'this_church' | 'other_church'>('this_church');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
+    fileRefId?: string;
     name: string;
     size: number;
     type?: string;
+    storedBlob: boolean;
+    deferredReason?: string;
   } | null>(null);
   const [communionCertificateFile, setCommunionCertificateFile] = useState<File | null>(null);
   const [communionCertificateFileMetaFromDraft, setCommunionCertificateFileMetaFromDraft] = useState<{
+    fileRefId?: string;
     name: string;
     size: number;
     type?: string;
+    storedBlob: boolean;
+    deferredReason?: string;
   } | null>(null);
+  const [certificateAttachmentWarning, setCertificateAttachmentWarning] = useState<string | null>(null);
+  const [communionAttachmentWarning, setCommunionAttachmentWarning] = useState<string | null>(null);
+
+  // Ensure Save Draft uses the final attachment guardrails decision.
+  const certificatePersistTaskRef = useRef<Promise<void> | null>(null);
+  const communionPersistTaskRef = useRef<Promise<void> | null>(null);
   const [externalBaptism, setExternalBaptism] = useState({
     baptismName: '',
     surname: '',
@@ -123,8 +136,25 @@ export default function ConfirmationCreateContent() {
     externalBaptism: typeof externalBaptism;
     externalCommunion: typeof externalCommunion;
     form: typeof form;
-    certificateFileMeta: { name: string; size: number; type?: string } | null;
-    communionCertificateFileMeta: { name: string; size: number; type?: string } | null;
+    certificateAttachment: {
+      fileRefId?: string;
+      name: string;
+      size: number;
+      type?: string;
+      storedBlob: boolean;
+      deferredReason?: string;
+    } | null;
+    communionCertificateAttachment: {
+      fileRefId?: string;
+      name: string;
+      size: number;
+      type?: string;
+      storedBlob: boolean;
+      deferredReason?: string;
+    } | null;
+    // Legacy (pre-fileRefId) fields (optional) for older drafts.
+    certificateFileMeta?: { name: string; size: number; type?: string } | null;
+    communionCertificateFileMeta?: { name: string; size: number; type?: string } | null;
   };
 
   useEffect(() => {
@@ -246,20 +276,79 @@ export default function ConfirmationCreateContent() {
     );
   }
 
-  const setCertificateFileWithDraftClear: React.Dispatch<React.SetStateAction<File | null>> = (value) => {
+  const setCertificateFileWithDraftClear = (value: File | null) => {
+    certificatePersistTaskRef.current = null;
+    setCertificateAttachmentWarning(null);
     setCertificateFileMetaFromDraft(null);
     setCertificateFile(value);
+
+    if (!value) return;
+    certificatePersistTaskRef.current = (async () => {
+      const res = await persistOfflineAttachmentWithGuardrails(value, {
+        maxBytesPerFile: 2 * 1024 * 1024,
+        maxTotalBytes: 25 * 1024 * 1024,
+      });
+
+      setCertificateFileMetaFromDraft({
+        fileRefId: res.fileRefId,
+        name: value.name,
+        size: value.size,
+        type: res.mimeType,
+        storedBlob: res.storedBlob,
+        deferredReason: res.deferredReason,
+      });
+      setCertificateAttachmentWarning(res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.');
+    })().catch(() => {
+      setCertificateFileMetaFromDraft({
+        name: value.name,
+        size: value.size,
+        storedBlob: false,
+        deferredReason: 'Failed to store certificate offline. It may need to be re-uploaded.',
+      });
+      setCertificateAttachmentWarning('Failed to store certificate offline. It may need to be re-uploaded.');
+    });
   };
 
-  const setCommunionCertificateFileWithDraftClear: React.Dispatch<React.SetStateAction<File | null>> = (value) => {
+  const setCommunionCertificateFileWithDraftClear = (value: File | null) => {
+    communionPersistTaskRef.current = null;
+    setCommunionAttachmentWarning(null);
     setCommunionCertificateFileMetaFromDraft(null);
     setCommunionCertificateFile(value);
+
+    if (!value) return;
+    communionPersistTaskRef.current = (async () => {
+      const res = await persistOfflineAttachmentWithGuardrails(value, {
+        maxBytesPerFile: 2 * 1024 * 1024,
+        maxTotalBytes: 25 * 1024 * 1024,
+      });
+
+      setCommunionCertificateFileMetaFromDraft({
+        fileRefId: res.fileRefId,
+        name: value.name,
+        size: value.size,
+        type: res.mimeType,
+        storedBlob: res.storedBlob,
+        deferredReason: res.deferredReason,
+      });
+      setCommunionAttachmentWarning(res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.');
+    })().catch(() => {
+      setCommunionCertificateFileMetaFromDraft({
+        name: value.name,
+        size: value.size,
+        storedBlob: false,
+        deferredReason: 'Failed to store certificate offline. It may need to be re-uploaded.',
+      });
+      setCommunionAttachmentWarning('Failed to store certificate offline. It may need to be re-uploaded.');
+    });
   };
 
   async function handleSaveDraft() {
     if (!draftId) return;
     setDraftStatus('Saving draft locally…');
     try {
+      if (certificatePersistTaskRef.current) await certificatePersistTaskRef.current;
+      if (communionPersistTaskRef.current) await communionPersistTaskRef.current;
+
       const payload: ConfirmationDraftPayload = {
         baptismSource,
         communionSource,
@@ -268,12 +357,8 @@ export default function ConfirmationCreateContent() {
         externalBaptism,
         externalCommunion,
         form,
-        certificateFileMeta: certificateFile
-          ? { name: certificateFile.name, size: certificateFile.size, type: certificateFile.type }
-          : certificateFileMetaFromDraft,
-        communionCertificateFileMeta: communionCertificateFile
-          ? { name: communionCertificateFile.name, size: communionCertificateFile.size, type: communionCertificateFile.type }
-          : communionCertificateFileMetaFromDraft,
+        certificateAttachment: certificateFileMetaFromDraft,
+        communionCertificateAttachment: communionCertificateFileMetaFromDraft,
       };
       await saveDraft<ConfirmationDraftPayload>(draftId, 'confirmation_create', payload);
       const loaded = await loadDraft<ConfirmationDraftPayload>(draftId);
@@ -286,19 +371,54 @@ export default function ConfirmationCreateContent() {
 
   function handleResumeDraft() {
     if (!draftRecord) return;
-    setBaptismSource(draftRecord.payload.baptismSource);
-    setCommunionSource(draftRecord.payload.communionSource);
-    setSelectedBaptismId(draftRecord.payload.selectedBaptismId);
-    setSelectedCommunionId(draftRecord.payload.selectedCommunionId);
-    setExternalBaptism(draftRecord.payload.externalBaptism);
-    setExternalCommunion(draftRecord.payload.externalCommunion);
-    setForm(draftRecord.payload.form);
+    void (async () => {
+      setBaptismSource(draftRecord.payload.baptismSource);
+      setCommunionSource(draftRecord.payload.communionSource);
+      setSelectedBaptismId(draftRecord.payload.selectedBaptismId);
+      setSelectedCommunionId(draftRecord.payload.selectedCommunionId);
+      setExternalBaptism(draftRecord.payload.externalBaptism);
+      setExternalCommunion(draftRecord.payload.externalCommunion);
+      setForm(draftRecord.payload.form);
 
-    setCertificateFile(null);
-    setCommunionCertificateFile(null);
-    setCertificateFileMetaFromDraft(draftRecord.payload.certificateFileMeta);
-    setCommunionCertificateFileMetaFromDraft(draftRecord.payload.communionCertificateFileMeta);
-    setDraftStatus('Draft loaded from this device.');
+      certificatePersistTaskRef.current = null;
+      communionPersistTaskRef.current = null;
+
+      setCertificateFile(null);
+      setCommunionCertificateFile(null);
+
+      const legacyCert = draftRecord.payload.certificateFileMeta;
+      const certAttachment = draftRecord.payload.certificateAttachment ?? (legacyCert
+        ? { name: legacyCert.name, size: legacyCert.size, type: legacyCert.type, storedBlob: false as const }
+        : null);
+      setCertificateFileMetaFromDraft(certAttachment);
+      setCertificateAttachmentWarning(
+        certAttachment ? (certAttachment.storedBlob ? null : certAttachment.deferredReason ?? 'Certificate was not stored offline. Please re-upload when online.') : null
+      );
+
+      const legacyCommunionCert = draftRecord.payload.communionCertificateFileMeta;
+      const communionCertAttachment =
+        draftRecord.payload.communionCertificateAttachment ??
+        (legacyCommunionCert
+          ? { name: legacyCommunionCert.name, size: legacyCommunionCert.size, type: legacyCommunionCert.type, storedBlob: false as const }
+          : null);
+      setCommunionCertificateFileMetaFromDraft(communionCertAttachment);
+      setCommunionAttachmentWarning(
+        communionCertAttachment ? (communionCertAttachment.storedBlob ? null : communionCertAttachment.deferredReason ?? 'Certificate was not stored offline. Please re-upload when online.') : null
+      );
+
+      if (certAttachment?.storedBlob && certAttachment.fileRefId) {
+        const blob = await loadOfflineBlob(certAttachment.fileRefId);
+        if (blob) setCertificateFile(new File([blob], certAttachment.name, { type: certAttachment.type ?? blob.type }));
+      }
+      if (communionCertAttachment?.storedBlob && communionCertAttachment.fileRefId) {
+        const blob = await loadOfflineBlob(communionCertAttachment.fileRefId);
+        if (blob) {
+          setCommunionCertificateFile(new File([blob], communionCertAttachment.name, { type: communionCertAttachment.type ?? blob.type }));
+        }
+      }
+
+      setDraftStatus('Draft loaded from this device.');
+    })();
   }
 
   async function handleDiscardDraft() {
@@ -311,6 +431,10 @@ export default function ConfirmationCreateContent() {
       setCommunionCertificateFile(null);
       setCertificateFileMetaFromDraft(null);
       setCommunionCertificateFileMetaFromDraft(null);
+      setCertificateAttachmentWarning(null);
+      setCommunionAttachmentWarning(null);
+      certificatePersistTaskRef.current = null;
+      communionPersistTaskRef.current = null;
       setDraftStatus('Draft discarded.');
     } catch {
       setDraftStatus('Failed to discard draft.');
@@ -570,6 +694,8 @@ export default function ConfirmationCreateContent() {
       selectedCommunion={selectedCommunion}
       certificateFileNameFromDraft={certificateFileMetaFromDraft?.name ?? null}
       communionCertificateFileNameFromDraft={communionCertificateFileMetaFromDraft?.name ?? null}
+      certificateAttachmentWarning={certificateAttachmentWarning}
+      communionAttachmentWarning={communionAttachmentWarning}
     />
   );
 }

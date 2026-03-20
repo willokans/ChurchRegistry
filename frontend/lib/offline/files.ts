@@ -6,7 +6,11 @@ export type OfflineFileMeta = {
 
 type OfflineFileRecord = {
   id: string; // fileRefId
-  blob: Blob;
+  /**
+   * When offline-attachment guardrails decide to defer a file (e.g., exceeds total storage cap),
+   * we persist metadata-only and omit the blob.
+   */
+  blob?: Blob;
   mimeType: string;
   size: number;
   updatedAt: number;
@@ -20,6 +24,7 @@ const FILES_STORE = 'files';
 const QUEUE_STORE = 'queue';
 
 const DEFAULT_MAX_OFFLINE_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
+const DEFAULT_MAX_OFFLINE_TOTAL_BYTES = 25 * 1024 * 1024; // ~25 MB per device
 
 function hasIndexedDb(): boolean {
   return typeof indexedDB !== 'undefined';
@@ -61,11 +66,11 @@ function makeOfflineFileRefId(): string {
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const BufferCtor = (globalThis as any).Buffer as undefined | { from: (...args: any[]) => any };
-  if (BufferCtor) {
-    return BufferCtor.from(bytes).toString('base64');
-  }
+  // Node.js environments may provide `Buffer`; in browsers it will be undefined.
+  type NodeBuffer = { toString: (encoding: 'base64') => string };
+  type BufferCtor = { from: (data: Uint8Array) => NodeBuffer };
+  const BufferCtor = (globalThis as unknown as { Buffer?: BufferCtor }).Buffer;
+  if (BufferCtor) return BufferCtor.from(bytes).toString('base64');
 
   let binary = '';
   const chunkSize = 0x8000;
@@ -79,15 +84,13 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 function base64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const BufferCtor = (globalThis as any).Buffer as undefined | { from: (...args: any[]) => any };
+  // Node.js environments may provide `Buffer`; in browsers it will be undefined.
+  type NodeBuffer = { buffer: ArrayBuffer; byteOffset: number; byteLength: number };
+  type BufferCtor = { from: (data: string, encoding: 'base64') => NodeBuffer };
+  const BufferCtor = (globalThis as unknown as { Buffer?: BufferCtor }).Buffer;
   if (BufferCtor) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nodeBuffer = BufferCtor.from(base64, 'base64') as any;
-    const sliced = nodeBuffer.buffer.slice(
-      nodeBuffer.byteOffset,
-      nodeBuffer.byteOffset + nodeBuffer.byteLength
-    ) as ArrayBuffer;
+    const nodeBuffer = BufferCtor.from(base64, 'base64');
+    const sliced = nodeBuffer.buffer.slice(nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength);
     return new Uint8Array(sliced);
   }
 
@@ -189,6 +192,22 @@ export type PersistOfflineBlobOptions = {
   allowedMimeType?: (mimeType: string | undefined) => boolean;
 };
 
+export type PersistOfflineAttachmentGuardrailsOptions = {
+  /**
+   * Stable key for draft payload references.
+   * If omitted, an id is generated for this attach attempt.
+   */
+  fileRefId?: string;
+  maxBytesPerFile?: number;
+  maxTotalBytes?: number;
+  allowedMimeType?: (mimeType: string | undefined) => boolean;
+};
+
+export type PersistOfflineAttachmentGuardrailsResult = OfflineFileMeta & {
+  storedBlob: boolean;
+  deferredReason?: string;
+};
+
 /**
  * Persist a supporting/attachment blob offline.
  * - Stores the Blob in IndexedDB when available.
@@ -223,6 +242,7 @@ export async function persistOfflineBlob(
         fileRefId,
         mimeType,
         size,
+        storedBlob: true,
         base64,
         updatedAt: Date.now(),
       })
@@ -242,6 +262,129 @@ export async function persistOfflineBlob(
   return { fileRefId, mimeType, size };
 }
 
+async function persistOfflineFileMetaOnly(meta: OfflineFileMeta, fileRefId: string) {
+  if (!hasIndexedDb()) {
+    if (!hasLocalStorage()) throw new Error('No offline storage available in this environment.');
+
+    localStorage.setItem(
+      localKey(fileRefId),
+      JSON.stringify({
+        fileRefId,
+        mimeType: meta.mimeType,
+        size: meta.size,
+        storedBlob: false,
+        updatedAt: Date.now(),
+      })
+    );
+    return;
+  }
+
+  await idbPut<OfflineFileRecord>(FILES_STORE, {
+    id: fileRefId,
+    mimeType: meta.mimeType,
+    size: meta.size,
+    updatedAt: Date.now(),
+  });
+}
+
+async function getOfflineStoredBlobBytes(): Promise<number> {
+  if (!hasIndexedDb()) {
+    if (!hasLocalStorage()) return 0;
+    const prefix = 'church_registry_offline_file:';
+    let total = 0;
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as { size?: number; storedBlob?: boolean; base64?: unknown };
+        if (parsed && typeof parsed?.size === 'number') {
+          const hasBlob = parsed?.storedBlob === true || typeof parsed?.base64 === 'string';
+          if (hasBlob) total += parsed.size;
+        }
+      } catch {
+        // Ignore malformed entries.
+      }
+    }
+    return total;
+  }
+
+  const db = await openDb();
+  return await new Promise<number>((resolve, reject) => {
+    const tx = db.transaction(FILES_STORE, 'readonly');
+    const store = tx.objectStore(FILES_STORE);
+    const req = store.openCursor();
+    let total = 0;
+
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) return resolve(total);
+      const value = cursor.value as OfflineFileRecord;
+      if (value?.blob) total += value.size;
+      cursor.continue();
+    };
+  });
+}
+
+/**
+ * Persist an attachment subject to offline guardrails.
+ * - If the file fits (type + size + device total cap), the blob is stored.
+ * - Otherwise, we defer by persisting metadata only (no blob) and return `storedBlob=false`.
+ */
+export async function persistOfflineAttachmentWithGuardrails(
+  file: Blob,
+  opts?: PersistOfflineAttachmentGuardrailsOptions
+): Promise<PersistOfflineAttachmentGuardrailsResult> {
+  const mimeType = file.type ?? '';
+  const size = file.size;
+  const allowedMimeType = opts?.allowedMimeType ?? isAllowedOfflineMimeType;
+
+  const maxBytesPerFile = opts?.maxBytesPerFile ?? DEFAULT_MAX_OFFLINE_FILE_BYTES;
+  const maxTotalBytes = opts?.maxTotalBytes ?? DEFAULT_MAX_OFFLINE_TOTAL_BYTES;
+  const fileRefId = opts?.fileRefId ?? makeOfflineFileRefId();
+
+  if (!allowedMimeType(mimeType)) {
+    const meta: OfflineFileMeta = { fileRefId, mimeType, size };
+    await persistOfflineFileMetaOnly(meta, fileRefId);
+    return {
+      ...meta,
+      storedBlob: false,
+      deferredReason: 'Unsupported file type. Please upload a PDF or an image.',
+    };
+  }
+
+  if (size > maxBytesPerFile) {
+    const meta: OfflineFileMeta = { fileRefId, mimeType, size };
+    await persistOfflineFileMetaOnly(meta, fileRefId);
+    return {
+      ...meta,
+      storedBlob: false,
+      deferredReason: `File too large for offline storage (max ${Math.round(maxBytesPerFile / (1024 * 1024))}MB).`,
+    };
+  }
+
+  const usedBytes = await getOfflineStoredBlobBytes();
+  if (usedBytes + size > maxTotalBytes) {
+    const meta: OfflineFileMeta = { fileRefId, mimeType, size };
+    await persistOfflineFileMetaOnly(meta, fileRefId);
+    return {
+      ...meta,
+      storedBlob: false,
+      deferredReason: 'Offline attachment storage is full. This file will upload when you are back online.',
+    };
+  }
+
+  // Happy path: store blob.
+  const stored = await persistOfflineBlob(file, {
+    fileRefId,
+    maxBytes: maxBytesPerFile,
+    allowedMimeType,
+  });
+  return { ...stored, storedBlob: true };
+}
+
 export async function loadOfflineBlob(fileRefId: string): Promise<Blob | null> {
   if (!fileRefId) return null;
 
@@ -251,8 +394,8 @@ export async function loadOfflineBlob(fileRefId: string): Promise<Blob | null> {
     if (!raw) return null;
 
     try {
-      const parsed = JSON.parse(raw) as { mimeType: string; base64: string };
-      if (!parsed?.base64 || !parsed?.mimeType) return null;
+      const parsed = JSON.parse(raw) as { mimeType?: string; base64?: string };
+      if (!parsed?.mimeType || !parsed?.base64) return null;
       return await base64ToBlob(parsed.base64, parsed.mimeType);
     } catch {
       return null;
