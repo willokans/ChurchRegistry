@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { ParishProvider } from '@/context/ParishContext';
+import { PWARegister } from '@/components/PWARegister';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ParishProvider>{children}</ParishProvider>
+        <ParishProvider>
+          <PWARegister />
+          {children}
+        </ParishProvider>
       </body>
     </html>
   );
