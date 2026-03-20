@@ -499,7 +499,7 @@ export async function fetchBaptisms(
       { headers: getAuthHeaders() }
     );
     if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');
-    const pageData = normalizePageResponse(await res.json());
+    const pageData = normalizePageResponse<BaptismResponse>(await res.json() as RawPageResponse<BaptismResponse>);
 
     if (shouldUseReferenceCache) {
       const items = pageData.content.map((b) => ({
@@ -554,7 +554,7 @@ export async function fetchBaptismsSearch(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to search baptisms');
-  return normalizePageResponse(await res.json());
+  return normalizePageResponse<BaptismResponse>(await res.json() as RawPageResponse<BaptismResponse>);
 }
 
 export async function fetchBaptism(id: number): Promise<BaptismResponse | null> {
@@ -717,7 +717,7 @@ export async function fetchCommunions(
       { headers: getAuthHeaders() }
     );
     if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
-    const pageData = normalizePageResponse(await res.json());
+    const pageData = normalizePageResponse<FirstHolyCommunionResponse>(await res.json() as RawPageResponse<FirstHolyCommunionResponse>);
 
     if (shouldUseReferenceCache) {
       const items = pageData.content.map((c) => ({
@@ -985,7 +985,7 @@ export async function fetchConfirmations(
       { headers: getAuthHeaders() }
     );
     if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
-    const pageData = normalizePageResponse(await res.json());
+    const pageData = normalizePageResponse<ConfirmationResponse>(await res.json() as RawPageResponse<ConfirmationResponse>);
 
     if (shouldUseReferenceCache) {
       const items = pageData.content.map((c) => ({
@@ -1181,7 +1181,7 @@ export async function fetchMarriages(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriages');
-  return normalizePageResponse(await res.json());
+  return normalizePageResponse<MarriageResponse>(await res.json() as RawPageResponse<MarriageResponse>);
 }
 
 export async function fetchMarriage(id: number): Promise<MarriageResponse | null> {
@@ -1368,7 +1368,7 @@ export async function fetchHolyOrders(
     { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy orders');
-  return normalizePageResponse(await res.json());
+  return normalizePageResponse<HolyOrderResponse>(await res.json() as RawPageResponse<HolyOrderResponse>);
 }
 
 export async function fetchHolyOrder(id: number): Promise<HolyOrderResponse | null> {
