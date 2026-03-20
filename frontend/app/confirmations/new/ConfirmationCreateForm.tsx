@@ -4,6 +4,7 @@ import React from 'react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import type { BaptismResponse, FirstHolyCommunionResponse, ConfirmationRequest } from '@/lib/api';
 import type { OfflineDraftRecord } from '@/lib/offline/drafts';
+import type { OfflineQueueItemStatus } from '@/lib/offline/queue';
 import ConfirmationCreateFormContent from './ConfirmationCreateFormContent';
 
 export interface ExternalBaptismState {
@@ -81,6 +82,9 @@ export interface ConfirmationCreateFormProps {
   communionCertificateFileNameFromDraft: string | null;
   certificateAttachmentWarning?: string | null;
   communionAttachmentWarning?: string | null;
+  offlineQueueItemStatus?: OfflineQueueItemStatus;
+  offlineQueueItemError?: string;
+  onOfflineQueueRetry?: () => void;
 }
 
 export default function ConfirmationCreateForm(props: ConfirmationCreateFormProps) {
@@ -201,6 +205,9 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
       communionCertificateFileNameFromDraft,
       certificateAttachmentWarning,
       communionAttachmentWarning,
+      offlineQueueItemStatus: props.offlineQueueItemStatus,
+      offlineQueueItemError: props.offlineQueueItemError,
+      onOfflineQueueRetry: props.onOfflineQueueRetry,
     })
   );
 }

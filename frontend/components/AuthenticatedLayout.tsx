@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { getStoredToken, getStoredUser, clearAuth } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { getChurchBranding } from '@/lib/church-branding';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { useOfflineQueueReplayer } from '@/lib/offline/useOfflineQueueReplayer';
 
 function CrossIcon({ className }: { className?: string }) {
   return (
@@ -52,6 +54,9 @@ export default function AuthenticatedLayout({
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { parishId, setParishId, dioceseId, setDioceseId, parishes = [], dioceses = [], loading: parishLoading, error: parishError, refetch } = useParish();
+
+  const { isOnline } = useNetworkStatus();
+  useOfflineQueueReplayer();
 
   useEffect(() => {
     setMounted(true);
@@ -113,6 +118,11 @@ export default function AuthenticatedLayout({
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-sancta-beige">
+      {!isOnline && (
+        <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-2 text-amber-900 text-sm">
+          You are offline. New submissions will be saved locally and synced automatically when you are back online.
+        </div>
+      )}
       {/* Mobile header with hamburger */}
       <header className="md:hidden flex items-center justify-between gap-2 py-3 px-4 border-b border-gray-200 bg-white/80">
         <button

@@ -17,6 +17,11 @@ import {
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
 import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import OfflineQueueItemStatus from '@/components/offline/OfflineQueueItemStatus';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -41,6 +46,7 @@ export default function CommunionCreateContent() {
   const [loadingBaptisms, setLoadingBaptisms] = useState(!!effectiveParishId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
@@ -79,6 +85,16 @@ export default function CommunionCreateContent() {
     effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
       ? `communion_create:${effectiveParishId}:${storedUser.username}`
       : null;
+
+  const { isOnline } = useNetworkStatus();
+  const queuedItem = useOfflineQueueItem(queuedItemId);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/communions');
+  }, [queuedItem, draftId, router]);
 
   const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<CommunionDraftPayload> | null>(null);
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
@@ -272,14 +288,28 @@ export default function CommunionCreateContent() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (certificatePersistTaskRef.current) {
+      try {
+        await certificatePersistTaskRef.current;
+      } catch {
+        // ignore: we'll surface the user-facing error via enqueue/replay status
+      }
+    }
     if (baptismSource === 'this_parish' && form.baptismId <= 0) {
       setError('Select a baptism record.');
       return;
     }
     if (baptismSource === 'external') {
-      if (!certificateFile || certificateFile.size === 0) {
-        setError('Upload a baptism certificate when selecting Baptism from another Parish.');
-        return;
+      if (isOnline) {
+        if (!certificateFile || certificateFile.size === 0) {
+          setError('Upload a baptism certificate when selecting Baptism from another Parish.');
+          return;
+        }
+      } else {
+        if (!certificateFileMetaFromDraft?.fileRefId) {
+          setError('Upload a baptism certificate (or resume an offline draft with it) before saving offline.');
+          return;
+        }
       }
       if (!externalBaptism.baptismName.trim()) {
         setError('Baptism name is required for Baptism from another Parish.');
@@ -305,6 +335,60 @@ export default function CommunionCreateContent() {
     setError(null);
     setSubmitting(true);
     try {
+      if (!isOnline) {
+        if (baptismSource === 'external') {
+          const attachmentRef = certificateFileMetaFromDraft;
+          if (!attachmentRef?.fileRefId) throw new Error('Missing offline certificate file reference.');
+
+          const itemId = await enqueueOfflineSubmission({
+            kind: 'communion_create',
+            payload: {
+              baptismSource: 'external',
+              effectiveParishId,
+              certificateAttachment: {
+                fileRefId: attachmentRef.fileRefId,
+                name: attachmentRef.name,
+                mimeType: attachmentRef.type,
+                size: attachmentRef.size,
+              },
+              communionRequest: {
+                communionDate: form.communionDate,
+                officiatingPriest: form.officiatingPriest,
+                parish: form.parish,
+              },
+              externalBaptism: {
+                baptismName: externalBaptism.baptismName.trim(),
+                surname: externalBaptism.surname.trim(),
+                otherNames: externalBaptism.otherNames.trim(),
+                gender: externalBaptism.gender,
+                fathersName: externalBaptism.fathersName.trim(),
+                mothersName: externalBaptism.mothersName.trim(),
+                baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+              },
+            },
+          });
+
+          setQueuedItemId(itemId);
+          return;
+        }
+
+        const itemId = await enqueueOfflineSubmission({
+          kind: 'communion_create',
+          payload: {
+            baptismSource: 'this_parish',
+            baptismId: form.baptismId,
+            communionRequest: {
+              communionDate: form.communionDate,
+              officiatingPriest: form.officiatingPriest,
+              parish: form.parish,
+            },
+          },
+        });
+
+        setQueuedItemId(itemId);
+        return;
+      }
+
       if (baptismSource === 'external' && certificateFile) {
         await createCommunionWithCertificate(
           effectiveParishId!,
@@ -665,11 +749,13 @@ export default function CommunionCreateContent() {
                               const file = e.target.files?.[0] ?? null;
                               certificatePersistTaskRef.current = null;
                               setCertificateAttachmentWarning(null);
+                              const existingFileRefId = certificateFileMetaFromDraft?.fileRefId;
                               setCertificateFileMetaFromDraft(null);
                               setCertificateFile(file);
 
                               if (!file) return;
                               certificatePersistTaskRef.current = persistOfflineAttachmentWithGuardrails(file, {
+                                fileRefId: existingFileRefId,
                                 maxBytesPerFile: 2 * 1024 * 1024,
                                 maxTotalBytes: 25 * 1024 * 1024,
                               }).then((res) => {
@@ -866,8 +952,7 @@ export default function CommunionCreateContent() {
                     !form.parish.trim() ||
                     (baptismSource === 'this_parish' && form.baptismId <= 0) ||
                     (baptismSource === 'external' && (
-                      !certificateFile ||
-                      certificateFile.size === 0 ||
+                      (isOnline ? !certificateFile || certificateFile.size === 0 : !certificateFileMetaFromDraft?.fileRefId) ||
                       !externalBaptism.baptismName.trim() ||
                       !externalBaptism.surname.trim() ||
                       !externalBaptism.fathersName.trim() ||
@@ -887,6 +972,15 @@ export default function CommunionCreateContent() {
                     </>
                   )}
                 </button>
+                {queuedItem ? (
+                  <OfflineQueueItemStatus
+                    status={queuedItem.status}
+                    error={queuedItem.lastError}
+                    onRetry={
+                      queuedItem.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined
+                    }
+                  />
+                ) : null}
                 <Link
                   href="/communions"
                   className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50"

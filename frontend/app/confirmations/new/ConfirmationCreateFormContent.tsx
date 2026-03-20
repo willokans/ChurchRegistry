@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import type { BaptismResponse, FirstHolyCommunionResponse, ConfirmationRequest } from '@/lib/api';
 import type { ConfirmationCreateFormProps } from './ConfirmationCreateForm';
+import OfflineQueueItemStatusView from '@/components/offline/OfflineQueueItemStatus';
 
 export type ConfirmationCreateFormContentProps = ConfirmationCreateFormProps;
 
@@ -67,6 +68,9 @@ export default function ConfirmationCreateFormContent(
     communionCertificateFileNameFromDraft,
     certificateAttachmentWarning,
     communionAttachmentWarning,
+    offlineQueueItemStatus,
+    offlineQueueItemError,
+    onOfflineQueueRetry,
   } = props;
 
   return (
@@ -745,6 +749,13 @@ export default function ConfirmationCreateFormContent(
                 <button type="submit" disabled={submitting || !canSubmit} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50">
                   {submitting ? 'Saving…' : 'Save Confirmation'}
                 </button>
+                {offlineQueueItemStatus ? (
+                  <OfflineQueueItemStatusView
+                    status={offlineQueueItemStatus}
+                    error={offlineQueueItemError}
+                    onRetry={offlineQueueItemStatus === 'failed' ? onOfflineQueueRetry : undefined}
+                  />
+                ) : null}
                 <Link href="/confirmations" className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50">Cancel</Link>
                 <p className="text-xs text-gray-500">* Required fields</p>
               </div>

@@ -8,6 +8,11 @@ import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessag
 import { fetchConfirmations, createHolyOrder, getStoredUser, type ConfirmationResponse, type HolyOrderRequest } from '@/lib/api';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import OfflineQueueItemStatus from '@/components/offline/OfflineQueueItemStatus';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 export default function HolyOrderCreateContent() {
   const router = useRouter();
@@ -35,6 +40,17 @@ export default function HolyOrderCreateContent() {
 
   const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<HolyOrderDraftPayload> | null>(null);
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  const { isOnline } = useNetworkStatus();
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
+  const queuedItem = useOfflineQueueItem(queuedItemId);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/holy-orders');
+  }, [queuedItem, draftId, router]);
 
   type HolyOrderDraftPayload = {
     form: typeof form;
@@ -136,10 +152,18 @@ export default function HolyOrderCreateContent() {
     setError(null);
     setSubmitting(true);
     try {
-      await createHolyOrder({
+      const request: HolyOrderRequest = {
         ...form,
         parishId: parishId != null && parishId > 0 ? parishId : undefined,
-      });
+      };
+
+      if (!isOnline) {
+        const itemId = await enqueueOfflineSubmission({ kind: 'holy_order_create', payload: request });
+        setQueuedItemId(itemId);
+        return;
+      }
+
+      await createHolyOrder(request);
       router.push('/holy-orders');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create holy order');
@@ -281,6 +305,13 @@ export default function HolyOrderCreateContent() {
             >
               {submitting ? 'Saving…' : 'Save holy order'}
             </button>
+            {queuedItem ? (
+              <OfflineQueueItemStatus
+                status={queuedItem.status}
+                error={queuedItem.lastError}
+                onRetry={queuedItem.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined}
+              />
+            ) : null}
           </form>
         </>
       )}

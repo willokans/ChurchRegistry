@@ -22,6 +22,11 @@ import {
 } from '@/lib/api';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import OfflineQueueItemStatus from '@/components/offline/OfflineQueueItemStatus';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 function fullNameBaptism(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -90,8 +95,18 @@ export default function MarriageCreateContent() {
   const [loading, setLoading] = useState(!!effectiveParishId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isOnline } = useNetworkStatus();
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
+  const queuedItem = useOfflineQueueItem(queuedItemId);
   /** null = policy not loaded yet; default UI treats as required until known. */
   const [parishRequiresConfirmation, setParishRequiresConfirmation] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/marriages');
+  }, [queuedItem, draftId, router]);
 
   const [groom, setGroom] = useState<MarriagePartyPayload>({ ...emptyParty });
   const [bride, setBride] = useState<MarriagePartyPayload>({ ...emptyParty });
@@ -547,6 +562,13 @@ export default function MarriageCreateContent() {
           sortOrder: i,
         })),
       };
+
+      if (!isOnline) {
+        const itemId = await enqueueOfflineSubmission({ kind: 'marriage_create', payload });
+        setQueuedItemId(itemId);
+        return;
+      }
+
       await createMarriageWithParties(payload);
       router.push('/marriages');
     } catch (err) {
@@ -1013,6 +1035,13 @@ export default function MarriageCreateContent() {
             >
               {submitting ? 'Saving…' : 'Save marriage'}
             </button>
+            {queuedItem ? (
+              <OfflineQueueItemStatus
+                status={queuedItem.status}
+                error={queuedItem.lastError}
+                onRetry={queuedItem.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined}
+              />
+            ) : null}
             <Link href="/marriages" className="rounded-xl border border-gray-300 px-5 py-3 text-gray-700 font-medium hover:bg-gray-50">
               Cancel
             </Link>

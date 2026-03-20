@@ -10,6 +10,11 @@ import { createBaptism, getStoredUser, type BaptismRequest } from '@/lib/api';
 import { NIGERIAN_STATES } from '@/lib/nigerian-states';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import OfflineQueueItemStatus from '@/components/offline/OfflineQueueItemStatus';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 type SponsorRow = { firstName: string; lastName: string };
 
@@ -29,6 +34,7 @@ export default function BaptismCreatePage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
   const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<BaptismDraftPayload> | null>(null);
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -54,6 +60,16 @@ export default function BaptismCreatePage() {
     parentAddressLine: string;
     parentAddressState: string;
   };
+
+  const { isOnline } = useNetworkStatus();
+  const queuedItem = useOfflineQueueItem(queuedItemId);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/baptisms');
+  }, [queuedItem, draftId, router]);
 
   useDebouncedDraftAutosave<BaptismDraftPayload>({
     draftId,
@@ -228,7 +244,20 @@ export default function BaptismCreatePage() {
         placeOfBaptism: form.placeOfBaptism.trim(),
         dateOfBaptism: form.dateOfBaptism,
       };
-      await createBaptism(parishId as number, payload);
+
+      if (!isOnline) {
+        const itemId = await enqueueOfflineSubmission({
+          kind: 'baptism_create',
+          payload: {
+            parishId: parishId as number,
+            body: payload satisfies BaptismRequest,
+          },
+        });
+        setQueuedItemId(itemId);
+        return;
+      }
+
+      await createBaptism(parishId as number, payload satisfies BaptismRequest);
       router.push('/baptisms');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create baptism');
@@ -557,6 +586,15 @@ export default function BaptismCreatePage() {
               {submitting ? 'Saving…' : 'Save Baptism'}
             </button>
           </div>
+          {queuedItem ? (
+            <OfflineQueueItemStatus
+              status={queuedItem.status}
+              error={queuedItem.lastError}
+              onRetry={
+                queuedItem.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined
+              }
+            />
+          ) : null}
         </form>
       </div>
     </AuthenticatedLayout>
