@@ -7,6 +7,22 @@ export type OfflineSubmissionKind =
   | 'marriage_create'
   | 'holy_order_create';
 
+export type OfflineQueueItemReplayState = {
+  /**
+   * Idempotency / progress markers for replay within one queue item.
+   * Keys represent completed steps; values are completion timestamps.
+   */
+  steps?: Record<string, number>;
+
+  // Commonly needed created IDs/paths across replay kinds/branches.
+  createdBaptismId?: number;
+  baptismCertificatePath?: string;
+  createdCommunionId?: number;
+  createdConfirmationId?: number;
+  createdMarriageId?: number;
+  createdHolyOrderId?: number;
+};
+
 export type OfflineQueueFileRef = {
   fileRefId: string;
   name?: string;
@@ -27,6 +43,7 @@ export type OfflineQueueItem = {
   retryCount: number;
   lastError?: string;
   submission: OfflineSubmissionSpec;
+  replayState?: OfflineQueueItemReplayState;
 };
 
 const DB_NAME = 'church_registry_offline';
@@ -217,7 +234,7 @@ export async function listOfflineQueueItems(options?: {
 export async function updateOfflineQueueItemStatus(
   itemId: string,
   nextStatus: OfflineQueueItemStatus,
-  opts?: { lastError?: string; incrementRetry?: boolean }
+  opts?: { lastError?: string; incrementRetry?: boolean; replayState?: OfflineQueueItemReplayState }
 ): Promise<OfflineQueueItem | null> {
   const current = await getOfflineQueueItem(itemId);
   if (!current) return null;
@@ -227,6 +244,7 @@ export async function updateOfflineQueueItemStatus(
     status: nextStatus,
     lastError: opts?.lastError,
     retryCount: opts?.incrementRetry ? current.retryCount + 1 : current.retryCount,
+    replayState: opts?.replayState ?? current.replayState,
     updatedAt: Date.now(),
   };
 

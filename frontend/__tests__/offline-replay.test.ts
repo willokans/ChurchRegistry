@@ -1,6 +1,6 @@
-import { createHolyOrder } from '@/lib/api';
+import { createBaptismWithCertificate, createCommunion, createConfirmation, createHolyOrder } from '@/lib/api';
 import type { HolyOrderRequest } from '@/lib/api';
-import { enqueueOfflineSubmission, getOfflineQueueItem } from '@/lib/offline/queue';
+import { enqueueOfflineSubmission, getOfflineQueueItem, updateOfflineQueueItemStatus } from '@/lib/offline/queue';
 import { replayOfflineQueue, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 jest.mock('@/lib/api', () => ({
@@ -26,6 +26,9 @@ describe('offline replay module', () => {
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
 
     (createHolyOrder as jest.Mock).mockReset();
+    (createBaptismWithCertificate as jest.Mock).mockReset();
+    (createCommunion as jest.Mock).mockReset();
+    (createConfirmation as jest.Mock).mockReset();
   });
 
   afterAll(() => {
@@ -88,6 +91,154 @@ describe('offline replay module', () => {
     expect(synced!.status).toBe('synced');
     expect(synced!.retryCount).toBe(1);
     expect(createHolyOrder).toHaveBeenCalledTimes(2);
+  });
+
+  it('resumes confirmation replay: skips baptism+only creates communion+confirmation', async () => {
+    (createCommunion as jest.Mock).mockResolvedValue({ id: 10 });
+    (createConfirmation as jest.Mock).mockResolvedValue({ id: 20 });
+
+    const payload = {
+      effectiveParishId: 1,
+      effectiveParishName: 'Test Parish',
+      externalCommunion: {
+        communionDate: '2026-03-20',
+        officiatingPriest: 'Priest A',
+      },
+      branch: {
+        type: 'external_baptism',
+        externalBaptism: {
+          baptismName: 'Baptism Name',
+          surname: 'Surname',
+          otherNames: 'Other Names',
+          gender: 'MALE',
+          fathersName: "Father",
+          mothersName: "Mother",
+          baptisedChurchAddress: 'Address',
+        },
+        baptismCertificateAttachment: {
+          fileRefId: 'baptism-cert-1',
+          name: 'baptism.pdf',
+          mimeType: 'application/pdf',
+          size: 123,
+        },
+        communionSource: 'this_church',
+      },
+      form: {
+        confirmationDate: '2026-03-21',
+        officiatingBishop: 'Bishop Z',
+        parish: 'Test Parish',
+      },
+    } as any;
+
+    const itemId = await enqueueOfflineSubmission({
+      kind: 'confirmation_create',
+      payload,
+    });
+
+    // Reset status to queued with the completed baptism step.
+    // Step keys are defined in `frontend/lib/offline/replay.ts`.
+    const baptismDoneKey = 'confirmation.external_baptism.baptism.done';
+    await updateOfflineQueueItemStatus(itemId, 'queued', {
+      replayState: {
+        steps: { [baptismDoneKey]: Date.now() },
+        createdBaptismId: 123,
+        baptismCertificatePath: '/server/path/baptism-cert.pdf',
+      },
+    });
+
+    await replayOfflineQueue({ onlyItemId: itemId });
+
+    expect(createBaptismWithCertificate).not.toHaveBeenCalled();
+    expect(createCommunion).toHaveBeenCalledTimes(1);
+    expect(createCommunion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baptismId: 123,
+        communionDate: payload.externalCommunion.communionDate,
+        officiatingPriest: payload.externalCommunion.officiatingPriest,
+        parish: payload.effectiveParishName,
+        baptismCertificatePath: '/server/path/baptism-cert.pdf',
+      })
+    );
+    expect(createConfirmation).toHaveBeenCalledTimes(1);
+    expect(createConfirmation).toHaveBeenCalledWith({
+      baptismId: 123,
+      communionId: 10,
+      confirmationDate: payload.form.confirmationDate,
+      officiatingBishop: payload.form.officiatingBishop,
+      parish: payload.form.parish,
+    });
+  });
+
+  it('resumes confirmation replay: skips communion+only creates confirmation', async () => {
+    (createConfirmation as jest.Mock).mockResolvedValue({ id: 21 });
+
+    const payload = {
+      effectiveParishId: 1,
+      effectiveParishName: 'Test Parish',
+      externalCommunion: {
+        communionDate: '2026-03-20',
+        officiatingPriest: 'Priest A',
+      },
+      branch: {
+        type: 'external_baptism',
+        externalBaptism: {
+          baptismName: 'Baptism Name',
+          surname: 'Surname',
+          otherNames: 'Other Names',
+          gender: 'MALE',
+          fathersName: "Father",
+          mothersName: "Mother",
+          baptisedChurchAddress: 'Address',
+        },
+        baptismCertificateAttachment: {
+          fileRefId: 'baptism-cert-1',
+          name: 'baptism.pdf',
+          mimeType: 'application/pdf',
+          size: 123,
+        },
+        communionSource: 'this_church',
+      },
+      form: {
+        confirmationDate: '2026-03-21',
+        officiatingBishop: 'Bishop Z',
+        parish: 'Test Parish',
+      },
+    } as any;
+
+    const itemId = await enqueueOfflineSubmission({
+      kind: 'confirmation_create',
+      payload,
+    });
+
+    const baptismDoneKey = 'confirmation.external_baptism.baptism.done';
+    const communionDoneKey = 'confirmation.external_baptism.communion.done';
+    await updateOfflineQueueItemStatus(itemId, 'queued', {
+      replayState: {
+        steps: {
+          [baptismDoneKey]: Date.now(),
+          [communionDoneKey]: Date.now(),
+        },
+        createdBaptismId: 123,
+        baptismCertificatePath: '/server/path/baptism-cert.pdf',
+        createdCommunionId: 10,
+      },
+    });
+
+    await replayOfflineQueue({ onlyItemId: itemId });
+
+    expect(createBaptismWithCertificate).not.toHaveBeenCalled();
+    expect(createCommunion).not.toHaveBeenCalled();
+    expect(createConfirmation).toHaveBeenCalledTimes(1);
+    expect(createConfirmation).toHaveBeenCalledWith({
+      baptismId: 123,
+      communionId: 10,
+      confirmationDate: payload.form.confirmationDate,
+      officiatingBishop: payload.form.officiatingBishop,
+      parish: payload.form.parish,
+    });
+
+    const updated = await getOfflineQueueItem(itemId);
+    expect(updated?.status).toBe('synced');
   });
 });
 

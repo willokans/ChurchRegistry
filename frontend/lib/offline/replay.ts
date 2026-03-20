@@ -1,7 +1,7 @@
 import { createBaptism, createCommunion, createCommunionWithCertificate, createCommunionWithCommunionCertificate, createConfirmation, createMarriageWithParties, createHolyOrder, createBaptismWithCertificate } from '@/lib/api';
 import { loadOfflineBlob } from '@/lib/offline/files';
 import { getIsOnline } from '@/lib/offline/network';
-import type { OfflineQueueItem, OfflineQueueFileRef, OfflineSubmissionKind, OfflineSubmissionSpec, OfflineQueueItemStatus } from '@/lib/offline/queue';
+import type { OfflineQueueItem, OfflineQueueFileRef, OfflineQueueItemReplayState } from '@/lib/offline/queue';
 import { deleteOfflineQueueItem, getOfflineQueueItem, listOfflineQueueItems, updateOfflineQueueItemStatus } from '@/lib/offline/queue';
 
 type ReplayOptions = {
@@ -26,140 +26,250 @@ function normalizeErrorMessage(err: unknown): string {
   return 'Sync failed.';
 }
 
-async function executeSubmission(item: OfflineQueueItem): Promise<void> {
+const STEP = {
+  BAPTISM_CREATE_DONE: 'baptism_create.done',
+  COMMUNION_CREATE_EXTERNAL_DONE: 'communion_create.external.done',
+  COMMUNION_CREATE_THIS_CHURCH_DONE: 'communion_create.this_church.done',
+
+  // Confirmation external baptism branch
+  CONFIRMATION_EXTERNAL_BAPTISM_BAPTISM_DONE: 'confirmation.external_baptism.baptism.done',
+  CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE: 'confirmation.external_baptism.communion.done',
+  CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE: 'confirmation.external_baptism.confirmation.done',
+
+  // Confirmation create communion from other church branch
+  CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE: 'confirmation.create_communion_from_other_church.communion.done',
+  CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE: 'confirmation.create_communion_from_other_church.confirmation.done',
+
+  // Confirmation use existing ids branch
+  CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE: 'confirmation.use_existing_ids.confirmation.done',
+
+  MARRIAGE_CREATE_DONE: 'marriage_create.done',
+  HOLY_ORDER_CREATE_DONE: 'holy_order_create.done',
+} as const;
+
+function normalizeReplayState(state?: OfflineQueueItemReplayState): OfflineQueueItemReplayState {
+  return {
+    steps: state?.steps ? { ...state.steps } : {},
+    createdBaptismId: state?.createdBaptismId,
+    baptismCertificatePath: state?.baptismCertificatePath,
+    createdCommunionId: state?.createdCommunionId,
+    createdConfirmationId: state?.createdConfirmationId,
+    createdMarriageId: state?.createdMarriageId,
+    createdHolyOrderId: state?.createdHolyOrderId,
+  };
+}
+
+async function executeSubmission(item: OfflineQueueItem, persistReplayState: (next: OfflineQueueItemReplayState) => Promise<void>): Promise<OfflineQueueItemReplayState> {
   const spec = item.submission;
   const payload = spec.payload as any;
 
+  let replayState = normalizeReplayState(item.replayState);
+
+  async function completeStep(stepKey: string, patch?: Partial<OfflineQueueItemReplayState>) {
+    replayState = {
+      ...replayState,
+      ...(patch ?? {}),
+      steps: {
+        ...(replayState.steps ?? {}),
+        [stepKey]: Date.now(),
+      },
+    };
+    await persistReplayState(replayState);
+  }
+
   if (spec.kind === 'baptism_create') {
-    await createBaptism(payload.parishId, payload.body);
-    return;
+    const done = replayState.steps?.[STEP.BAPTISM_CREATE_DONE] && typeof replayState.createdBaptismId === 'number';
+    if (done) return replayState;
+
+    const created = await createBaptism(payload.parishId, payload.body);
+    await completeStep(STEP.BAPTISM_CREATE_DONE, { createdBaptismId: created.id });
+    return replayState;
   }
 
   if (spec.kind === 'communion_create') {
     if (payload.baptismSource === 'external') {
+      const done = replayState.steps?.[STEP.COMMUNION_CREATE_EXTERNAL_DONE] && typeof replayState.createdCommunionId === 'number';
+      if (done) return replayState;
+
       const attachmentRef = payload.certificateAttachment as OfflineQueueFileRef | null;
       if (!attachmentRef?.fileRefId) throw new Error('Missing offline certificate reference.');
       const blob = await loadOfflineBlob(attachmentRef.fileRefId);
       if (!blob) throw new Error('Certificate file is not stored offline. Re-upload when online, then retry.');
       const certificateFile = blobToFile(blob, attachmentRef);
-      await createCommunionWithCertificate(payload.effectiveParishId, payload.communionRequest, certificateFile, payload.externalBaptism);
-      return;
+      const created = await createCommunionWithCertificate(payload.effectiveParishId, payload.communionRequest, certificateFile, payload.externalBaptism);
+      await completeStep(STEP.COMMUNION_CREATE_EXTERNAL_DONE, { createdCommunionId: created.id });
+      return replayState;
     }
 
-    await createCommunion({
+    const done = replayState.steps?.[STEP.COMMUNION_CREATE_THIS_CHURCH_DONE] && typeof replayState.createdCommunionId === 'number';
+    if (done) return replayState;
+
+    const created = await createCommunion({
       baptismId: payload.baptismId,
       communionDate: payload.communionRequest.communionDate,
       officiatingPriest: payload.communionRequest.officiatingPriest,
       parish: payload.communionRequest.parish,
     });
-    return;
+    await completeStep(STEP.COMMUNION_CREATE_THIS_CHURCH_DONE, { createdCommunionId: created.id });
+    return replayState;
   }
 
   if (spec.kind === 'confirmation_create') {
     // We store an explicit branch so replay can be deterministic after refresh.
     if (payload.branch?.type === 'external_baptism') {
-      const baptismAttachmentRef = payload.branch.baptismCertificateAttachment as OfflineQueueFileRef | null;
-      if (!baptismAttachmentRef?.fileRefId) throw new Error('Missing offline baptism certificate reference.');
-      const baptismBlob = await loadOfflineBlob(baptismAttachmentRef.fileRefId);
-      if (!baptismBlob) throw new Error('Baptism certificate is not stored offline. Re-upload when online, then retry.');
-      const baptismCertificateFile = blobToFile(baptismBlob, baptismAttachmentRef);
+      const done = replayState.steps?.[STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
+      if (done) return replayState;
 
-      const createdBaptism = await createBaptismWithCertificate(payload.effectiveParishId, baptismCertificateFile, payload.branch.externalBaptism);
+      const baptismDone =
+        replayState.steps?.[STEP.CONFIRMATION_EXTERNAL_BAPTISM_BAPTISM_DONE] &&
+        typeof replayState.createdBaptismId === 'number' &&
+        typeof replayState.baptismCertificatePath === 'string';
 
-      if (payload.branch.communionSource === 'this_church') {
-        const communion = await createCommunion({
-          baptismId: createdBaptism.id,
-          communionDate: payload.externalCommunion.communionDate,
-          officiatingPriest: payload.externalCommunion.officiatingPriest,
-          parish: payload.effectiveParishName,
+      if (!baptismDone) {
+        const baptismAttachmentRef = payload.branch.baptismCertificateAttachment as OfflineQueueFileRef | null;
+        if (!baptismAttachmentRef?.fileRefId) throw new Error('Missing offline baptism certificate reference.');
+        const baptismBlob = await loadOfflineBlob(baptismAttachmentRef.fileRefId);
+        if (!baptismBlob) throw new Error('Baptism certificate is not stored offline. Re-upload when online, then retry.');
+        const baptismCertificateFile = blobToFile(baptismBlob, baptismAttachmentRef);
+
+        const createdBaptism = await createBaptismWithCertificate(payload.effectiveParishId, baptismCertificateFile, payload.branch.externalBaptism);
+        await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_BAPTISM_DONE, {
+          createdBaptismId: createdBaptism.id,
           baptismCertificatePath: createdBaptism.certificatePath,
         });
-        await createConfirmation({
-          baptismId: createdBaptism.id,
-          communionId: communion.id,
+      }
+
+      if (typeof replayState.createdBaptismId !== 'number') throw new Error('Missing persisted baptism id for offline confirmation replay.');
+      if (typeof replayState.baptismCertificatePath !== 'string') throw new Error('Missing persisted baptism certificate path for offline confirmation replay.');
+
+      const communionDone = replayState.steps?.[STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE] && typeof replayState.createdCommunionId === 'number';
+      if (!communionDone) {
+        if (payload.branch.communionSource === 'this_church') {
+          const communion = await createCommunion({
+            baptismId: replayState.createdBaptismId,
+            communionDate: payload.externalCommunion.communionDate,
+            officiatingPriest: payload.externalCommunion.officiatingPriest,
+            parish: payload.effectiveParishName,
+            baptismCertificatePath: replayState.baptismCertificatePath,
+          });
+          await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, { createdCommunionId: communion.id });
+        } else {
+          const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
+          if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
+          const communionBlob = await loadOfflineBlob(communionAttachmentRef.fileRefId);
+          if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
+          const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
+
+          const communionCreated = await createCommunionWithCommunionCertificate(
+            {
+              baptismId: replayState.createdBaptismId,
+              communionDate: payload.externalCommunion.communionDate,
+              officiatingPriest: payload.externalCommunion.officiatingPriest,
+              parish: payload.externalCommunion.communionChurchAddress.trim(),
+            },
+            communionCertificateFile,
+            replayState.baptismCertificatePath
+          );
+          await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, { createdCommunionId: communionCreated.id });
+        }
+      }
+
+      if (typeof replayState.createdCommunionId !== 'number') throw new Error('Missing persisted communion id for offline confirmation replay.');
+
+      const confirmationDone =
+        replayState.steps?.[STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
+      if (!confirmationDone) {
+        const confirmation = await createConfirmation({
+          baptismId: replayState.createdBaptismId,
+          communionId: replayState.createdCommunionId,
           confirmationDate: payload.form.confirmationDate,
           officiatingBishop: payload.form.officiatingBishop,
           parish: payload.form.parish || undefined,
         });
-        return;
+        await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
       }
 
-      const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
-      if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
-      const communionBlob = await loadOfflineBlob(communionAttachmentRef.fileRefId);
-      if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
-      const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
-
-      const communionCreated = await createCommunionWithCommunionCertificate(
-        {
-          baptismId: createdBaptism.id,
-          communionDate: payload.externalCommunion.communionDate,
-          officiatingPriest: payload.externalCommunion.officiatingPriest,
-          parish: payload.externalCommunion.communionChurchAddress.trim(),
-        },
-        communionCertificateFile,
-        createdBaptism.certificatePath
-      );
-
-      await createConfirmation({
-        baptismId: createdBaptism.id,
-        communionId: communionCreated.id,
-        confirmationDate: payload.form.confirmationDate,
-        officiatingBishop: payload.form.officiatingBishop,
-        parish: payload.form.parish || undefined,
-      });
-      return;
+      return replayState;
     }
 
     if (payload.branch?.type === 'create_communion_from_other_church') {
-      const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
-      if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
-      const communionBlob = await loadOfflineBlob(communionAttachmentRef.fileRefId);
-      if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
-      const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
+      const done =
+        replayState.steps?.[STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE] &&
+        typeof replayState.createdConfirmationId === 'number';
+      if (done) return replayState;
 
-      const created = await createCommunionWithCommunionCertificate(
-        {
+      const communionDone =
+        replayState.steps?.[STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE] && typeof replayState.createdCommunionId === 'number';
+      if (!communionDone) {
+        const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
+        if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
+        const communionBlob = await loadOfflineBlob(communionAttachmentRef.fileRefId);
+        if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
+        const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
+
+        const createdCommunion = await createCommunionWithCommunionCertificate(
+          {
+            baptismId: payload.branch.selectedBaptismId,
+            communionDate: payload.externalCommunion.communionDate,
+            officiatingPriest: payload.externalCommunion.officiatingPriest,
+            parish: payload.externalCommunion.communionChurchAddress.trim(),
+          },
+          communionCertificateFile
+        );
+        await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE, { createdCommunionId: createdCommunion.id });
+      }
+
+      if (typeof replayState.createdCommunionId !== 'number') throw new Error('Missing persisted communion id for offline confirmation replay.');
+
+      const confirmationDone =
+        replayState.steps?.[STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
+      if (!confirmationDone) {
+        const confirmation = await createConfirmation({
           baptismId: payload.branch.selectedBaptismId,
-          communionDate: payload.externalCommunion.communionDate,
-          officiatingPriest: payload.externalCommunion.officiatingPriest,
-          parish: payload.externalCommunion.communionChurchAddress.trim(),
-        },
-        communionCertificateFile
-      );
+          communionId: replayState.createdCommunionId,
+          confirmationDate: payload.form.confirmationDate,
+          officiatingBishop: payload.form.officiatingBishop,
+          parish: payload.form.parish || undefined,
+        });
+        await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+      }
 
-      await createConfirmation({
-        baptismId: payload.branch.selectedBaptismId,
-        communionId: created.id,
-        confirmationDate: payload.form.confirmationDate,
-        officiatingBishop: payload.form.officiatingBishop,
-        parish: payload.form.parish || undefined,
-      });
-      return;
+      return replayState;
     }
 
     if (payload.branch?.type === 'use_existing_ids') {
-      await createConfirmation({
+      const done =
+        replayState.steps?.[STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
+      if (done) return replayState;
+
+      const confirmation = await createConfirmation({
         baptismId: payload.branch.baptismId,
         communionId: payload.branch.communionId,
         confirmationDate: payload.form.confirmationDate,
         officiatingBishop: payload.form.officiatingBishop,
         parish: payload.form.parish || undefined,
       });
-      return;
+      await completeStep(STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+      return replayState;
     }
 
     throw new Error('Unsupported confirmation branch for offline replay.');
   }
 
   if (spec.kind === 'marriage_create') {
-    await createMarriageWithParties(payload);
-    return;
+    const done = replayState.steps?.[STEP.MARRIAGE_CREATE_DONE] && typeof replayState.createdMarriageId === 'number';
+    if (done) return replayState;
+    const created = await createMarriageWithParties(payload);
+    await completeStep(STEP.MARRIAGE_CREATE_DONE, { createdMarriageId: created.id });
+    return replayState;
   }
 
   if (spec.kind === 'holy_order_create') {
-    await createHolyOrder(payload);
-    return;
+    const done = replayState.steps?.[STEP.HOLY_ORDER_CREATE_DONE] && typeof replayState.createdHolyOrderId === 'number';
+    if (done) return replayState;
+    const created = await createHolyOrder(payload);
+    await completeStep(STEP.HOLY_ORDER_CREATE_DONE, { createdHolyOrderId: created.id });
+    return replayState;
   }
 
   throw new Error('Unsupported offline submission kind: ' + spec.kind);
@@ -179,17 +289,27 @@ async function runReplayForItem(itemId: string): Promise<void> {
 
   try {
     // Ensure we keep the item in sync if the call fails; replay will set failed status.
-    await executeSubmission(syncing);
+    const persistFn = async (nextReplayState: OfflineQueueItemReplayState) => {
+      await updateOfflineQueueItemStatus(itemId, 'syncing', { replayState: nextReplayState });
+    };
+    const replayState = await executeSubmission(syncing, persistFn);
     await updateOfflineQueueItemStatus(itemId, 'synced');
   } catch (err) {
     const message = normalizeErrorMessage(err);
-    await updateOfflineQueueItemStatus(itemId, 'failed', { lastError: message });
+    const failedState = (await getOfflineQueueItem(itemId))?.replayState;
+    await updateOfflineQueueItemStatus(itemId, 'failed', { lastError: message, replayState: failedState });
   }
 }
 
 export async function replayOfflineQueue(options?: ReplayOptions): Promise<void> {
   // Avoid concurrent replay loops.
-  if (replayInFlight) return replayInFlight;
+  if (replayInFlight) {
+    if (options?.onlyItemId) {
+      await replayInFlight;
+    } else {
+      return replayInFlight;
+    }
+  }
 
   const promise = (async () => {
     if (!getIsOnline()) return;
