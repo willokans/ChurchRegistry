@@ -293,6 +293,7 @@ export default function AuthenticatedLayout({
                   { href: '/confirmations', label: 'Confirmation' },
                   { href: '/marriages', label: 'Marriage' },
                   { href: '/holy-orders', label: 'Holy Order' },
+                  { href: '/offline-outbox', label: 'Pending Sync' },
                   { href: '/help', label: 'Help' },
                 ].map(({ href, label }) => (
                   <li key={href}>
@@ -499,6 +500,15 @@ export default function AuthenticatedLayout({
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Holy Order
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/offline-outbox"
+                prefetch={false}
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Pending Sync
               </Link>
             </li>
             <li>
