@@ -1,3 +1,13 @@
+import { getIsOnline } from '@/lib/offline/network';
+import {
+  loadCachedBaptisms,
+  loadCachedCommunions,
+  loadCachedConfirmations,
+  saveCachedBaptisms,
+  saveCachedCommunions,
+  saveCachedConfirmations,
+} from '@/lib/offline/referenceCache';
+
 /**
  * Frontend runs as a UI-only client: all API traffic must go to Spring Boot.
  * NEXT_PUBLIC_API_URL must be an absolute URL (e.g. http://localhost:8080).
@@ -463,12 +473,73 @@ export async function fetchBaptisms(
   page = 0,
   size = 50
 ): Promise<SacramentPageResponse<BaptismResponse>> {
-  const res = await fetchWithRetry(
-    `${getBaseUrl()}/api/parishes/${parishId}/baptisms?page=${page}&size=${size}`,
-    { headers: getAuthHeaders() }
-  );
-  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');
-  return normalizePageResponse(await res.json());
+  const shouldUseReferenceCache = page === 0;
+
+  if (shouldUseReferenceCache && !getIsOnline()) {
+    const cached = loadCachedBaptisms(parishId, page);
+    if (cached) {
+      const empty = cached.length === 0;
+      return {
+        content: cached as unknown as BaptismResponse[],
+        totalElements: cached.length,
+        totalPages: 1,
+        size,
+        number: page,
+        first: true,
+        last: true,
+        numberOfElements: cached.length,
+        empty,
+      };
+    }
+  }
+
+  try {
+    const res = await fetchWithRetry(
+      `${getBaseUrl()}/api/parishes/${parishId}/baptisms?page=${page}&size=${size}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch baptisms');
+    const pageData = normalizePageResponse(await res.json());
+
+    if (shouldUseReferenceCache) {
+      const items = pageData.content.map((b) => ({
+        id: b.id,
+        baptismName: b.baptismName ?? '',
+        otherNames: b.otherNames ?? '',
+        surname: b.surname ?? '',
+        dateOfBirth: b.dateOfBirth ?? '',
+        fathersName: b.fathersName ?? '',
+        mothersName: b.mothersName ?? '',
+        gender: (b as any).gender ?? undefined,
+      }));
+      saveCachedBaptisms(parishId, page, items);
+    }
+
+    return pageData;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '';
+    if (message === 'Unauthorized') throw err;
+
+    if (shouldUseReferenceCache && !getIsOnline()) {
+      const cached = loadCachedBaptisms(parishId, page);
+      if (cached) {
+        const empty = cached.length === 0;
+        return {
+          content: cached as unknown as BaptismResponse[],
+          totalElements: cached.length,
+          totalPages: 1,
+          size,
+          number: page,
+          first: true,
+          last: true,
+          numberOfElements: cached.length,
+          empty,
+        };
+      }
+    }
+
+    throw err;
+  }
 }
 
 /** Server-side search for baptisms by name or address. Use when search query is present. */
@@ -620,12 +691,73 @@ export async function fetchCommunions(
   page = 0,
   size = 50
 ): Promise<SacramentPageResponse<FirstHolyCommunionResponse>> {
-  const res = await fetchWithRetry(
-    `${getBaseUrl()}/api/parishes/${parishId}/communions?page=${page}&size=${size}`,
-    { headers: getAuthHeaders() }
-  );
-  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
-  return normalizePageResponse(await res.json());
+  const shouldUseReferenceCache = page === 0;
+
+  if (shouldUseReferenceCache && !getIsOnline()) {
+    const cached = loadCachedCommunions(parishId, page);
+    if (cached) {
+      const empty = cached.length === 0;
+      return {
+        content: cached as unknown as FirstHolyCommunionResponse[],
+        totalElements: cached.length,
+        totalPages: 1,
+        size,
+        number: page,
+        first: true,
+        last: true,
+        numberOfElements: cached.length,
+        empty,
+      };
+    }
+  }
+
+  try {
+    const res = await fetchWithRetry(
+      `${getBaseUrl()}/api/parishes/${parishId}/communions?page=${page}&size=${size}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communions');
+    const pageData = normalizePageResponse(await res.json());
+
+    if (shouldUseReferenceCache) {
+      const items = pageData.content.map((c) => ({
+        id: c.id,
+        baptismId: c.baptismId,
+        baptismName: c.baptismName ?? '',
+        otherNames: c.otherNames ?? '',
+        surname: c.surname ?? '',
+        communionDate: c.communionDate ?? '',
+        officiatingPriest: c.officiatingPriest ?? '',
+        parish: c.parish ?? undefined,
+      }));
+      saveCachedCommunions(parishId, page, items);
+    }
+
+    return pageData;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '';
+    if (message === 'Unauthorized') throw err;
+
+    if (shouldUseReferenceCache && !getIsOnline()) {
+      const cached = loadCachedCommunions(parishId, page);
+      if (cached) {
+        const empty = cached.length === 0;
+        return {
+          content: cached as unknown as FirstHolyCommunionResponse[],
+          totalElements: cached.length,
+          totalPages: 1,
+          size,
+          number: page,
+          first: true,
+          last: true,
+          numberOfElements: cached.length,
+          empty,
+        };
+      }
+    }
+
+    throw err;
+  }
 }
 
 export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResponse | null> {
@@ -827,12 +959,71 @@ export async function fetchConfirmations(
   page = 0,
   size = 50
 ): Promise<SacramentPageResponse<ConfirmationResponse>> {
-  const res = await fetchWithRetry(
-    `${getBaseUrl()}/api/parishes/${parishId}/confirmations?page=${page}&size=${size}`,
-    { headers: getAuthHeaders() }
-  );
-  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
-  return normalizePageResponse(await res.json());
+  const shouldUseReferenceCache = page === 0;
+
+  if (shouldUseReferenceCache && !getIsOnline()) {
+    const cached = loadCachedConfirmations(parishId, page);
+    if (cached) {
+      const empty = cached.length === 0;
+      return {
+        content: cached as unknown as ConfirmationResponse[],
+        totalElements: cached.length,
+        totalPages: 1,
+        size,
+        number: page,
+        first: true,
+        last: true,
+        numberOfElements: cached.length,
+        empty,
+      };
+    }
+  }
+
+  try {
+    const res = await fetchWithRetry(
+      `${getBaseUrl()}/api/parishes/${parishId}/confirmations?page=${page}&size=${size}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmations');
+    const pageData = normalizePageResponse(await res.json());
+
+    if (shouldUseReferenceCache) {
+      const items = pageData.content.map((c) => ({
+        id: c.id,
+        baptismName: c.baptismName ?? '',
+        otherNames: c.otherNames ?? '',
+        surname: c.surname ?? '',
+        confirmationDate: c.confirmationDate ?? '',
+        officiatingBishop: c.officiatingBishop ?? undefined,
+      }));
+      saveCachedConfirmations(parishId, page, items);
+    }
+
+    return pageData;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '';
+    if (message === 'Unauthorized') throw err;
+
+    if (shouldUseReferenceCache && !getIsOnline()) {
+      const cached = loadCachedConfirmations(parishId, page);
+      if (cached) {
+        const empty = cached.length === 0;
+        return {
+          content: cached as unknown as ConfirmationResponse[],
+          totalElements: cached.length,
+          totalPages: 1,
+          size,
+          number: page,
+          first: true,
+          last: true,
+          numberOfElements: cached.length,
+          empty,
+        };
+      }
+    }
+
+    throw err;
+  }
 }
 
 export async function fetchConfirmation(id: number): Promise<ConfirmationResponse | null> {
