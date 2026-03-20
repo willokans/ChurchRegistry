@@ -12,10 +12,13 @@ import {
   createBaptismWithCertificate,
   createCommunion,
   createCommunionWithCommunionCertificate,
+  getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
   type ConfirmationRequest,
 } from '@/lib/api';
+
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 
 import ConfirmationCreateForm from './ConfirmationCreateForm';
 
@@ -59,7 +62,17 @@ export default function ConfirmationCreateContent() {
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [communionSource, setCommunionSource] = useState<'this_church' | 'other_church'>('this_church');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
+    name: string;
+    size: number;
+    type?: string;
+  } | null>(null);
   const [communionCertificateFile, setCommunionCertificateFile] = useState<File | null>(null);
+  const [communionCertificateFileMetaFromDraft, setCommunionCertificateFileMetaFromDraft] = useState<{
+    name: string;
+    size: number;
+    type?: string;
+  } | null>(null);
   const [externalBaptism, setExternalBaptism] = useState({
     baptismName: '',
     surname: '',
@@ -93,6 +106,27 @@ export default function ConfirmationCreateContent() {
     parish: '',
   });
 
+  const storedUser = getStoredUser();
+  const draftId =
+    effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
+      ? `confirmation_create:${effectiveParishId}:${storedUser.username}`
+      : null;
+
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<ConfirmationDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  type ConfirmationDraftPayload = {
+    baptismSource: 'this_parish' | 'external';
+    communionSource: 'this_church' | 'other_church';
+    selectedBaptismId: number;
+    selectedCommunionId: number;
+    externalBaptism: typeof externalBaptism;
+    externalCommunion: typeof externalCommunion;
+    form: typeof form;
+    certificateFileMeta: { name: string; size: number; type?: string } | null;
+    communionCertificateFileMeta: { name: string; size: number; type?: string } | null;
+  };
+
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;
     let cancelled = false;
@@ -120,6 +154,24 @@ export default function ConfirmationCreateContent() {
       });
     return () => { cancelled = true; };
   }, [effectiveParishId, parishes]);
+
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<ConfirmationDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
 
   const filteredBaptisms = useMemo(() => {
     if (!searchQuery.trim()) return baptisms;
@@ -192,6 +244,77 @@ export default function ConfirmationCreateContent() {
         </Link>
       </AuthenticatedLayout>
     );
+  }
+
+  const setCertificateFileWithDraftClear: React.Dispatch<React.SetStateAction<File | null>> = (value) => {
+    setCertificateFileMetaFromDraft(null);
+    setCertificateFile(value);
+  };
+
+  const setCommunionCertificateFileWithDraftClear: React.Dispatch<React.SetStateAction<File | null>> = (value) => {
+    setCommunionCertificateFileMetaFromDraft(null);
+    setCommunionCertificateFile(value);
+  };
+
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      const payload: ConfirmationDraftPayload = {
+        baptismSource,
+        communionSource,
+        selectedBaptismId,
+        selectedCommunionId,
+        externalBaptism,
+        externalCommunion,
+        form,
+        certificateFileMeta: certificateFile
+          ? { name: certificateFile.name, size: certificateFile.size, type: certificateFile.type }
+          : certificateFileMetaFromDraft,
+        communionCertificateFileMeta: communionCertificateFile
+          ? { name: communionCertificateFile.name, size: communionCertificateFile.size, type: communionCertificateFile.type }
+          : communionCertificateFileMetaFromDraft,
+      };
+      await saveDraft<ConfirmationDraftPayload>(draftId, 'confirmation_create', payload);
+      const loaded = await loadDraft<ConfirmationDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    setBaptismSource(draftRecord.payload.baptismSource);
+    setCommunionSource(draftRecord.payload.communionSource);
+    setSelectedBaptismId(draftRecord.payload.selectedBaptismId);
+    setSelectedCommunionId(draftRecord.payload.selectedCommunionId);
+    setExternalBaptism(draftRecord.payload.externalBaptism);
+    setExternalCommunion(draftRecord.payload.externalCommunion);
+    setForm(draftRecord.payload.form);
+
+    setCertificateFile(null);
+    setCommunionCertificateFile(null);
+    setCertificateFileMetaFromDraft(draftRecord.payload.certificateFileMeta);
+    setCommunionCertificateFileMetaFromDraft(draftRecord.payload.communionCertificateFileMeta);
+    setDraftStatus('Draft loaded from this device.');
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setCertificateFile(null);
+      setCommunionCertificateFile(null);
+      setCertificateFileMetaFromDraft(null);
+      setCommunionCertificateFileMetaFromDraft(null);
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -400,12 +523,12 @@ export default function ConfirmationCreateContent() {
       baptismSource={baptismSource}
       baptisms={baptisms}
       setBaptismSource={setBaptismSource}
-      setCertificateFile={setCertificateFile}
+      setCertificateFile={setCertificateFileWithDraftClear}
       setExternalBaptism={setExternalBaptism}
       setSelectedBaptismId={setSelectedBaptismId}
       setSearchQuery={setSearchQuery}
       setCommunionSource={setCommunionSource}
-      setCommunionCertificateFile={setCommunionCertificateFile}
+      setCommunionCertificateFile={setCommunionCertificateFileWithDraftClear}
       selectedBaptism={selectedBaptism}
       fullNameBaptism={fullNameBaptism}
       formatBaptismDate={formatBaptismDate}
@@ -431,6 +554,11 @@ export default function ConfirmationCreateContent() {
       error={error}
       submitting={submitting}
       canSubmit={canSubmit}
+      draftRecord={draftRecord}
+      draftStatus={draftStatus}
+      handleSaveDraft={handleSaveDraft}
+      handleResumeDraft={handleResumeDraft}
+      handleDiscardDraft={handleDiscardDraft}
       communionSearchQuery={communionSearchQuery}
       setCommunionSearchQuery={setCommunionSearchQuery}
       communionSearchFocused={communionSearchFocused}
@@ -440,6 +568,8 @@ export default function ConfirmationCreateContent() {
       selectedCommunionId={selectedCommunionId}
       setSelectedCommunionId={setSelectedCommunionId}
       selectedCommunion={selectedCommunion}
+      certificateFileNameFromDraft={certificateFileMetaFromDraft?.name ?? null}
+      communionCertificateFileNameFromDraft={communionCertificateFileMetaFromDraft?.name ?? null}
     />
   );
 }

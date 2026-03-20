@@ -13,12 +13,14 @@ import {
   fetchParishMarriageRequirements,
   createMarriageWithParties,
   uploadMarriageCertificate,
+  getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
   type ConfirmationResponse,
   type MarriagePartyPayload,
   type CreateMarriageWithPartiesRequest,
 } from '@/lib/api';
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 
 function fullNameBaptism(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -75,6 +77,12 @@ export default function MarriageCreateContent() {
   const { parishId: contextParishId, parishes } = useParish();
   const effectiveParishId = parishIdFromQuery ?? contextParishId ?? null;
 
+  const storedUser = getStoredUser();
+  const draftId =
+    effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
+      ? `marriage_create:${effectiveParishId}:${storedUser.username}`
+      : null;
+
   const [baptisms, setBaptisms] = useState<BaptismResponse[]>([]);
   const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
   const [confirmations, setConfirmations] = useState<ConfirmationResponse[]>([]);
@@ -129,6 +137,24 @@ export default function MarriageCreateContent() {
     { fullName: '', phone: '', address: '' },
   ]);
 
+  type MarriageDraftPayload = {
+    groom: typeof groom;
+    bride: typeof bride;
+    groomBaptismSource: SacramentSource;
+    groomCommunionSource: SacramentSource;
+    groomConfirmationSource: SacramentSource;
+    brideBaptismSource: SacramentSource;
+    brideCommunionSource: SacramentSource;
+    brideConfirmationSource: SacramentSource;
+    groomExternalBaptism: typeof groomExternalBaptism;
+    brideExternalBaptism: typeof brideExternalBaptism;
+    marriageDetails: typeof marriageDetails;
+    witnesses: typeof witnesses;
+  };
+
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<MarriageDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;
     let cancelled = false;
@@ -169,6 +195,24 @@ export default function MarriageCreateContent() {
       cancelled = true;
     };
   }, [effectiveParishId, parishes]);
+
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<MarriageDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
 
   const witnessList = witnesses.filter((w) => w.fullName.trim());
   /** Until parish policy loads, treat confirmation as required (safe default). */
@@ -222,6 +266,62 @@ export default function MarriageCreateContent() {
         (brideConfirmationSource !== 'external' || !!bride.confirmationCertificatePath) &&
         (groomConfirmationSource !== 'this_parish' || !!groom.confirmationId) &&
         (brideConfirmationSource !== 'this_parish' || !!bride.confirmationId)));
+
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      const payload: MarriageDraftPayload = {
+        groom,
+        bride,
+        groomBaptismSource,
+        groomCommunionSource,
+        groomConfirmationSource,
+        brideBaptismSource,
+        brideCommunionSource,
+        brideConfirmationSource,
+        groomExternalBaptism,
+        brideExternalBaptism,
+        marriageDetails,
+        witnesses,
+      };
+      await saveDraft<MarriageDraftPayload>(draftId, 'marriage_create', payload);
+      const loaded = await loadDraft<MarriageDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    setGroom(draftRecord.payload.groom);
+    setBride(draftRecord.payload.bride);
+    setGroomBaptismSource(draftRecord.payload.groomBaptismSource);
+    setGroomCommunionSource(draftRecord.payload.groomCommunionSource);
+    setGroomConfirmationSource(draftRecord.payload.groomConfirmationSource);
+    setBrideBaptismSource(draftRecord.payload.brideBaptismSource);
+    setBrideCommunionSource(draftRecord.payload.brideCommunionSource);
+    setBrideConfirmationSource(draftRecord.payload.brideConfirmationSource);
+    setGroomExternalBaptism(draftRecord.payload.groomExternalBaptism);
+    setBrideExternalBaptism(draftRecord.payload.brideExternalBaptism);
+    setMarriageDetails(draftRecord.payload.marriageDetails);
+    setWitnesses(draftRecord.payload.witnesses);
+    setDraftStatus('Draft loaded from this device.');
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -487,6 +587,31 @@ export default function MarriageCreateContent() {
             before the marriage can be registered (parish record and/or certificate). At least one in-parish
             Confirmation record must be linked for the parish sacramental chain.
           </p>
+        )}
+
+        {draftRecord && (
+          <div className="mt-6 max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <p className="text-sm font-medium">
+              Draft saved locally{draftRecord.updatedAt ? ` (${new Date(draftRecord.updatedAt).toLocaleString()})` : ''}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleResumeDraft}
+                className="rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+              >
+                Resume draft
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50"
+              >
+                Discard
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-amber-800">Offline drafts are stored on this device until they are submitted successfully.</p>
+          </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -846,7 +971,16 @@ export default function MarriageCreateContent() {
               {error}
             </p>
           )}
-          <div className="flex gap-4">
+          {draftStatus && <p className="text-xs text-gray-600">{draftStatus}</p>}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={submitting}
+              className="rounded-xl border border-gray-300 px-5 py-3 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+            >
+              Save Draft
+            </button>
             <button
               type="submit"
               disabled={submitting || !canSaveMarriage}

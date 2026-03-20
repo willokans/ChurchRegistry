@@ -76,7 +76,7 @@ describe('Holy Order create page', () => {
     await user.type(screen.getByLabelText(/ordination date|date/i), '2025-09-01');
     await user.selectOptions(screen.getByLabelText(/order type/i), 'PRIEST');
     await user.type(screen.getByLabelText(/officiating bishop|bishop/i), 'Bishop Jones');
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.click(screen.getByRole('button', { name: /save holy order/i }));
 
     await waitFor(() => {
       expect(createHolyOrder).toHaveBeenCalledWith(

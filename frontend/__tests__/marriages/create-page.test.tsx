@@ -208,7 +208,11 @@ describe('Marriage create page', () => {
     const witnessNameInputs = witnessesSection ? within(witnessesSection as HTMLElement).getAllByPlaceholderText(/full name/i) : screen.getAllByPlaceholderText(/full name/i).slice(-2);
     await user.type(witnessNameInputs[0], 'Witness One');
     await user.type(witnessNameInputs[1], 'Witness Two');
-    await user.click(screen.getByRole('button', { name: /save marriage/i }));
+    const saveMarriageButton = screen.getByRole('button', { name: /save marriage/i });
+    await waitFor(() => {
+      expect(saveMarriageButton).toBeEnabled();
+    });
+    await user.click(saveMarriageButton);
 
     await waitFor(() => {
       expect(createMarriageWithParties).toHaveBeenCalledWith(

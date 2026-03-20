@@ -10,9 +10,11 @@ import {
   fetchBaptisms,
   createCommunion,
   createCommunionWithCertificate,
+  getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionRequest,
 } from '@/lib/api';
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -39,6 +41,11 @@ export default function CommunionCreateContent() {
   const [error, setError] = useState<string | null>(null);
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
+    name: string;
+    size: number;
+    type?: string;
+  } | null>(null);
   const [externalBaptism, setExternalBaptism] = useState({
     baptismName: '',
     surname: '',
@@ -58,6 +65,22 @@ export default function CommunionCreateContent() {
     parish: '',
     remarks: '',
   });
+
+  const storedUser = getStoredUser();
+  const draftId =
+    effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
+      ? `communion_create:${effectiveParishId}:${storedUser.username}`
+      : null;
+
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<CommunionDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  type CommunionDraftPayload = {
+    baptismSource: 'this_parish' | 'external';
+    form: typeof form;
+    externalBaptism: typeof externalBaptism;
+    certificateFileMeta: { name: string; size: number; type?: string } | null;
+  };
 
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;
@@ -107,6 +130,24 @@ export default function CommunionCreateContent() {
     if (!inFiltered) setForm((f) => ({ ...f, baptismId: 0 }));
   }, [searchQuery, filteredBaptisms, form.baptismId, baptisms]);
 
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<CommunionDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
   const selectedBaptism = form.baptismId
     ? baptisms.find((b) => b.id === form.baptismId)
     : null;
@@ -121,6 +162,51 @@ export default function CommunionCreateContent() {
         </Link>
       </AuthenticatedLayout>
     );
+  }
+
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      const payload: CommunionDraftPayload = {
+        baptismSource,
+        form,
+        externalBaptism,
+        certificateFileMeta: certificateFile
+          ? { name: certificateFile.name, size: certificateFile.size, type: certificateFile.type }
+          : certificateFileMetaFromDraft,
+      };
+      await saveDraft<CommunionDraftPayload>(draftId, 'communion_create', payload);
+      const loaded = await loadDraft<CommunionDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    setBaptismSource(draftRecord.payload.baptismSource);
+    setForm(draftRecord.payload.form);
+    setExternalBaptism(draftRecord.payload.externalBaptism);
+    setCertificateFile(null);
+    setCertificateFileMetaFromDraft(draftRecord.payload.certificateFileMeta);
+    setDraftStatus('Draft loaded from this device.');
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setCertificateFile(null);
+      setCertificateFileMetaFromDraft(null);
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -222,6 +308,31 @@ export default function CommunionCreateContent() {
           <p className="mt-1 text-gray-600">Register a parishioner&apos;s first Holy Communion.</p>
         </div>
 
+        {draftRecord && (
+          <div className="mt-6 max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <p className="text-sm font-medium">
+              Draft saved locally{draftRecord.updatedAt ? ` (${new Date(draftRecord.updatedAt).toLocaleString()})` : ''}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleResumeDraft}
+                className="rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+              >
+                Resume draft
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50"
+              >
+                Discard
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-amber-800">Offline drafts are stored on this device until they are submitted successfully.</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column: Select Baptism + Communion Details */}
             <div className="lg:col-span-2 space-y-6">
@@ -237,6 +348,7 @@ export default function CommunionCreateContent() {
                       onChange={() => {
                         setBaptismSource('this_parish');
                         setCertificateFile(null);
+                        setCertificateFileMetaFromDraft(null);
                         setExternalBaptism({ baptismName: '', surname: '', otherNames: '', gender: 'MALE', fathersName: '', mothersName: '', baptisedChurchAddress: '' });
                       }}
                       className="mt-1 text-sancta-maroon focus:ring-sancta-maroon"
@@ -478,10 +590,10 @@ export default function CommunionCreateContent() {
                           </svg>
                         </span>
                         <span className="text-sm text-gray-500">
-                          {certificateFile ? certificateFile.name : 'No file chosen'}
+                          {certificateFile ? certificateFile.name : certificateFileMetaFromDraft?.name ?? 'No file chosen'}
                         </span>
                         <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                          {certificateFile ? 'Change file' : 'Browse Files'}
+                          {certificateFile || certificateFileMetaFromDraft ? 'Change file' : 'Browse Files'}
                           <input
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
@@ -644,6 +756,15 @@ export default function CommunionCreateContent() {
                     {error}
                   </p>
                 )}
+                {draftStatus && <p className="text-xs text-gray-600">{draftStatus}</p>}
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
                 <button
                   type="submit"
                   disabled={

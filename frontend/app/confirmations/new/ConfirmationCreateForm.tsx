@@ -3,6 +3,7 @@
 import React from 'react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import type { BaptismResponse, FirstHolyCommunionResponse, ConfirmationRequest } from '@/lib/api';
+import type { OfflineDraftRecord } from '@/lib/offline/drafts';
 import ConfirmationCreateFormContent from './ConfirmationCreateFormContent';
 
 export interface ExternalBaptismState {
@@ -71,6 +72,13 @@ export interface ConfirmationCreateFormProps {
   selectedCommunionId: number;
   setSelectedCommunionId: React.Dispatch<React.SetStateAction<number>>;
   selectedCommunion: FirstHolyCommunionResponse | null;
+  draftRecord: OfflineDraftRecord<unknown> | null;
+  draftStatus: string | null;
+  handleSaveDraft: () => Promise<void>;
+  handleResumeDraft: () => void;
+  handleDiscardDraft: () => Promise<void>;
+  certificateFileNameFromDraft: string | null;
+  communionCertificateFileNameFromDraft: string | null;
 }
 
 export default function ConfirmationCreateForm(props: ConfirmationCreateFormProps) {
@@ -121,6 +129,13 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
     selectedCommunionId,
     setSelectedCommunionId,
     selectedCommunion,
+    draftRecord,
+    draftStatus,
+    handleSaveDraft,
+    handleResumeDraft,
+    handleDiscardDraft,
+    certificateFileNameFromDraft,
+    communionCertificateFileNameFromDraft,
   } = props;
 
   return React.createElement(
@@ -173,6 +188,13 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
       selectedCommunionId,
       setSelectedCommunionId,
       selectedCommunion,
+      draftRecord,
+      draftStatus,
+      handleSaveDraft,
+      handleResumeDraft,
+      handleDiscardDraft,
+      certificateFileNameFromDraft,
+      communionCertificateFileNameFromDraft,
     })
   );
 }
