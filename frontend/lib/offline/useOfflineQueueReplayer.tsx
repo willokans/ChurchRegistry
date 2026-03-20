@@ -13,11 +13,31 @@ export function useOfflineQueueReplayer() {
   }, [isOnline]);
 
   useEffect(() => {
-    function handleFocus() {
+    function replayNow() {
       void replayOfflineQueue();
     }
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+
+    // Desktop focus.
+    window.addEventListener('focus', replayNow);
+
+    // App visibility / foreground transitions (tab restore, mobile browsers).
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') replayNow();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // iOS/Safari bfcache restore.
+    window.addEventListener('pageshow', replayNow);
+
+    // iOS PWA "resume" event (supported in some WebViews).
+    window.addEventListener('resume', replayNow as unknown as EventListener);
+
+    return () => {
+      window.removeEventListener('focus', replayNow);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', replayNow);
+      window.removeEventListener('resume', replayNow as unknown as EventListener);
+    };
   }, []);
 }
 

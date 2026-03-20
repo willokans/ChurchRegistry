@@ -9,6 +9,7 @@ import { useParish } from '@/context/ParishContext';
 import { getChurchBranding } from '@/lib/church-branding';
 import { useNetworkStatus } from '@/lib/offline/network';
 import { useOfflineQueueReplayer } from '@/lib/offline/useOfflineQueueReplayer';
+import RetryFailedSubmissionsBanner from '@/components/offline/RetryFailedSubmissionsBanner';
 
 function CrossIcon({ className }: { className?: string }) {
   return (
@@ -123,6 +124,7 @@ export default function AuthenticatedLayout({
           You are offline. New submissions will be saved locally and synced automatically when you are back online.
         </div>
       )}
+      <RetryFailedSubmissionsBanner />
       {/* Mobile header with hamburger */}
       <header className="md:hidden flex items-center justify-between gap-2 py-3 px-4 border-b border-gray-200 bg-white/80">
         <button

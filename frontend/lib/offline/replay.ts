@@ -10,6 +10,7 @@ type ReplayOptions = {
 
 const MAX_AUTO_QUEUE_ITEMS_PER_RUN = 25;
 let replayInFlight: Promise<void> | null = null;
+let replayRequestedWhileInFlight = false;
 
 function blobToFile(blob: Blob, ref: OfflineQueueFileRef): File {
   const name = ref.name ?? 'offline-attachment';
@@ -307,6 +308,9 @@ export async function replayOfflineQueue(options?: ReplayOptions): Promise<void>
     if (options?.onlyItemId) {
       await replayInFlight;
     } else {
+      // Another trigger fired while we were already replaying (e.g. focus while the first
+      // run started but found an empty queue). Mark a follow-up run so we don't miss work.
+      replayRequestedWhileInFlight = true;
       return replayInFlight;
     }
   }
@@ -337,6 +341,13 @@ export async function replayOfflineQueue(options?: ReplayOptions): Promise<void>
     await promise;
   } finally {
     replayInFlight = null;
+    if (replayRequestedWhileInFlight) {
+      replayRequestedWhileInFlight = false;
+      // Fire-and-forget; the caller already returned either `replayInFlight` or awaited `promise`.
+      void replayOfflineQueue();
+    } else {
+      replayRequestedWhileInFlight = false;
+    }
   }
 }
 

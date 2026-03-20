@@ -279,3 +279,14 @@ export function subscribeToOfflineQueueItem(itemId: string, cb: (item: OfflineQu
   return () => queueEventTarget.removeEventListener('queueItemUpdated', handler as EventListener);
 }
 
+export function subscribeToOfflineQueueItemUpdates(cb: (item: OfflineQueueItem) => void): () => void {
+  function handler(e: Event) {
+    const event = e as CustomEvent<QueueItemUpdatedDetail>;
+    if (!event?.detail?.item) return;
+    cb(event.detail.item);
+  }
+
+  queueEventTarget.addEventListener('queueItemUpdated', handler as EventListener);
+  return () => queueEventTarget.removeEventListener('queueItemUpdated', handler as EventListener);
+}
+
