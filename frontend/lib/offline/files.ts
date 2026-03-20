@@ -23,8 +23,8 @@ const DRAFTS_STORE = 'drafts';
 const FILES_STORE = 'files';
 const QUEUE_STORE = 'queue';
 
-const DEFAULT_MAX_OFFLINE_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
-const DEFAULT_MAX_OFFLINE_TOTAL_BYTES = 25 * 1024 * 1024; // ~25 MB per device
+export const DEFAULT_MAX_OFFLINE_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
+export const DEFAULT_MAX_OFFLINE_TOTAL_BYTES = 25 * 1024 * 1024; // ~25 MB per device
 
 function hasIndexedDb(): boolean {
   return typeof indexedDB !== 'undefined';

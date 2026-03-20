@@ -137,11 +137,24 @@ async function cleanupAfterItemSynced(item: OfflineQueueItem): Promise<void> {
 const FAILED_QUEUE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 const SYNCED_QUEUE_TTL_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
 const ORPHAN_BLOB_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const OLD_DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
-async function pruneOfflineResources(): Promise<void> {
+const STORAGE_HYGIENE_LAST_RUN_KEY = 'church_registry_offline_storage_hygiene_last_run';
+const STORAGE_HYGIENE_MIN_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+export async function pruneOfflineResources(options?: { force?: boolean }): Promise<void> {
   // Best-effort: pruning should never block replay.
   try {
     const now = Date.now();
+
+    const force = options?.force === true;
+    if (!force && typeof localStorage !== 'undefined') {
+      const lastRaw = localStorage.getItem(STORAGE_HYGIENE_LAST_RUN_KEY);
+      const last = lastRaw ? Number(lastRaw) : 0;
+      if (last && now - last < STORAGE_HYGIENE_MIN_INTERVAL_MS) return;
+    }
+
+    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_HYGIENE_LAST_RUN_KEY, String(now));
 
     // 1) Drop stale queue items first so their file refs stop being considered "in use".
     const allQueueItems = await listOfflineQueueItems();
@@ -165,7 +178,31 @@ async function pruneOfflineResources(): Promise<void> {
 
     try {
       const drafts = await listDrafts();
+
+      const staleDrafts = drafts.filter((d) => {
+        const ageMs = now - (d.updatedAt ?? 0);
+        return ageMs > OLD_DRAFT_TTL_MS;
+      });
+
+      // Best-effort delete; only exclude file refs from drafts that we successfully deleted.
+      const deletedDraftIds = new Set<string>();
+      if (staleDrafts.length > 0) {
+        await Promise.all(
+          staleDrafts.map(async (d) => {
+            try {
+              await deleteDraft(d.draftId);
+              deletedDraftIds.add(d.draftId);
+            } catch {
+              // Ignore; we'll keep references so we don't delete blobs still needed by this draft.
+            }
+          })
+        );
+      }
+
       for (const draft of drafts) {
+        const ageMs = now - (draft.updatedAt ?? 0);
+        const isStale = ageMs > OLD_DRAFT_TTL_MS;
+        if (isStale && deletedDraftIds.has(draft.draftId)) continue; // draft deleted successfully
         collectOfflineFileRefIds(draft.payload, referencedFileRefIds);
       }
     } catch {

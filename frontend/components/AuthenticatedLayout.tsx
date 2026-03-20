@@ -10,6 +10,7 @@ import { getChurchBranding } from '@/lib/church-branding';
 import { useNetworkStatus } from '@/lib/offline/network';
 import { useOfflineQueueReplayer } from '@/lib/offline/useOfflineQueueReplayer';
 import RetryFailedSubmissionsBanner from '@/components/offline/RetryFailedSubmissionsBanner';
+import OfflineStorageHygieneBanner from '@/components/offline/OfflineStorageHygieneBanner';
 import ConflictResolutionDialog from '@/components/offline/ConflictResolutionDialog';
 
 function CrossIcon({ className }: { className?: string }) {
@@ -125,6 +126,7 @@ export default function AuthenticatedLayout({
           You are offline. New submissions will be saved locally and synced automatically when you are back online.
         </div>
       )}
+      <OfflineStorageHygieneBanner />
       <RetryFailedSubmissionsBanner />
       <ConflictResolutionDialog />
       {/* Mobile header with hamburger */}
