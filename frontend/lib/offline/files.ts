@@ -445,3 +445,75 @@ export async function deleteOfflineBlob(fileRefId: string): Promise<void> {
   await idbDelete(FILES_STORE, fileRefId);
 }
 
+export type OfflineFileListing = {
+  fileRefId: string;
+  mimeType: string;
+  size: number;
+  storedBlob: boolean;
+  updatedAt: number;
+};
+
+export async function listOfflineFiles(): Promise<OfflineFileListing[]> {
+  const prefix = 'church_registry_offline_file:';
+
+  if (!hasIndexedDb()) {
+    if (!hasLocalStorage()) return [];
+
+    const results: OfflineFileListing[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      try {
+        const parsed = JSON.parse(raw) as {
+          fileRefId?: string;
+          mimeType?: string;
+          size?: number;
+          storedBlob?: boolean;
+          updatedAt?: number;
+        };
+
+        if (!parsed?.fileRefId || typeof parsed?.mimeType !== 'string' || typeof parsed?.size !== 'number') continue;
+        results.push({
+          fileRefId: parsed.fileRefId,
+          mimeType: parsed.mimeType,
+          size: parsed.size,
+          storedBlob: parsed.storedBlob === true || typeof (parsed as any)?.base64 === 'string',
+          updatedAt: typeof parsed?.updatedAt === 'number' ? parsed.updatedAt : 0,
+        });
+      } catch {
+        // Ignore malformed storage entries.
+      }
+    }
+
+    return results;
+  }
+
+  const db = await openDb();
+  return await new Promise<OfflineFileListing[]>((resolve, reject) => {
+    const tx = db.transaction(FILES_STORE, 'readonly');
+    const store = tx.objectStore(FILES_STORE);
+    const req = store.openCursor();
+
+    const results: OfflineFileListing[] = [];
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) return resolve(results);
+
+      const record = cursor.value as OfflineFileRecord;
+      results.push({
+        fileRefId: record.id,
+        mimeType: record.mimeType,
+        size: record.size,
+        storedBlob: record.blob !== undefined,
+        updatedAt: record.updatedAt,
+      });
+
+      cursor.continue();
+    };
+  });
+}
+

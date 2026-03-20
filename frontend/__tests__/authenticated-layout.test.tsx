@@ -39,6 +39,7 @@ describe('AuthenticatedLayout', () => {
       displayName: 'Admin',
       role: 'ADMIN',
     });
+    window.localStorage.clear();
     (useParish as jest.Mock).mockReturnValue(defaultParishContext);
   });
 

@@ -147,3 +147,59 @@ function hasLocalStorage(): boolean {
   return typeof localStorage !== 'undefined';
 }
 
+export async function listDrafts(): Promise<OfflineDraftRecord<any>[]> {
+  const prefix = 'church_registry_offline_draft:';
+
+  if (!hasIndexedDb()) {
+    if (!hasLocalStorage()) return [];
+
+    const results: OfflineDraftRecord<any>[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      try {
+        const parsed = JSON.parse(raw) as Partial<OfflineDraftRecord<any>> & {
+          draftId?: string;
+          id?: string;
+          formType?: string;
+          updatedAt?: number;
+          payload?: unknown;
+        };
+
+        if (!parsed?.draftId || !parsed?.id || typeof parsed?.formType !== 'string' || typeof parsed?.updatedAt !== 'number') continue;
+        results.push({
+          draftId: parsed.draftId,
+          id: parsed.id,
+          formType: parsed.formType,
+          updatedAt: parsed.updatedAt,
+          payload: parsed.payload,
+        });
+      } catch {
+        // Ignore malformed entries.
+      }
+    }
+
+    return results;
+  }
+
+  const db = await openDb();
+  return await new Promise<OfflineDraftRecord<any>[]>((resolve, reject) => {
+    const tx = db.transaction(DRAFTS_STORE, 'readonly');
+    const store = tx.objectStore(DRAFTS_STORE);
+    const req = store.openCursor();
+
+    const results: OfflineDraftRecord<any>[] = [];
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) return resolve(results);
+
+      results.push(cursor.value as OfflineDraftRecord<any>);
+      cursor.continue();
+    };
+  });
+}
+

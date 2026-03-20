@@ -123,6 +123,12 @@ public class MarriageServiceImpl implements MarriageService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<MarriageResponse> findByBaptismId(Long baptismId) {
+        return marriageRepository.findByBaptismId(baptismId).map(this::toResponse);
+    }
+
+    @Override
     @Transactional
     public MarriageResponse create(MarriageRequest request) {
         Confirmation confirmation = confirmationRepository.findById(request.getConfirmationId())

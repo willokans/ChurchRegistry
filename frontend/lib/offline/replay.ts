@@ -1,8 +1,24 @@
-import { createBaptism, createCommunion, createCommunionWithCertificate, createCommunionWithCommunionCertificate, createConfirmation, createMarriageWithParties, createHolyOrder, createBaptismWithCertificate } from '@/lib/api';
-import { loadOfflineBlob } from '@/lib/offline/files';
+import {
+  createBaptism,
+  createCommunion,
+  createCommunionWithCertificate,
+  createCommunionWithCommunionCertificate,
+  createConfirmation,
+  createMarriageWithParties,
+  createHolyOrder,
+  createBaptismWithCertificate,
+  fetchCommunionByBaptismId,
+  fetchConfirmationByCommunionId,
+  fetchMarriageByBaptismId,
+  fetchMarriageByConfirmationId,
+  fetchHolyOrderByConfirmationId,
+} from '@/lib/api';
+import { deleteOfflineBlob, loadOfflineBlob, listOfflineFiles } from '@/lib/offline/files';
 import { getIsOnline } from '@/lib/offline/network';
+import { detectOfflineReplayConflict, getErrorMessage, isUnauthorizedError } from '@/lib/offline/conflicts';
 import type { OfflineQueueItem, OfflineQueueFileRef, OfflineQueueItemReplayState } from '@/lib/offline/queue';
 import { deleteOfflineQueueItem, getOfflineQueueItem, listOfflineQueueItems, updateOfflineQueueItemStatus } from '@/lib/offline/queue';
+import { deleteDraft, listDrafts } from '@/lib/offline/drafts';
 
 type ReplayOptions = {
   onlyItemId?: string;
@@ -20,11 +36,26 @@ function blobToFile(blob: Blob, ref: OfflineQueueFileRef): File {
   return blob as unknown as File;
 }
 
-function normalizeErrorMessage(err: unknown): string {
-  if (!err) return 'Sync failed.';
-  if (typeof err === 'string') return err;
-  if (err instanceof Error) return err.message || 'Sync failed.';
-  return 'Sync failed.';
+class AuthRequiredReplayError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthRequiredReplayError';
+  }
+}
+
+class ReplayConflictError extends Error {
+  conflictKind:
+    | 'communion_already_exists_for_baptism'
+    | 'confirmation_already_exists_for_communion'
+    | 'marriage_already_exists_for_confirmation'
+    | 'marriage_already_exists_for_baptism'
+    | 'holy_order_already_exists_for_confirmation';
+
+  constructor(message: string, conflictKind: ReplayConflictError['conflictKind']) {
+    super(message);
+    this.name = 'ReplayConflictError';
+    this.conflictKind = conflictKind;
+  }
 }
 
 const STEP = {
@@ -57,7 +88,106 @@ function normalizeReplayState(state?: OfflineQueueItemReplayState): OfflineQueue
     createdConfirmationId: state?.createdConfirmationId,
     createdMarriageId: state?.createdMarriageId,
     createdHolyOrderId: state?.createdHolyOrderId,
+    authRequiredAt: state?.authRequiredAt,
+    conflict: state?.conflict ? { ...state.conflict } : undefined,
   };
+}
+
+function collectOfflineFileRefIds(value: unknown, out: Set<string>, depth = 0): void {
+  if (depth > 20) return;
+  if (!value) return;
+  if (typeof value !== 'object') return;
+
+  if (Array.isArray(value)) {
+    for (const v of value) collectOfflineFileRefIds(v, out, depth + 1);
+    return;
+  }
+
+  const obj = value as Record<string, unknown>;
+  const maybeRefId = obj.fileRefId;
+  if (typeof maybeRefId === 'string' && maybeRefId.trim()) out.add(maybeRefId);
+
+  for (const k of Object.keys(obj)) {
+    collectOfflineFileRefIds(obj[k], out, depth + 1);
+  }
+}
+
+async function cleanupAfterItemSynced(item: OfflineQueueItem): Promise<void> {
+  // Best-effort local cleanup: free IndexedDB/localStorage attachment storage
+  // after the record has been successfully created on the server.
+  try {
+    const refs = new Set<string>();
+    collectOfflineFileRefIds(item.submission.payload, refs);
+    for (const fileRefId of Array.from(refs)) {
+      await deleteOfflineBlob(fileRefId);
+    }
+  } catch {
+    // Ignore storage cleanup failures; sync correctness is handled separately.
+  }
+
+  if (item.draftId) {
+    try {
+      await deleteDraft(item.draftId);
+    } catch {
+      // Ignore.
+    }
+  }
+}
+
+const FAILED_QUEUE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const SYNCED_QUEUE_TTL_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+const ORPHAN_BLOB_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+
+async function pruneOfflineResources(): Promise<void> {
+  // Best-effort: pruning should never block replay.
+  try {
+    const now = Date.now();
+
+    // 1) Drop stale queue items first so their file refs stop being considered "in use".
+    const allQueueItems = await listOfflineQueueItems();
+    const toDelete = allQueueItems.filter((i) => {
+      const ageMs = now - (i.updatedAt ?? i.createdAt);
+      if (i.status === 'failed') return ageMs > FAILED_QUEUE_TTL_MS;
+      if (i.status === 'synced') return ageMs > SYNCED_QUEUE_TTL_MS;
+      return false;
+    });
+
+    if (toDelete.length > 0) {
+      await Promise.all(toDelete.map((i) => deleteOfflineQueueItem(i.id)));
+    }
+
+    // 2) Compute currently referenced fileRefIds from remaining queue items + drafts.
+    const referencedFileRefIds = new Set<string>();
+    const queueAfterPrune = await listOfflineQueueItems();
+    for (const item of queueAfterPrune) {
+      collectOfflineFileRefIds(item.submission.payload, referencedFileRefIds);
+    }
+
+    try {
+      const drafts = await listDrafts();
+      for (const draft of drafts) {
+        collectOfflineFileRefIds(draft.payload, referencedFileRefIds);
+      }
+    } catch {
+      // Draft listing is best-effort too.
+    }
+
+    // 3) Delete orphaned blobs that are older than TTL and not referenced anywhere.
+    const files = await listOfflineFiles();
+    const orphanDeletes: string[] = [];
+    for (const file of files) {
+      if (!file.storedBlob) continue;
+      if (referencedFileRefIds.has(file.fileRefId)) continue;
+      const ageMs = now - (file.updatedAt ?? 0);
+      if (ageMs > ORPHAN_BLOB_TTL_MS) orphanDeletes.push(file.fileRefId);
+    }
+
+    if (orphanDeletes.length > 0) {
+      await Promise.all(orphanDeletes.map((id) => deleteOfflineBlob(id)));
+    }
+  } catch {
+    // Intentionally ignore prune failures.
+  }
 }
 
 async function executeSubmission(item: OfflineQueueItem, persistReplayState: (next: OfflineQueueItemReplayState) => Promise<void>): Promise<OfflineQueueItemReplayState> {
@@ -65,6 +195,11 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
   const payload = spec.payload as any;
 
   let replayState = normalizeReplayState(item.replayState);
+  if (replayState.authRequiredAt) {
+    // Clear the marker when we start trying again; actual auth validity is enforced by API calls.
+    replayState = { ...replayState, authRequiredAt: undefined };
+    await persistReplayState(replayState);
+  }
 
   async function completeStep(stepKey: string, patch?: Partial<OfflineQueueItemReplayState>) {
     replayState = {
@@ -97,7 +232,17 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
       const blob = await loadOfflineBlob(attachmentRef.fileRefId);
       if (!blob) throw new Error('Certificate file is not stored offline. Re-upload when online, then retry.');
       const certificateFile = blobToFile(blob, attachmentRef);
-      const created = await createCommunionWithCertificate(payload.effectiveParishId, payload.communionRequest, certificateFile, payload.externalBaptism);
+      let created;
+      try {
+        created = await createCommunionWithCertificate(payload.effectiveParishId, payload.communionRequest, certificateFile, payload.externalBaptism);
+      } catch (err) {
+        if (isUnauthorizedError(err)) {
+          replayState = { ...replayState, authRequiredAt: Date.now() };
+          await persistReplayState(replayState);
+          throw new AuthRequiredReplayError('Unauthorized');
+        }
+        throw err;
+      }
       await completeStep(STEP.COMMUNION_CREATE_EXTERNAL_DONE, { createdCommunionId: created.id });
       return replayState;
     }
@@ -105,12 +250,47 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
     const done = replayState.steps?.[STEP.COMMUNION_CREATE_THIS_CHURCH_DONE] && typeof replayState.createdCommunionId === 'number';
     if (done) return replayState;
 
-    const created = await createCommunion({
-      baptismId: payload.baptismId,
-      communionDate: payload.communionRequest.communionDate,
-      officiatingPriest: payload.communionRequest.officiatingPriest,
-      parish: payload.communionRequest.parish,
-    });
+    const conflict = replayState.conflict;
+    if (conflict?.stepKey === STEP.COMMUNION_CREATE_THIS_CHURCH_DONE && conflict.resolvedChoice === 'server') {
+      const existing = await fetchCommunionByBaptismId(payload.baptismId);
+      await completeStep(STEP.COMMUNION_CREATE_THIS_CHURCH_DONE, {
+        createdCommunionId: existing.id,
+        conflict: undefined,
+      });
+      return replayState;
+    }
+
+    let created;
+    try {
+      created = await createCommunion({
+        baptismId: payload.baptismId,
+        communionDate: payload.communionRequest.communionDate,
+        officiatingPriest: payload.communionRequest.officiatingPriest,
+        parish: payload.communionRequest.parish,
+      });
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        replayState = { ...replayState, authRequiredAt: Date.now() };
+        await persistReplayState(replayState);
+        throw new AuthRequiredReplayError('Unauthorized');
+      }
+
+      const detected = detectOfflineReplayConflict(err);
+      if (detected?.kind === 'communion_already_exists_for_baptism') {
+        const nextConflict = {
+          stepKey: STEP.COMMUNION_CREATE_THIS_CHURCH_DONE,
+          kind: detected.kind,
+          message: detected.message,
+          detectedAt: Date.now(),
+        };
+        replayState = { ...replayState, conflict: nextConflict };
+        await persistReplayState(replayState);
+        throw new ReplayConflictError(detected.message, detected.kind);
+      }
+
+      throw err;
+    }
+
     await completeStep(STEP.COMMUNION_CREATE_THIS_CHURCH_DONE, { createdCommunionId: created.id });
     return replayState;
   }
@@ -133,7 +313,17 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
         if (!baptismBlob) throw new Error('Baptism certificate is not stored offline. Re-upload when online, then retry.');
         const baptismCertificateFile = blobToFile(baptismBlob, baptismAttachmentRef);
 
-        const createdBaptism = await createBaptismWithCertificate(payload.effectiveParishId, baptismCertificateFile, payload.branch.externalBaptism);
+        let createdBaptism;
+        try {
+          createdBaptism = await createBaptismWithCertificate(payload.effectiveParishId, baptismCertificateFile, payload.branch.externalBaptism);
+        } catch (err) {
+          if (isUnauthorizedError(err)) {
+            replayState = { ...replayState, authRequiredAt: Date.now() };
+            await persistReplayState(replayState);
+            throw new AuthRequiredReplayError('Unauthorized');
+          }
+          throw err;
+        }
         await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_BAPTISM_DONE, {
           createdBaptismId: createdBaptism.id,
           baptismCertificatePath: createdBaptism.certificatePath,
@@ -146,14 +336,51 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
       const communionDone = replayState.steps?.[STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE] && typeof replayState.createdCommunionId === 'number';
       if (!communionDone) {
         if (payload.branch.communionSource === 'this_church') {
-          const communion = await createCommunion({
-            baptismId: replayState.createdBaptismId,
-            communionDate: payload.externalCommunion.communionDate,
-            officiatingPriest: payload.externalCommunion.officiatingPriest,
-            parish: payload.effectiveParishName,
-            baptismCertificatePath: replayState.baptismCertificatePath,
-          });
-          await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, { createdCommunionId: communion.id });
+          const conflict = replayState.conflict;
+          if (
+            conflict?.stepKey === STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE &&
+            conflict.resolvedChoice === 'server'
+          ) {
+            const existing = await fetchCommunionByBaptismId(replayState.createdBaptismId);
+            await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, {
+              createdCommunionId: existing.id,
+              conflict: undefined,
+            });
+          } else {
+            let communion;
+            try {
+              communion = await createCommunion({
+                baptismId: replayState.createdBaptismId,
+                communionDate: payload.externalCommunion.communionDate,
+                officiatingPriest: payload.externalCommunion.officiatingPriest,
+                parish: payload.effectiveParishName,
+                baptismCertificatePath: replayState.baptismCertificatePath,
+              });
+            } catch (err) {
+              if (isUnauthorizedError(err)) {
+                replayState = { ...replayState, authRequiredAt: Date.now() };
+                await persistReplayState(replayState);
+                throw new AuthRequiredReplayError('Unauthorized');
+              }
+
+              const detected = detectOfflineReplayConflict(err);
+              if (detected?.kind === 'communion_already_exists_for_baptism') {
+                const nextConflict = {
+                  stepKey: STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE,
+                  kind: detected.kind,
+                  message: detected.message,
+                  detectedAt: Date.now(),
+                };
+                replayState = { ...replayState, conflict: nextConflict };
+                await persistReplayState(replayState);
+                throw new ReplayConflictError(detected.message, detected.kind);
+              }
+
+              throw err;
+            }
+
+            await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, { createdCommunionId: communion.id });
+          }
         } else {
           const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
           if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
@@ -161,17 +388,54 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
           if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
           const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
 
-          const communionCreated = await createCommunionWithCommunionCertificate(
-            {
-              baptismId: replayState.createdBaptismId,
-              communionDate: payload.externalCommunion.communionDate,
-              officiatingPriest: payload.externalCommunion.officiatingPriest,
-              parish: payload.externalCommunion.communionChurchAddress.trim(),
-            },
-            communionCertificateFile,
-            replayState.baptismCertificatePath
-          );
-          await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, { createdCommunionId: communionCreated.id });
+          const conflict = replayState.conflict;
+          if (
+            conflict?.stepKey === STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE &&
+            conflict.resolvedChoice === 'server'
+          ) {
+            const existing = await fetchCommunionByBaptismId(replayState.createdBaptismId);
+            await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, {
+              createdCommunionId: existing.id,
+              conflict: undefined,
+            });
+          } else {
+            let communionCreated;
+            try {
+              communionCreated = await createCommunionWithCommunionCertificate(
+                {
+                  baptismId: replayState.createdBaptismId,
+                  communionDate: payload.externalCommunion.communionDate,
+                  officiatingPriest: payload.externalCommunion.officiatingPriest,
+                  parish: payload.externalCommunion.communionChurchAddress.trim(),
+                },
+                communionCertificateFile,
+                replayState.baptismCertificatePath
+              );
+            } catch (err) {
+              if (isUnauthorizedError(err)) {
+                replayState = { ...replayState, authRequiredAt: Date.now() };
+                await persistReplayState(replayState);
+                throw new AuthRequiredReplayError('Unauthorized');
+              }
+
+              const detected = detectOfflineReplayConflict(err);
+              if (detected?.kind === 'communion_already_exists_for_baptism') {
+                const nextConflict = {
+                  stepKey: STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE,
+                  kind: detected.kind,
+                  message: detected.message,
+                  detectedAt: Date.now(),
+                };
+                replayState = { ...replayState, conflict: nextConflict };
+                await persistReplayState(replayState);
+                throw new ReplayConflictError(detected.message, detected.kind);
+              }
+
+              throw err;
+            }
+
+            await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_COMMUNION_DONE, { createdCommunionId: communionCreated.id });
+          }
         }
       }
 
@@ -180,14 +444,51 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
       const confirmationDone =
         replayState.steps?.[STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
       if (!confirmationDone) {
-        const confirmation = await createConfirmation({
-          baptismId: replayState.createdBaptismId,
-          communionId: replayState.createdCommunionId,
-          confirmationDate: payload.form.confirmationDate,
-          officiatingBishop: payload.form.officiatingBishop,
-          parish: payload.form.parish || undefined,
-        });
-        await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+        const conflict = replayState.conflict;
+        if (
+          conflict?.stepKey === STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE &&
+          conflict.resolvedChoice === 'server'
+        ) {
+          const existing = await fetchConfirmationByCommunionId(replayState.createdCommunionId);
+          await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE, {
+            createdConfirmationId: existing.id,
+            conflict: undefined,
+          });
+        } else {
+          let confirmation;
+          try {
+            confirmation = await createConfirmation({
+              baptismId: replayState.createdBaptismId,
+              communionId: replayState.createdCommunionId,
+              confirmationDate: payload.form.confirmationDate,
+              officiatingBishop: payload.form.officiatingBishop,
+              parish: payload.form.parish || undefined,
+            });
+          } catch (err) {
+            if (isUnauthorizedError(err)) {
+              replayState = { ...replayState, authRequiredAt: Date.now() };
+              await persistReplayState(replayState);
+              throw new AuthRequiredReplayError('Unauthorized');
+            }
+
+            const detected = detectOfflineReplayConflict(err);
+            if (detected?.kind === 'confirmation_already_exists_for_communion') {
+              const nextConflict = {
+                stepKey: STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE,
+                kind: detected.kind,
+                message: detected.message,
+                detectedAt: Date.now(),
+              };
+              replayState = { ...replayState, conflict: nextConflict };
+              await persistReplayState(replayState);
+              throw new ReplayConflictError(detected.message, detected.kind);
+            }
+
+            throw err;
+          }
+
+          await completeStep(STEP.CONFIRMATION_EXTERNAL_BAPTISM_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+        }
       }
 
       return replayState;
@@ -202,22 +503,59 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
       const communionDone =
         replayState.steps?.[STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE] && typeof replayState.createdCommunionId === 'number';
       if (!communionDone) {
-        const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
-        if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
-        const communionBlob = await loadOfflineBlob(communionAttachmentRef.fileRefId);
-        if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
-        const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
+        const conflict = replayState.conflict;
+        if (
+          conflict?.stepKey === STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE &&
+          conflict.resolvedChoice === 'server'
+        ) {
+          const existing = await fetchCommunionByBaptismId(payload.branch.selectedBaptismId);
+          await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE, {
+            createdCommunionId: existing.id,
+            conflict: undefined,
+          });
+        } else {
+          const communionAttachmentRef = payload.branch.communionCertificateAttachment as OfflineQueueFileRef | null;
+          if (!communionAttachmentRef?.fileRefId) throw new Error('Missing offline Holy Communion certificate reference.');
+          const communionBlob = await loadOfflineBlob(communionAttachmentRef.fileRefId);
+          if (!communionBlob) throw new Error('Holy Communion certificate is not stored offline. Re-upload when online, then retry.');
+          const communionCertificateFile = blobToFile(communionBlob, communionAttachmentRef);
 
-        const createdCommunion = await createCommunionWithCommunionCertificate(
-          {
-            baptismId: payload.branch.selectedBaptismId,
-            communionDate: payload.externalCommunion.communionDate,
-            officiatingPriest: payload.externalCommunion.officiatingPriest,
-            parish: payload.externalCommunion.communionChurchAddress.trim(),
-          },
-          communionCertificateFile
-        );
-        await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE, { createdCommunionId: createdCommunion.id });
+          let createdCommunion;
+          try {
+            createdCommunion = await createCommunionWithCommunionCertificate(
+              {
+                baptismId: payload.branch.selectedBaptismId,
+                communionDate: payload.externalCommunion.communionDate,
+                officiatingPriest: payload.externalCommunion.officiatingPriest,
+                parish: payload.externalCommunion.communionChurchAddress.trim(),
+              },
+              communionCertificateFile
+            );
+          } catch (err) {
+            if (isUnauthorizedError(err)) {
+              replayState = { ...replayState, authRequiredAt: Date.now() };
+              await persistReplayState(replayState);
+              throw new AuthRequiredReplayError('Unauthorized');
+            }
+
+            const detected = detectOfflineReplayConflict(err);
+            if (detected?.kind === 'communion_already_exists_for_baptism') {
+              const nextConflict = {
+                stepKey: STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE,
+                kind: detected.kind,
+                message: detected.message,
+                detectedAt: Date.now(),
+              };
+              replayState = { ...replayState, conflict: nextConflict };
+              await persistReplayState(replayState);
+              throw new ReplayConflictError(detected.message, detected.kind);
+            }
+
+            throw err;
+          }
+
+          await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_COMMUNION_DONE, { createdCommunionId: createdCommunion.id });
+        }
       }
 
       if (typeof replayState.createdCommunionId !== 'number') throw new Error('Missing persisted communion id for offline confirmation replay.');
@@ -225,14 +563,51 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
       const confirmationDone =
         replayState.steps?.[STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
       if (!confirmationDone) {
-        const confirmation = await createConfirmation({
-          baptismId: payload.branch.selectedBaptismId,
-          communionId: replayState.createdCommunionId,
-          confirmationDate: payload.form.confirmationDate,
-          officiatingBishop: payload.form.officiatingBishop,
-          parish: payload.form.parish || undefined,
-        });
-        await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+        const conflict = replayState.conflict;
+        if (
+          conflict?.stepKey === STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE &&
+          conflict.resolvedChoice === 'server'
+        ) {
+          const existing = await fetchConfirmationByCommunionId(replayState.createdCommunionId);
+          await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE, {
+            createdConfirmationId: existing.id,
+            conflict: undefined,
+          });
+        } else {
+          let confirmation;
+          try {
+            confirmation = await createConfirmation({
+              baptismId: payload.branch.selectedBaptismId,
+              communionId: replayState.createdCommunionId,
+              confirmationDate: payload.form.confirmationDate,
+              officiatingBishop: payload.form.officiatingBishop,
+              parish: payload.form.parish || undefined,
+            });
+          } catch (err) {
+            if (isUnauthorizedError(err)) {
+              replayState = { ...replayState, authRequiredAt: Date.now() };
+              await persistReplayState(replayState);
+              throw new AuthRequiredReplayError('Unauthorized');
+            }
+
+            const detected = detectOfflineReplayConflict(err);
+            if (detected?.kind === 'confirmation_already_exists_for_communion') {
+              const nextConflict = {
+                stepKey: STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE,
+                kind: detected.kind,
+                message: detected.message,
+                detectedAt: Date.now(),
+              };
+              replayState = { ...replayState, conflict: nextConflict };
+              await persistReplayState(replayState);
+              throw new ReplayConflictError(detected.message, detected.kind);
+            }
+
+            throw err;
+          }
+
+          await completeStep(STEP.CONFIRMATION_CREATE_COMMUNION_FROM_OTHER_CHURCH_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+        }
       }
 
       return replayState;
@@ -243,14 +618,51 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
         replayState.steps?.[STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE] && typeof replayState.createdConfirmationId === 'number';
       if (done) return replayState;
 
-      const confirmation = await createConfirmation({
-        baptismId: payload.branch.baptismId,
-        communionId: payload.branch.communionId,
-        confirmationDate: payload.form.confirmationDate,
-        officiatingBishop: payload.form.officiatingBishop,
-        parish: payload.form.parish || undefined,
-      });
-      await completeStep(STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+      const conflict = replayState.conflict;
+      if (
+        conflict?.stepKey === STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE &&
+        conflict.resolvedChoice === 'server'
+      ) {
+        const existing = await fetchConfirmationByCommunionId(payload.branch.communionId);
+        await completeStep(STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE, {
+          createdConfirmationId: existing.id,
+          conflict: undefined,
+        });
+      } else {
+        let confirmation;
+        try {
+          confirmation = await createConfirmation({
+            baptismId: payload.branch.baptismId,
+            communionId: payload.branch.communionId,
+            confirmationDate: payload.form.confirmationDate,
+            officiatingBishop: payload.form.officiatingBishop,
+            parish: payload.form.parish || undefined,
+          });
+        } catch (err) {
+          if (isUnauthorizedError(err)) {
+            replayState = { ...replayState, authRequiredAt: Date.now() };
+            await persistReplayState(replayState);
+            throw new AuthRequiredReplayError('Unauthorized');
+          }
+
+          const detected = detectOfflineReplayConflict(err);
+          if (detected?.kind === 'confirmation_already_exists_for_communion') {
+            const nextConflict = {
+              stepKey: STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE,
+              kind: detected.kind,
+              message: detected.message,
+              detectedAt: Date.now(),
+            };
+            replayState = { ...replayState, conflict: nextConflict };
+            await persistReplayState(replayState);
+            throw new ReplayConflictError(detected.message, detected.kind);
+          }
+
+          throw err;
+        }
+
+        await completeStep(STEP.CONFIRMATION_USE_EXISTING_IDS_CONFIRMATION_DONE, { createdConfirmationId: confirmation.id });
+      }
       return replayState;
     }
 
@@ -260,7 +672,50 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
   if (spec.kind === 'marriage_create') {
     const done = replayState.steps?.[STEP.MARRIAGE_CREATE_DONE] && typeof replayState.createdMarriageId === 'number';
     if (done) return replayState;
-    const created = await createMarriageWithParties(payload);
+    const conflict = replayState.conflict;
+    if (conflict?.stepKey === STEP.MARRIAGE_CREATE_DONE && conflict.resolvedChoice === 'server') {
+      if (conflict.kind === 'marriage_already_exists_for_confirmation') {
+        const confirmationId = payload.groom?.confirmationId ?? payload.bride?.confirmationId;
+        if (typeof confirmationId !== 'number') throw new Error('Missing confirmationId for marriage conflict resolution.');
+        const existing = await fetchMarriageByConfirmationId(confirmationId);
+        await completeStep(STEP.MARRIAGE_CREATE_DONE, { createdMarriageId: existing.id, conflict: undefined });
+      } else if (conflict.kind === 'marriage_already_exists_for_baptism') {
+        const baptismId = payload.groom?.baptismId ?? payload.bride?.baptismId;
+        if (typeof baptismId !== 'number') throw new Error('Missing baptismId for marriage conflict resolution.');
+        const existing = await fetchMarriageByBaptismId(baptismId);
+        await completeStep(STEP.MARRIAGE_CREATE_DONE, { createdMarriageId: existing.id, conflict: undefined });
+      } else {
+        throw new Error('Unsupported marriage conflict kind.');
+      }
+      return replayState;
+    }
+
+    let created;
+    try {
+      created = await createMarriageWithParties(payload);
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        replayState = { ...replayState, authRequiredAt: Date.now() };
+        await persistReplayState(replayState);
+        throw new AuthRequiredReplayError('Unauthorized');
+      }
+
+      const detected = detectOfflineReplayConflict(err);
+      if (detected?.kind === 'marriage_already_exists_for_confirmation' || detected?.kind === 'marriage_already_exists_for_baptism') {
+        const nextConflict = {
+          stepKey: STEP.MARRIAGE_CREATE_DONE,
+          kind: detected.kind,
+          message: detected.message,
+          detectedAt: Date.now(),
+        };
+        replayState = { ...replayState, conflict: nextConflict };
+        await persistReplayState(replayState);
+        throw new ReplayConflictError(detected.message, detected.kind);
+      }
+
+      throw err;
+    }
+
     await completeStep(STEP.MARRIAGE_CREATE_DONE, { createdMarriageId: created.id });
     return replayState;
   }
@@ -268,7 +723,44 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
   if (spec.kind === 'holy_order_create') {
     const done = replayState.steps?.[STEP.HOLY_ORDER_CREATE_DONE] && typeof replayState.createdHolyOrderId === 'number';
     if (done) return replayState;
-    const created = await createHolyOrder(payload);
+    const conflict = replayState.conflict;
+    if (conflict?.stepKey === STEP.HOLY_ORDER_CREATE_DONE && conflict.resolvedChoice === 'server') {
+      if (conflict.kind !== 'holy_order_already_exists_for_confirmation') {
+        throw new Error('Unsupported holy order conflict kind.');
+      }
+      const confirmationId = payload.confirmationId;
+      if (typeof confirmationId !== 'number') throw new Error('Missing confirmationId for holy order conflict resolution.');
+      const existing = await fetchHolyOrderByConfirmationId(confirmationId);
+      await completeStep(STEP.HOLY_ORDER_CREATE_DONE, { createdHolyOrderId: existing.id, conflict: undefined });
+      return replayState;
+    }
+
+    let created;
+    try {
+      created = await createHolyOrder(payload);
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        replayState = { ...replayState, authRequiredAt: Date.now() };
+        await persistReplayState(replayState);
+        throw new AuthRequiredReplayError('Unauthorized');
+      }
+
+      const detected = detectOfflineReplayConflict(err);
+      if (detected?.kind === 'holy_order_already_exists_for_confirmation') {
+        const nextConflict = {
+          stepKey: STEP.HOLY_ORDER_CREATE_DONE,
+          kind: detected.kind,
+          message: detected.message,
+          detectedAt: Date.now(),
+        };
+        replayState = { ...replayState, conflict: nextConflict };
+        await persistReplayState(replayState);
+        throw new ReplayConflictError(detected.message, detected.kind);
+      }
+
+      throw err;
+    }
+
     await completeStep(STEP.HOLY_ORDER_CREATE_DONE, { createdHolyOrderId: created.id });
     return replayState;
   }
@@ -293,11 +785,19 @@ async function runReplayForItem(itemId: string): Promise<void> {
     const persistFn = async (nextReplayState: OfflineQueueItemReplayState) => {
       await updateOfflineQueueItemStatus(itemId, 'syncing', { replayState: nextReplayState });
     };
-    const replayState = await executeSubmission(syncing, persistFn);
+    await executeSubmission(syncing, persistFn);
     await updateOfflineQueueItemStatus(itemId, 'synced');
+    await cleanupAfterItemSynced(syncing);
   } catch (err) {
-    const message = normalizeErrorMessage(err);
     const failedState = (await getOfflineQueueItem(itemId))?.replayState;
+
+    if (err instanceof AuthRequiredReplayError) {
+      const authMessage = 'Session expired. Please sign in again to continue syncing offline submissions.';
+      await updateOfflineQueueItemStatus(itemId, 'queued', { lastError: authMessage, replayState: failedState });
+      throw err;
+    }
+
+    const message = getErrorMessage(err);
     await updateOfflineQueueItemStatus(itemId, 'failed', { lastError: message, replayState: failedState });
   }
 }
@@ -316,23 +816,37 @@ export async function replayOfflineQueue(options?: ReplayOptions): Promise<void>
   }
 
   const promise = (async () => {
-    if (!getIsOnline()) return;
+    try {
+      if (!getIsOnline()) return;
 
-    if (options?.onlyItemId) {
-      await runReplayForItem(options.onlyItemId);
-      return;
-    }
+      if (options?.onlyItemId) {
+        try {
+          await runReplayForItem(options.onlyItemId);
+        } catch (err) {
+          if (err instanceof AuthRequiredReplayError) return;
+          throw err;
+        }
+        return;
+      }
 
-    const queued = await listOfflineQueueItems({ status: 'queued' });
-    if (queued.length === 0) return;
+      const queued = await listOfflineQueueItems({ status: 'queued' });
+      if (queued.length === 0) return;
 
-    const ordered = [...queued].sort((a, b) => a.createdAt - b.createdAt).slice(0, MAX_AUTO_QUEUE_ITEMS_PER_RUN);
-    for (const item of ordered) {
-      // If the queue was cleared or item moved to another state, skip safely.
-      const current = await getOfflineQueueItem(item.id);
-      if (!current) continue;
-      if (current.status !== 'queued') continue;
-      await runReplayForItem(current.id);
+      const ordered = [...queued].sort((a, b) => a.createdAt - b.createdAt).slice(0, MAX_AUTO_QUEUE_ITEMS_PER_RUN);
+      for (const item of ordered) {
+        // If the queue was cleared or item moved to another state, skip safely.
+        const current = await getOfflineQueueItem(item.id);
+        if (!current) continue;
+        if (current.status !== 'queued') continue;
+        try {
+          await runReplayForItem(current.id);
+        } catch (err) {
+          if (err instanceof AuthRequiredReplayError) break;
+          // Non-auth errors are handled within runReplayForItem.
+        }
+      }
+    } finally {
+      await pruneOfflineResources();
     }
   })();
 

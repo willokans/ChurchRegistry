@@ -340,50 +340,56 @@ export default function CommunionCreateContent() {
           const attachmentRef = certificateFileMetaFromDraft;
           if (!attachmentRef?.fileRefId) throw new Error('Missing offline certificate file reference.');
 
-          const itemId = await enqueueOfflineSubmission({
-            kind: 'communion_create',
-            payload: {
-              baptismSource: 'external',
-              effectiveParishId,
-              certificateAttachment: {
-                fileRefId: attachmentRef.fileRefId,
-                name: attachmentRef.name,
-                mimeType: attachmentRef.type,
-                size: attachmentRef.size,
-              },
-              communionRequest: {
-                communionDate: form.communionDate,
-                officiatingPriest: form.officiatingPriest,
-                parish: form.parish,
-              },
-              externalBaptism: {
-                baptismName: externalBaptism.baptismName.trim(),
-                surname: externalBaptism.surname.trim(),
-                otherNames: externalBaptism.otherNames.trim(),
-                gender: externalBaptism.gender,
-                fathersName: externalBaptism.fathersName.trim(),
-                mothersName: externalBaptism.mothersName.trim(),
-                baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+          const itemId = await enqueueOfflineSubmission(
+            {
+              kind: 'communion_create',
+              payload: {
+                baptismSource: 'external',
+                effectiveParishId,
+                certificateAttachment: {
+                  fileRefId: attachmentRef.fileRefId,
+                  name: attachmentRef.name,
+                  mimeType: attachmentRef.type,
+                  size: attachmentRef.size,
+                },
+                communionRequest: {
+                  communionDate: form.communionDate,
+                  officiatingPriest: form.officiatingPriest,
+                  parish: form.parish,
+                },
+                externalBaptism: {
+                  baptismName: externalBaptism.baptismName.trim(),
+                  surname: externalBaptism.surname.trim(),
+                  otherNames: externalBaptism.otherNames.trim(),
+                  gender: externalBaptism.gender,
+                  fathersName: externalBaptism.fathersName.trim(),
+                  mothersName: externalBaptism.mothersName.trim(),
+                  baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+                },
               },
             },
-          });
+            { draftId: draftId ?? undefined }
+          );
 
           setQueuedItemId(itemId);
           return;
         }
 
-        const itemId = await enqueueOfflineSubmission({
-          kind: 'communion_create',
-          payload: {
-            baptismSource: 'this_parish',
-            baptismId: form.baptismId,
-            communionRequest: {
-              communionDate: form.communionDate,
-              officiatingPriest: form.officiatingPriest,
-              parish: form.parish,
+        const itemId = await enqueueOfflineSubmission(
+          {
+            kind: 'communion_create',
+            payload: {
+              baptismSource: 'this_parish',
+              baptismId: form.baptismId,
+              communionRequest: {
+                communionDate: form.communionDate,
+                officiatingPriest: form.officiatingPriest,
+                parish: form.parish,
+              },
             },
           },
-        });
+          { draftId: draftId ?? undefined }
+        );
 
         setQueuedItemId(itemId);
         return;

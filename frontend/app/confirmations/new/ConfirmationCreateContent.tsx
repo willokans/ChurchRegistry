@@ -609,43 +609,46 @@ export default function ConfirmationCreateContent() {
             throw new Error('Missing offline Holy Communion certificate file reference.');
           }
 
-          const itemId = await enqueueOfflineSubmission({
-            kind: 'confirmation_create',
-            payload: {
-              effectiveParishId,
-              effectiveParishName,
-              externalCommunion,
-              branch: {
-                type: 'external_baptism',
-                externalBaptism: {
-                  baptismName: externalBaptism.baptismName.trim(),
-                  surname: externalBaptism.surname.trim(),
-                  otherNames: externalBaptism.otherNames.trim(),
-                  gender: externalBaptism.gender,
-                  fathersName: externalBaptism.fathersName.trim(),
-                  mothersName: externalBaptism.mothersName.trim(),
-                  baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+          const itemId = await enqueueOfflineSubmission(
+            {
+              kind: 'confirmation_create',
+              payload: {
+                effectiveParishId,
+                effectiveParishName,
+                externalCommunion,
+                branch: {
+                  type: 'external_baptism',
+                  externalBaptism: {
+                    baptismName: externalBaptism.baptismName.trim(),
+                    surname: externalBaptism.surname.trim(),
+                    otherNames: externalBaptism.otherNames.trim(),
+                    gender: externalBaptism.gender,
+                    fathersName: externalBaptism.fathersName.trim(),
+                    mothersName: externalBaptism.mothersName.trim(),
+                    baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+                  },
+                  baptismCertificateAttachment: {
+                    fileRefId: baptismCert.fileRefId,
+                    name: baptismCert.name,
+                    mimeType: baptismCert.type,
+                    size: baptismCert.size,
+                  },
+                  communionSource,
+                  communionCertificateAttachment:
+                    communionSource === 'other_church' && communionCertRef
+                      ? {
+                          fileRefId: communionCertRef.fileRefId,
+                          name: communionCertRef.name,
+                          mimeType: communionCertRef.type,
+                          size: communionCertRef.size,
+                        }
+                      : undefined,
                 },
-                baptismCertificateAttachment: {
-                  fileRefId: baptismCert.fileRefId,
-                  name: baptismCert.name,
-                  mimeType: baptismCert.type,
-                  size: baptismCert.size,
-                },
-                communionSource,
-                communionCertificateAttachment:
-                  communionSource === 'other_church' && communionCertRef
-                    ? {
-                        fileRefId: communionCertRef.fileRefId,
-                        name: communionCertRef.name,
-                        mimeType: communionCertRef.type,
-                        size: communionCertRef.size,
-                      }
-                    : undefined,
+                form,
               },
-              form,
             },
-          });
+            { draftId: draftId ?? undefined }
+          );
 
           setQueuedItemId(itemId);
           return;
@@ -657,25 +660,28 @@ export default function ConfirmationCreateContent() {
           selectedBaptismId > 0 &&
           communionCertificateFileMetaFromDraft?.fileRefId
         ) {
-          const itemId = await enqueueOfflineSubmission({
-            kind: 'confirmation_create',
-            payload: {
-              effectiveParishId,
-              effectiveParishName,
-              externalCommunion,
-              branch: {
-                type: 'create_communion_from_other_church',
-                selectedBaptismId,
-                communionCertificateAttachment: {
-                  fileRefId: communionCertificateFileMetaFromDraft.fileRefId,
-                  name: communionCertificateFileMetaFromDraft.name,
-                  mimeType: communionCertificateFileMetaFromDraft.type,
-                  size: communionCertificateFileMetaFromDraft.size,
+          const itemId = await enqueueOfflineSubmission(
+            {
+              kind: 'confirmation_create',
+              payload: {
+                effectiveParishId,
+                effectiveParishName,
+                externalCommunion,
+                branch: {
+                  type: 'create_communion_from_other_church',
+                  selectedBaptismId,
+                  communionCertificateAttachment: {
+                    fileRefId: communionCertificateFileMetaFromDraft.fileRefId,
+                    name: communionCertificateFileMetaFromDraft.name,
+                    mimeType: communionCertificateFileMetaFromDraft.type,
+                    size: communionCertificateFileMetaFromDraft.size,
+                  },
                 },
+                form,
               },
-              form,
             },
-          });
+            { draftId: draftId ?? undefined }
+          );
           setQueuedItemId(itemId);
           return;
         }
@@ -692,20 +698,23 @@ export default function ConfirmationCreateContent() {
           throw new Error('No communion selected to link confirmation.');
         }
 
-        const itemId = await enqueueOfflineSubmission({
-          kind: 'confirmation_create',
-          payload: {
-            effectiveParishId,
-            effectiveParishName,
-            externalCommunion,
-            branch: {
-              type: 'use_existing_ids',
-              baptismId: resolvedBaptismId,
-              communionId: resolvedCommunionId,
+        const itemId = await enqueueOfflineSubmission(
+          {
+            kind: 'confirmation_create',
+            payload: {
+              effectiveParishId,
+              effectiveParishName,
+              externalCommunion,
+              branch: {
+                type: 'use_existing_ids',
+                baptismId: resolvedBaptismId,
+                communionId: resolvedCommunionId,
+              },
+              form,
             },
-            form,
           },
-        });
+          { draftId: draftId ?? undefined }
+        );
 
         setQueuedItemId(itemId);
         return;

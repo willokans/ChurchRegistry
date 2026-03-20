@@ -21,6 +21,29 @@ export type OfflineQueueItemReplayState = {
   createdConfirmationId?: number;
   createdMarriageId?: number;
   createdHolyOrderId?: number;
+
+  /**
+   * If we hit an auth expiry (401) mid-replay, we keep the queue item locally but
+   * stop replay attempts until the user signs in again.
+   */
+  authRequiredAt?: number;
+
+  /**
+   * Record-level conflict marker for deterministic replay.
+   * The UI will prompt and then set `resolvedChoice` to resume.
+   */
+  conflict?: {
+    stepKey: string; // which replay "step" this conflict applies to
+    kind:
+      | 'communion_already_exists_for_baptism'
+      | 'confirmation_already_exists_for_communion'
+      | 'marriage_already_exists_for_confirmation'
+      | 'marriage_already_exists_for_baptism'
+      | 'holy_order_already_exists_for_confirmation';
+    message: string;
+    detectedAt: number;
+    resolvedChoice?: 'server' | 'local';
+  };
 };
 
 export type OfflineQueueFileRef = {
@@ -44,6 +67,12 @@ export type OfflineQueueItem = {
   lastError?: string;
   submission: OfflineSubmissionSpec;
   replayState?: OfflineQueueItemReplayState;
+
+  /**
+   * Optional draft pointer so background sync can clear drafts even when the user
+   * leaves the create page before the queue item is observed as "synced".
+   */
+  draftId?: string;
 };
 
 const DB_NAME = 'church_registry_offline';
@@ -186,7 +215,12 @@ function dispatchQueueItemUpdated(item: OfflineQueueItem) {
   );
 }
 
-export async function enqueueOfflineSubmission(spec: OfflineSubmissionSpec): Promise<string> {
+export async function enqueueOfflineSubmission(
+  spec: OfflineSubmissionSpec,
+  opts?: {
+    draftId?: string;
+  }
+): Promise<string> {
   const now = Date.now();
   const id = makeClientSubmissionId();
 
@@ -197,6 +231,7 @@ export async function enqueueOfflineSubmission(spec: OfflineSubmissionSpec): Pro
     status: 'queued',
     retryCount: 0,
     submission: spec,
+    draftId: opts?.draftId,
   };
 
   if (!hasIndexedDb()) {

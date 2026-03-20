@@ -564,7 +564,10 @@ export default function MarriageCreateContent() {
       };
 
       if (!isOnline) {
-        const itemId = await enqueueOfflineSubmission({ kind: 'marriage_create', payload });
+        const itemId = await enqueueOfflineSubmission(
+          { kind: 'marriage_create', payload },
+          { draftId: draftId ?? undefined }
+        );
         setQueuedItemId(itemId);
         return;
       }

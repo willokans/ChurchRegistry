@@ -23,6 +23,8 @@ public interface MarriageService {
 
     Optional<MarriageResponse> findByConfirmationId(Long confirmationId);
 
+    Optional<MarriageResponse> findByBaptismId(Long baptismId);
+
     MarriageResponse create(MarriageRequest request);
 
     MarriageResponse createWithParties(CreateMarriageWithPartiesRequest request);

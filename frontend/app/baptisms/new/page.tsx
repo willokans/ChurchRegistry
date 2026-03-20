@@ -246,13 +246,16 @@ export default function BaptismCreatePage() {
       };
 
       if (!isOnline) {
-        const itemId = await enqueueOfflineSubmission({
-          kind: 'baptism_create',
-          payload: {
-            parishId: parishId as number,
-            body: payload satisfies BaptismRequest,
+        const itemId = await enqueueOfflineSubmission(
+          {
+            kind: 'baptism_create',
+            payload: {
+              parishId: parishId as number,
+              body: payload satisfies BaptismRequest,
+            },
           },
-        });
+          { draftId: draftId ?? undefined }
+        );
         setQueuedItemId(itemId);
         return;
       }

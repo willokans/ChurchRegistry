@@ -158,7 +158,10 @@ export default function HolyOrderCreateContent() {
       };
 
       if (!isOnline) {
-        const itemId = await enqueueOfflineSubmission({ kind: 'holy_order_create', payload: request });
+        const itemId = await enqueueOfflineSubmission(
+          { kind: 'holy_order_create', payload: request },
+          { draftId: draftId ?? undefined }
+        );
         setQueuedItemId(itemId);
         return;
       }

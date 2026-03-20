@@ -581,6 +581,7 @@ export async function createBaptism(parishId: number, body: BaptismRequest): Pro
     body: JSON.stringify({ ...body, parishId }),
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     try {
       const json = JSON.parse(text) as { error?: string };
@@ -767,6 +768,13 @@ export async function fetchCommunion(id: number): Promise<FirstHolyCommunionResp
   return res.json();
 }
 
+export async function fetchCommunionByBaptismId(baptismId: number): Promise<FirstHolyCommunionResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${baptismId}/communions`, { headers: getAuthHeaders() });
+  if (res.status === 404) throw new Error('First Holy Communion not found');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch communion');
+  return res.json();
+}
+
 /** Fetches the uploaded communion certificate file (when communion was received in another church). */
 export async function fetchCommunionCertificate(communionId: number): Promise<Blob> {
   const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${communionId}/communion-certificate`, {
@@ -784,6 +792,7 @@ export async function createCommunion(body: FirstHolyCommunionRequest): Promise<
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     throw new Error(text || 'Failed to create communion');
   }
@@ -828,6 +837,7 @@ export async function createBaptismWithCertificate(
     body: formData,
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     let msg = text;
     try {
@@ -874,6 +884,7 @@ export async function createCommunionWithCertificate(
     body: formData,
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     let msg = text;
     try {
@@ -914,6 +925,7 @@ export async function createCommunionWithCommunionCertificate(
     body: formData,
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     let msg = text;
     try {
@@ -1033,6 +1045,13 @@ export async function fetchConfirmation(id: number): Promise<ConfirmationRespons
   return res.json();
 }
 
+export async function fetchConfirmationByCommunionId(communionId: number): Promise<ConfirmationResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${communionId}/confirmation`, { headers: getAuthHeaders() });
+  if (res.status === 404) throw new Error('Confirmation not found for this communion');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch confirmation');
+  return res.json();
+}
+
 export async function createConfirmation(body: ConfirmationRequest): Promise<ConfirmationResponse> {
   const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations`, {
     method: 'POST',
@@ -1040,6 +1059,7 @@ export async function createConfirmation(body: ConfirmationRequest): Promise<Con
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     throw new Error(text || 'Failed to create confirmation');
   }
@@ -1191,6 +1211,20 @@ export async function fetchMarriage(id: number): Promise<MarriageResponse | null
   return res.json();
 }
 
+export async function fetchMarriageByConfirmationId(confirmationId: number): Promise<MarriageResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations/${confirmationId}/marriage`, { headers: getAuthHeaders() });
+  if (res.status === 404) throw new Error('Marriage not found for this confirmation');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriage');
+  return res.json();
+}
+
+export async function fetchMarriageByBaptismId(baptismId: number): Promise<MarriageResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${baptismId}/marriage`, { headers: getAuthHeaders() });
+  if (res.status === 404) throw new Error('Marriage not found for this baptism record');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch marriage');
+  return res.json();
+}
+
 export async function updateCommunionNotes(id: number, note: string): Promise<FirstHolyCommunionResponse> {
   const res = await fetchWithRetry(`${getBaseUrl()}/api/communions/${id}`, {
     method: 'PATCH',
@@ -1277,6 +1311,7 @@ export async function createMarriageWithParties(body: CreateMarriageWithPartiesR
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     let msg = text;
     try {
@@ -1378,6 +1413,13 @@ export async function fetchHolyOrder(id: number): Promise<HolyOrderResponse | nu
   return res.json();
 }
 
+export async function fetchHolyOrderByConfirmationId(confirmationId: number): Promise<HolyOrderResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/confirmations/${confirmationId}/holy-order`, { headers: getAuthHeaders() });
+  if (res.status === 404) throw new Error('Holy Order not found for this confirmation');
+  if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch holy order');
+  return res.json();
+}
+
 export async function createHolyOrder(body: HolyOrderRequest): Promise<HolyOrderResponse> {
   const res = await fetchWithRetry(`${getBaseUrl()}/api/holy-orders`, {
     method: 'POST',
@@ -1385,6 +1427,7 @@ export async function createHolyOrder(body: HolyOrderRequest): Promise<HolyOrder
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
     const text = await res.text();
     throw new Error(text || 'Failed to create holy order');
   }

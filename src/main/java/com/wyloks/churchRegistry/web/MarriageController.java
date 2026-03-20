@@ -55,6 +55,22 @@ public class MarriageController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/confirmations/{confirmationId}/marriage")
+    public ResponseEntity<MarriageResponse> getByConfirmationId(@PathVariable Long confirmationId) {
+        authorizationService.findMarriageParishIdByConfirmationId(confirmationId).ifPresent(authorizationService::requireParishAccess);
+        return marriageService.findByConfirmationId(confirmationId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/baptisms/{baptismId}/marriage")
+    public ResponseEntity<MarriageResponse> getByBaptismId(@PathVariable Long baptismId) {
+        authorizationService.findBaptismParishId(baptismId).ifPresent(authorizationService::requireParishAccess);
+        return marriageService.findByBaptismId(baptismId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/marriages")
     public ResponseEntity<MarriageResponse> create(@Valid @RequestBody MarriageRequest request) {
         Long parishId = authorizationService.findMarriageParishIdByConfirmationId(request.getConfirmationId())
