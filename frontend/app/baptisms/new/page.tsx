@@ -9,6 +9,7 @@ import { useParish } from '@/context/ParishContext';
 import { createBaptism, getStoredUser, type BaptismRequest } from '@/lib/api';
 import { NIGERIAN_STATES } from '@/lib/nigerian-states';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
 
 type SponsorRow = { firstName: string; lastName: string };
 
@@ -53,6 +54,22 @@ export default function BaptismCreatePage() {
     parentAddressLine: string;
     parentAddressState: string;
   };
+
+  useDebouncedDraftAutosave<BaptismDraftPayload>({
+    draftId,
+    formType: 'baptism_create',
+    payload: {
+      form,
+      sponsors,
+      parentAddressLine,
+      parentAddressState,
+    },
+    enabled: Boolean(draftId),
+    onAutosaved: (record) => {
+      setDraftRecord(record);
+      setDraftStatus('Draft autosaved locally.');
+    },
+  });
 
   // Pre-fill Place of baptism with parish name when available; user can edit or clear
   useEffect(() => {

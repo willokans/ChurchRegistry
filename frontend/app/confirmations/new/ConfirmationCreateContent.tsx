@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
 import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
 
 import ConfirmationCreateForm from './ConfirmationCreateForm';
@@ -156,6 +157,27 @@ export default function ConfirmationCreateContent() {
     certificateFileMeta?: { name: string; size: number; type?: string } | null;
     communionCertificateFileMeta?: { name: string; size: number; type?: string } | null;
   };
+
+  useDebouncedDraftAutosave<ConfirmationDraftPayload>({
+    draftId,
+    formType: 'confirmation_create',
+    payload: {
+      baptismSource,
+      communionSource,
+      selectedBaptismId,
+      selectedCommunionId,
+      externalBaptism,
+      externalCommunion,
+      form,
+      certificateAttachment: certificateFileMetaFromDraft,
+      communionCertificateAttachment: communionCertificateFileMetaFromDraft,
+    },
+    enabled: Boolean(draftId),
+    onAutosaved: (record) => {
+      setDraftRecord(record);
+      setDraftStatus('Draft autosaved locally.');
+    },
+  });
 
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;

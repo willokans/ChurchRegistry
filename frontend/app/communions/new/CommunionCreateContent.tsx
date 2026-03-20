@@ -15,6 +15,7 @@ import {
   type FirstHolyCommunionRequest,
 } from '@/lib/api';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
 import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
 
 function fullName(b: BaptismResponse): string {
@@ -97,6 +98,22 @@ export default function CommunionCreateContent() {
     // Legacy (pre-fileRefId) fields (optional) for older drafts.
     certificateFileMeta?: { name: string; size: number; type?: string } | null;
   };
+
+  useDebouncedDraftAutosave<CommunionDraftPayload>({
+    draftId,
+    formType: 'communion_create',
+    payload: {
+      baptismSource,
+      form,
+      externalBaptism,
+      certificateAttachment: certificateFileMetaFromDraft,
+    },
+    enabled: Boolean(draftId),
+    onAutosaved: (record) => {
+      setDraftRecord(record);
+      setDraftStatus('Draft autosaved locally.');
+    },
+  });
 
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;

@@ -21,6 +21,7 @@ import {
   type CreateMarriageWithPartiesRequest,
 } from '@/lib/api';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
 
 function fullNameBaptism(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -154,6 +155,30 @@ export default function MarriageCreateContent() {
 
   const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<MarriageDraftPayload> | null>(null);
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  useDebouncedDraftAutosave<MarriageDraftPayload>({
+    draftId,
+    formType: 'marriage_create',
+    payload: {
+      groom,
+      bride,
+      groomBaptismSource,
+      groomCommunionSource,
+      groomConfirmationSource,
+      brideBaptismSource,
+      brideCommunionSource,
+      brideConfirmationSource,
+      groomExternalBaptism,
+      brideExternalBaptism,
+      marriageDetails,
+      witnesses,
+    },
+    enabled: Boolean(draftId),
+    onAutosaved: (record) => {
+      setDraftRecord(record);
+      setDraftStatus('Draft autosaved locally.');
+    },
+  });
 
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;

@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { fetchConfirmations, createHolyOrder, getStoredUser, type ConfirmationResponse, type HolyOrderRequest } from '@/lib/api';
 import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
 
 export default function HolyOrderCreateContent() {
   const router = useRouter();
@@ -38,6 +39,17 @@ export default function HolyOrderCreateContent() {
   type HolyOrderDraftPayload = {
     form: typeof form;
   };
+
+  useDebouncedDraftAutosave<HolyOrderDraftPayload>({
+    draftId,
+    formType: 'holy_order_create',
+    payload: { form },
+    enabled: Boolean(draftId),
+    onAutosaved: (record) => {
+      setDraftRecord(record);
+      setDraftStatus('Draft autosaved locally.');
+    },
+  });
 
   useEffect(() => {
     if (parishId === null || Number.isNaN(parishId)) return;
