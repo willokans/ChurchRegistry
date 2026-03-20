@@ -11,6 +11,8 @@ const SECTIONS = [
   { id: 'register-marriage', title: 'Register Marriage' },
   { id: 'search-records', title: 'Search Records' },
   { id: 'generate-certificates', title: 'Generate Certificates' },
+  { id: 'install-app', title: 'Install the App' },
+  { id: 'offline-and-sync', title: 'Offline and Sync' },
   { id: 'contact-support', title: 'Contact Support' },
 ] as const;
 
@@ -173,12 +175,100 @@ export default function HelpPage() {
           <p className="mt-2 text-gray-600 text-sm leading-relaxed">
             Open any record&apos;s detail page (e.g. from the Baptisms list, click a record). On the detail page, use the &quot;Print Certificate&quot; button to generate an official sacramental certificate. Certificates are available for baptisms, communions, confirmations, and marriages.
           </p>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            If the certificate window doesn&apos;t appear, check your browser&apos;s pop-up blocker and try again.
+          </p>
           <Link
             href="/baptisms"
             className="mt-3 inline-block text-sm font-medium text-sancta-maroon hover:underline"
           >
             View records →
           </Link>
+        </section>
+
+        {/* Install App */}
+        <section
+          id="install-app"
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
+          <h2 className="font-serif font-semibold text-sancta-maroon text-lg">
+            Install the App
+          </h2>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            You can add Parish Registry to your home screen for quicker access. This doesn&apos;t change how you sign in or how the records work—it just makes opening the app faster.
+          </p>
+
+          <h3 className="mt-4 font-medium text-gray-800 text-sm">How to install</h3>
+          <ol className="mt-2 text-gray-600 text-sm leading-relaxed list-decimal list-inside space-y-1">
+            <li>Open Parish Registry in your browser (for example: the Dashboard page).</li>
+            <li>Look for an “Install” or “Add to Home Screen” option from your browser.</li>
+            <li>If you don&apos;t see it, open your browser menu (usually the “Share” or “Apps” option) and choose “Add to Home Screen”.</li>
+            <li>Follow the prompts to install.</li>
+          </ol>
+
+          <h3 className="mt-4 font-medium text-gray-800 text-sm">
+            What are the trade-offs?
+          </h3>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            Installing can make daily use more convenient. However, using the website directly is still perfectly fine.
+          </p>
+          <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-gray-800">Using the installed app is best when you want:</p>
+              <ul className="mt-2 text-gray-600 text-sm leading-relaxed list-disc list-inside space-y-1">
+                <li>Quick access from your home screen.</li>
+                <li>More reliable use when your connection is slow or temporarily unavailable.</li>
+                <li>A smoother experience day-to-day.</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-800">Using the website directly is best when you want:</p>
+              <ul className="mt-2 text-gray-600 text-sm leading-relaxed list-disc list-inside space-y-1">
+                <li>No install step.</li>
+                <li>Nothing extra stored on your device.</li>
+                <li>You always use the latest page version with no extra steps.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Offline and Sync */}
+        <section
+          id="offline-and-sync"
+          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
+          <h2 className="font-serif font-semibold text-sancta-maroon text-lg">
+            Offline and Sync
+          </h2>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            If your internet connection is slow or unavailable, the app can still help you enter records. What you enter will be saved and sent when your connection improves.
+          </p>
+
+          <h3 className="mt-4 font-medium text-gray-800 text-sm">When you&apos;re offline</h3>
+          <ol className="mt-2 text-gray-600 text-sm leading-relaxed list-decimal list-inside space-y-1">
+            <li>You&apos;ll see an “offline” message at the top of the page.</li>
+            <li>You can continue entering and saving records.</li>
+            <li>Once you&apos;re back online, the app sends your saved entries automatically.</li>
+          </ol>
+
+          <h3 className="mt-4 font-medium text-gray-800 text-sm">If something needs a retry</h3>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            If a submission fails to send, you&apos;ll see a banner that says “Retry failed submissions”. When you&apos;re back online, click the button to try again.
+          </p>
+
+          <h3 className="mt-4 font-medium text-gray-800 text-sm">If the record already exists</h3>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            Sometimes the server already has a similar record. When that happens, you may be asked to choose:
+            <span className="block mt-1 font-medium text-gray-900">Use server version</span>
+            <span className="block mt-1 font-medium text-gray-900">Use my local version</span>
+            Choose the option that matches the correct information for your parish.
+          </p>
+
+          <h3 className="mt-4 font-medium text-gray-800 text-sm">If you need to sign in again</h3>
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+            If your sign-in expires while syncing, you&apos;ll be asked to sign in again. After you sign in, syncing will continue.
+          </p>
         </section>
 
         {/* Contact Support */}

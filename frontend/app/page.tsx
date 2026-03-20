@@ -51,6 +51,16 @@ function ChurchIcon({ className }: { className?: string }) {
   );
 }
 
+function PwaIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+      <path d="M8 3h8a2 2 0 0 1 2 2v2H6V5a2 2 0 0 1 2-2Z" />
+      <path d="M6 7v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7H6Z" />
+    </svg>
+  );
+}
+
 function MenuIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -90,6 +100,11 @@ const features = [
     title: 'Multi-Parish Access',
     description: 'Records are organized by diocese and parish with secure access control.',
     Icon: ChurchIcon,
+  },
+  {
+    title: 'Installable App for Reliable Access',
+    description: 'Add the app to your home screen for quick access. Your entries will stay saved, even if your internet is slow or temporarily unavailable.',
+    Icon: PwaIcon,
   },
 ];
 
@@ -224,15 +239,15 @@ export default function LandingPage() {
           <h2 className="font-serif text-xl font-semibold text-gray-800 sm:text-2xl md:text-3xl text-center mb-8 sm:mb-12 px-2">
             Everything a parish needs to manage sacramental records.
           </h2>
-          <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid items-stretch gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {features.map(({ title, description, Icon }) => (
               <div
                 key={title}
-                className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm"
+                className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm h-full flex flex-col"
               >
                 <Icon className="h-9 w-9 sm:h-10 sm:w-10 text-sancta-gold shrink-0" aria-hidden />
                 <h3 className="mt-3 font-semibold text-sancta-maroon text-base sm:text-lg">{title}</h3>
-                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{description}</p>
+                <p className="mt-2 text-sm text-gray-600 leading-relaxed flex-1">{description}</p>
               </div>
             ))}
           </div>
