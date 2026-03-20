@@ -175,7 +175,7 @@ describe('Baptism create page', () => {
     });
   });
 
-  it('rejects sponsor with only one name and shows validation error', async () => {
+  it('disables save until sponsor has both first and last name', async () => {
     (createBaptism as jest.Mock).mockClear();
     const user = userEvent.setup();
     render(<BaptismCreatePage />);
@@ -193,13 +193,13 @@ describe('Baptism create page', () => {
     await user.selectOptions(screen.getByLabelText(/select state/i), 'Lagos');
     const genderSelect = screen.getByLabelText(/gender/i);
     await user.selectOptions(genderSelect, screen.getByRole('option', { name: /female/i }) || genderSelect.querySelector('option[value="FEMALE"]'));
-    await user.click(screen.getByRole('button', { name: /save baptism/i }));
 
-    await waitFor(() => {
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveTextContent(/first and last name|both first and last/i);
-    });
+    const saveButton = screen.getByRole('button', { name: /save baptism/i });
+    expect(saveButton).toBeDisabled();
+
+    await user.click(saveButton);
     expect(createBaptism).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('submits required place of birth, place of baptism, date of baptism', async () => {

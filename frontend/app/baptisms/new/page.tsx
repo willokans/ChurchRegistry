@@ -6,8 +6,9 @@ import Link from 'next/link';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import { useParish } from '@/context/ParishContext';
-import { createBaptism, type BaptismRequest } from '@/lib/api';
+import { createBaptism, getStoredUser, type BaptismRequest } from '@/lib/api';
 import { NIGERIAN_STATES } from '@/lib/nigerian-states';
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
 
 type SponsorRow = { firstName: string; lastName: string };
 
@@ -19,8 +20,16 @@ export default function BaptismCreatePage() {
   const parishId = parishIdParam ? parseInt(parishIdParam, 10) : null;
   const hasSetPlaceOfBaptismDefault = useRef(false);
 
+  const storedUser = getStoredUser();
+  const draftId =
+    parishId != null && !Number.isNaN(parishId) && storedUser?.username
+      ? `baptism_create:${parishId}:${storedUser.username}`
+      : null;
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<BaptismDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
   const [form, setForm] = useState({
     baptismName: '',
     otherNames: '',
@@ -38,6 +47,13 @@ export default function BaptismCreatePage() {
   const [parentAddressState, setParentAddressState] = useState<string>('');
   const [parentAddressLine, setParentAddressLine] = useState<string>('');
 
+  type BaptismDraftPayload = {
+    form: typeof form;
+    sponsors: SponsorRow[];
+    parentAddressLine: string;
+    parentAddressState: string;
+  };
+
   // Pre-fill Place of baptism with parish name when available; user can edit or clear
   useEffect(() => {
     if (parishId == null || Number.isNaN(parishId)) return;
@@ -52,6 +68,65 @@ export default function BaptismCreatePage() {
       setForm((f) => ({ ...f, placeOfBaptism: parish.parishName }));
     }
   }, [parishId, dioceses]);
+
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<BaptismDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      const payload: BaptismDraftPayload = {
+        form,
+        sponsors,
+        parentAddressLine,
+        parentAddressState,
+      };
+      await saveDraft<BaptismDraftPayload>(draftId, 'baptism_create', payload);
+      const loaded = await loadDraft<BaptismDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    hasSetPlaceOfBaptismDefault.current = true; // prevent default parish autopopulate from overriding restored draft
+    setForm(draftRecord.payload.form);
+    setSponsors(draftRecord.payload.sponsors);
+    setParentAddressLine(draftRecord.payload.parentAddressLine);
+    setParentAddressState(draftRecord.payload.parentAddressState);
+    setDraftStatus('Draft loaded from this device.');
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
+  }
 
   if (parishId === null || Number.isNaN(parishId)) {
     return (
@@ -83,6 +158,24 @@ export default function BaptismCreatePage() {
     }
     return null;
   }
+
+  const sponsorError = validateSponsors();
+  const canSave = Boolean(
+    !sponsorError &&
+      form.baptismName.trim() &&
+      form.surname.trim() &&
+      form.gender.trim() &&
+      !!form.dateOfBirth &&
+      form.placeOfBirth.trim() &&
+      form.placeOfBaptism.trim() &&
+      !!form.dateOfBaptism &&
+      form.fathersName.trim() &&
+      form.mothersName.trim() &&
+      sponsors.length > 0 &&
+      form.officiatingPriest.trim() &&
+      parentAddressLine.trim() &&
+      parentAddressState.trim(),
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -158,6 +251,24 @@ export default function BaptismCreatePage() {
           </Link>
         </div>
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Add Baptism</h1>
+        {draftRecord && (
+          <div className="mt-6 max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <p className="text-sm font-medium">
+              Draft saved locally{draftRecord.updatedAt ? ` (${new Date(draftRecord.updatedAt).toLocaleString()})` : ''}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button type="button" onClick={handleResumeDraft} className="rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark">
+                Resume draft
+              </button>
+              <button type="button" onClick={handleDiscardDraft} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50">
+                Discard
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-amber-800">
+              Offline drafts are stored on this device until they are submitted successfully.
+            </p>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="mt-6 max-w-xl space-y-4">
           <div>
             <label htmlFor="baptismName" className="block text-sm font-medium text-gray-700">
@@ -411,13 +522,24 @@ export default function BaptismCreatePage() {
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50 w-full sm:w-auto"
-          >
-            {submitting ? 'Saving…' : 'Save Baptism'}
-          </button>
+          {draftStatus && <p className="text-xs text-gray-600">{draftStatus}</p>}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleSaveDraft}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 w-full sm:w-auto"
+            >
+              Save Draft
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !canSave}
+              className="rounded-lg bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50 w-full sm:w-auto"
+            >
+              {submitting ? 'Saving…' : 'Save Baptism'}
+            </button>
+          </div>
         </form>
       </div>
     </AuthenticatedLayout>
