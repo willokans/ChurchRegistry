@@ -226,6 +226,41 @@ export interface ParishResponse {
   parishName: string;
   dioceseId: number;
   description?: string;
+  /** Default true when omitted (older API responses). */
+  requireMarriageConfirmation?: boolean;
+}
+
+export interface ParishMarriageRequirementsResponse {
+  parishId: number;
+  requireMarriageConfirmation: boolean;
+}
+
+export async function fetchParishMarriageRequirements(
+  parishId: number
+): Promise<ParishMarriageRequirementsResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/marriage-requirements`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to load parish marriage requirements');
+  }
+  return res.json();
+}
+
+export async function patchParishMarriageRequirements(
+  parishId: number,
+  requireMarriageConfirmation: boolean
+): Promise<ParishMarriageRequirementsResponse> {
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/marriage-requirements`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ requireMarriageConfirmation }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseErrorResponse(text, 'Failed to update marriage requirements'));
+  }
+  return res.json();
 }
 
 export interface DioceseResponse {

@@ -173,7 +173,17 @@ describe('AuthenticatedLayout', () => {
     expect(screen.getByText('No parish assigned. Contact admin.')).toBeInTheDocument();
   });
 
-  it('SUPER_ADMIN sees User Setup link in sidebar', () => {
+  it('ADMIN sees Settings link pointing to /settings in sidebar', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const settingsLinks = screen.getAllByRole('link', { name: 'Settings' });
+    expect(settingsLinks.some((el) => el.getAttribute('href') === '/settings')).toBe(true);
+  });
+
+  it('SUPER_ADMIN sees Settings link in sidebar (User Setup moved under Settings)', () => {
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'superadmin',
       displayName: 'Super Administrator',
@@ -184,10 +194,12 @@ describe('AuthenticatedLayout', () => {
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    expect(screen.getByRole('link', { name: 'User Setup' })).toHaveAttribute('href', '/users/setup');
+    expect(screen.queryByRole('link', { name: 'User Setup' })).not.toBeInTheDocument();
+    const settingsLinks = screen.getAllByRole('link', { name: 'Settings' });
+    expect(settingsLinks.some((el) => el.getAttribute('href') === '/settings')).toBe(true);
   });
 
-  it('ADMIN does not see User Setup link', () => {
+  it('ADMIN does not see User Setup link in sidebar', () => {
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'admin',
       displayName: 'Admin',

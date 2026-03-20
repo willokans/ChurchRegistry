@@ -7,7 +7,9 @@ import com.wyloks.churchRegistry.dto.NoteUpdateRequest;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.entity.SacramentAuditLog.SacramentType;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
+import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.service.MarriageService;
+import com.wyloks.churchRegistry.service.ParishService;
 import com.wyloks.churchRegistry.service.SacramentAuditService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import java.util.List;
 public class MarriageController {
 
     private final MarriageService marriageService;
+    private final ParishService parishService;
     private final SacramentAuthorizationService authorizationService;
     private final SacramentAuditService auditService;
 
@@ -65,14 +68,85 @@ public class MarriageController {
 
     @PostMapping("/marriages/with-parties")
     public ResponseEntity<MarriageResponse> createWithParties(@Valid @RequestBody CreateMarriageWithPartiesRequest request) {
+        authorizeCreateMarriageWithParties(request);
         MarriageResponse created = marriageService.createWithParties(request);
-
-        // Best-effort audit logging if we can resolve the parish via the same confirmation used by MarriageRequest.
-        authorizationService
-                .findMarriageParishIdByConfirmationId(created.getConfirmationId())
-                .ifPresent(parishId -> auditService.logCreate(SacramentType.MARRIAGE, created.getId(), parishId));
-
+        Long parishId = request.getMarriage().getParishId();
+        auditService.logCreate(SacramentType.MARRIAGE, created.getId(), parishId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    private void authorizeCreateMarriageWithParties(CreateMarriageWithPartiesRequest request) {
+        if (request.getMarriage() == null || request.getMarriage().getParishId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "marriage.parishId is required");
+        }
+        if (request.getGroom() == null || request.getBride() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "groom and bride are required");
+        }
+        Long parishId = request.getMarriage().getParishId();
+        ParishResponse parish = parishService.findById(parishId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parish not found: " + parishId));
+        boolean requireConf = parish.isRequireMarriageConfirmation();
+        Integer groomConf = request.getGroom().getConfirmationId();
+        Integer brideConf = request.getBride().getConfirmationId();
+        String groomCertPath = request.getGroom().getConfirmationCertificatePath();
+        String brideCertPath = request.getBride().getConfirmationCertificatePath();
+
+        if (requireConf) {
+            if (!partyDocumentsConfirmation(groomConf, groomCertPath) || !partyDocumentsConfirmation(brideConf, brideCertPath)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "When this parish requires Confirmation, both parties must document Confirmation (in-parish record or certificate).");
+            }
+            if (groomConf == null && brideConf == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "At least one party must have an in-parish Confirmation record linked for the marriage register.");
+            }
+            if (groomConf != null) {
+                Long p = authorizationService.findMarriageParishIdByConfirmationId(groomConf.longValue())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Groom confirmation not found or has no parish"));
+                if (!p.equals(parishId)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Groom Confirmation parish does not match marriage parish");
+                }
+            }
+            if (brideConf != null) {
+                Long p = authorizationService.findMarriageParishIdByConfirmationId(brideConf.longValue())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Bride confirmation not found or has no parish"));
+                if (!p.equals(parishId)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Bride Confirmation parish does not match marriage parish");
+                }
+            }
+            authorizationService.requireWriteAccessForParish(parishId);
+            return;
+        }
+
+        Long confirmationId = null;
+        if (groomConf != null) {
+            confirmationId = groomConf.longValue();
+        } else if (brideConf != null) {
+            confirmationId = brideConf.longValue();
+        }
+        if (confirmationId != null) {
+            Long parishFromConf = authorizationService.findMarriageParishIdByConfirmationId(confirmationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Confirmation not found or has no parish"));
+            if (!parishFromConf.equals(parishId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Confirmation parish does not match marriage parish");
+            }
+            authorizationService.requireWriteAccessForParish(parishFromConf);
+        } else {
+            authorizationService.requireWriteAccessForParish(parishId);
+        }
+    }
+
+    private static boolean partyDocumentsConfirmation(Integer confirmationId, String certificatePath) {
+        if (confirmationId != null) {
+            return true;
+        }
+        return certificatePath != null && !certificatePath.isBlank();
     }
 
     @PatchMapping("/marriages/{id}")

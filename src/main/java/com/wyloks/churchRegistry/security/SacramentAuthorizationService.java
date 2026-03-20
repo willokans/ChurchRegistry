@@ -60,6 +60,14 @@ public class SacramentAuthorizationService {
         }
     }
 
+    /** Parish policy settings (e.g. marriage sacrament requirements): only ADMIN and SUPER_ADMIN may change. */
+    public void requireAdminRole() {
+        CurrentUser user = currentUser();
+        if (!user.isAdmin()) {
+            throw forbidden("Only ADMIN and SUPER_ADMIN may perform this action");
+        }
+    }
+
     public void requireWriteAccessForParish(Long parishId) {
         CurrentUser user = currentUser();
         if (!WRITE_ROLES.contains(user.role())) {

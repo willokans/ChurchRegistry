@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 021-parish-require-marriage-confirmation
+      author: church-registry
+      changes:
+        - addColumn:
+            tableName: parish
+            columns:
+              - column:
+                  name: require_marriage_confirmation
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            tableName: parish
+            columnName: require_marriage_confirmation

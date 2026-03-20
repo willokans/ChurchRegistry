@@ -9,12 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ParishResponse {
+public class ParishMarriageRequirementsResponse {
 
-    private Long id;
-    private String parishName;
-    private Long dioceseId;
-    private String description;
-    /** When true, creating a marriage requires a Confirmation record for this parish. */
+    private Long parishId;
     private boolean requireMarriageConfirmation;
 }

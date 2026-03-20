@@ -115,6 +115,7 @@ public class DioceseServiceImpl implements DioceseService {
                 .parishName(p.getParishName())
                 .dioceseId(p.getDiocese() != null ? p.getDiocese().getId() : null)
                 .description(p.getDescription())
+                .requireMarriageConfirmation(p.isRequireMarriageConfirmation())
                 .build();
     }
 }

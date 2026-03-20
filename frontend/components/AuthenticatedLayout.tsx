@@ -268,9 +268,8 @@ export default function AuthenticatedLayout({
                   { href: '/dashboard', label: 'Dashboard' },
                   ...(isAdmin || isSuperAdmin
                     ? [
-                        ...(isSuperAdmin ? [{ href: '/users/setup', label: 'User Setup' }] : []),
                         { href: '/parishes', label: 'Dioceses & Parishes' },
-                        { href: '/users', label: 'User Access' },
+                        { href: '/settings', label: 'Settings' },
                       ]
                     : []),
                   { href: '/baptisms', label: 'Baptisms' },
@@ -422,16 +421,6 @@ export default function AuthenticatedLayout({
             </li>
             {(isAdmin || isSuperAdmin) && (
               <>
-                {isSuperAdmin && (
-                  <li>
-                    <Link
-                      href="/users/setup"
-                      className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
-                    >
-                      User Setup
-                    </Link>
-                  </li>
-                )}
                 <li>
                   <Link
                     href="/parishes"
@@ -443,11 +432,11 @@ export default function AuthenticatedLayout({
                 </li>
                 <li>
                   <Link
-                    href="/users"
+                    href="/settings"
                     prefetch={false}
                     className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
                   >
-                    User Access
+                    Settings
                   </Link>
                 </li>
               </>

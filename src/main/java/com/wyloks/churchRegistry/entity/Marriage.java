@@ -28,8 +28,8 @@ public class Marriage {
     @JoinColumn(name = "communion_id", nullable = false, unique = true, foreignKey = @ForeignKey(name = "fk_marriage_communion_id"))
     private FirstHolyCommunion firstHolyCommunion;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "confirmation_id", nullable = false, unique = true, foreignKey = @ForeignKey(name = "fk_marriage_confirmation_id"))
+    @OneToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "confirmation_id", unique = true, nullable = true, foreignKey = @ForeignKey(name = "fk_marriage_confirmation_id"))
     private Confirmation confirmation;
 
     @Column(name = "partners_name", nullable = false, length = 255)

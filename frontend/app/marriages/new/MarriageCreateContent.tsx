@@ -10,6 +10,7 @@ import {
   fetchBaptisms,
   fetchCommunions,
   fetchConfirmations,
+  fetchParishMarriageRequirements,
   createMarriageWithParties,
   uploadMarriageCertificate,
   type BaptismResponse,
@@ -80,6 +81,8 @@ export default function MarriageCreateContent() {
   const [loading, setLoading] = useState(!!effectiveParishId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** null = policy not loaded yet; default UI treats as required until known. */
+  const [parishRequiresConfirmation, setParishRequiresConfirmation] = useState<boolean | null>(null);
 
   const [groom, setGroom] = useState<MarriagePartyPayload>({ ...emptyParty });
   const [bride, setBride] = useState<MarriagePartyPayload>({ ...emptyParty });
@@ -130,32 +133,46 @@ export default function MarriageCreateContent() {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;
     let cancelled = false;
     setLoading(true);
-    Promise.all([
-      fetchBaptisms(effectiveParishId),
-      fetchCommunions(effectiveParishId),
-      fetchConfirmations(effectiveParishId),
-    ])
-      .then(([bPage, cPage, confPage]) => {
-        if (!cancelled) {
-          setBaptisms(bPage.content);
-          setCommunions(cPage.content);
-          setConfirmations(confPage.content);
-          const parishName = parishes.find((p) => p.id === effectiveParishId)?.parishName ?? '';
-          setMarriageDetails((d) => ({ ...d, parish: parishName, churchName: parishName }));
+    setParishRequiresConfirmation(null);
+    setError(null);
+
+    (async () => {
+      try {
+        try {
+          const req = await fetchParishMarriageRequirements(effectiveParishId);
+          if (cancelled) return;
+          setParishRequiresConfirmation(req.requireMarriageConfirmation);
+        } catch {
+          if (cancelled) return;
+          setParishRequiresConfirmation(true);
         }
-      })
-      .catch(() => {
+
+        const [bPage, cPage, confPage] = await Promise.all([
+          fetchBaptisms(effectiveParishId),
+          fetchCommunions(effectiveParishId),
+          fetchConfirmations(effectiveParishId),
+        ]);
+        if (cancelled) return;
+        setBaptisms(bPage.content);
+        setCommunions(cPage.content);
+        setConfirmations(confPage.content);
+        const parishName = parishes.find((p) => p.id === effectiveParishId)?.parishName ?? '';
+        setMarriageDetails((d) => ({ ...d, parish: parishName, churchName: parishName }));
+      } catch {
         if (!cancelled) setError('Failed to load parish records');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
   }, [effectiveParishId, parishes]);
 
   const witnessList = witnesses.filter((w) => w.fullName.trim());
+  /** Until parish policy loads, treat confirmation as required (safe default). */
+  const confirmationRequired = parishRequiresConfirmation !== false;
 
   // Enable "Save marriage" only when required fields are present.
   // This mirrors the same checks performed in `handleSubmit`.
@@ -196,10 +213,15 @@ export default function MarriageCreateContent() {
     // External communion requires uploaded certificate.
     (groomCommunionSource !== 'external' || !!groom.communionCertificatePath) &&
     (brideCommunionSource !== 'external' || !!bride.communionCertificatePath) &&
-    // External confirmation requires uploaded certificate (UI requirement).
-    (groomConfirmationSource !== 'external' || !!groom.confirmationCertificatePath) &&
-    (brideConfirmationSource !== 'external' || !!bride.confirmationCertificatePath) &&
-    true;
+    // In-parish communion: record must be selected.
+    (groomCommunionSource !== 'this_parish' || !!groom.communionId) &&
+    (brideCommunionSource !== 'this_parish' || !!bride.communionId) &&
+    // Confirmation (when required by parish policy)
+    (!confirmationRequired ||
+      ((groomConfirmationSource !== 'external' || !!groom.confirmationCertificatePath) &&
+        (brideConfirmationSource !== 'external' || !!bride.confirmationCertificatePath) &&
+        (groomConfirmationSource !== 'this_parish' || !!groom.confirmationId) &&
+        (brideConfirmationSource !== 'this_parish' || !!bride.confirmationId)));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -294,13 +316,31 @@ export default function MarriageCreateContent() {
       setError('Upload the bride Holy Communion certificate for Communion done elsewhere.');
       return;
     }
-    if (groomConfirmationSource === 'external' && !groom.confirmationCertificatePath) {
-      setError('Upload the groom Confirmation certificate for Confirmation done elsewhere.');
+    if (groomCommunionSource === 'this_parish' && !groom.communionId) {
+      setError('Select the groom Holy Communion record.');
       return;
     }
-    if (brideConfirmationSource === 'external' && !bride.confirmationCertificatePath) {
-      setError('Upload the bride Confirmation certificate for Confirmation done elsewhere.');
+    if (brideCommunionSource === 'this_parish' && !bride.communionId) {
+      setError('Select the bride Holy Communion record.');
       return;
+    }
+    if (confirmationRequired) {
+      if (groomConfirmationSource === 'external' && !groom.confirmationCertificatePath) {
+        setError('Upload the groom Confirmation certificate for Confirmation done elsewhere.');
+        return;
+      }
+      if (brideConfirmationSource === 'external' && !bride.confirmationCertificatePath) {
+        setError('Upload the bride Confirmation certificate for Confirmation done elsewhere.');
+        return;
+      }
+      if (groomConfirmationSource === 'this_parish' && !groom.confirmationId) {
+        setError('Select the groom Confirmation record.');
+        return;
+      }
+      if (brideConfirmationSource === 'this_parish' && !bride.confirmationId) {
+        setError('Select the bride Confirmation record.');
+        return;
+      }
     }
     const witnessList = witnesses.filter((w) => w.fullName.trim());
     if (witnessList.length < 2) {
@@ -430,6 +470,24 @@ export default function MarriageCreateContent() {
         <p className="text-xs text-gray-500 -mt-2">
           <span className="text-red-500">*</span> Fields marked with this symbol are mandatory.
         </p>
+        <p className="rounded-lg border border-sancta-maroon/20 bg-sancta-maroon/5 px-3 py-2 text-sm text-gray-800">
+          <strong>For every marriage:</strong> both the groom and the bride must have <strong>Baptism</strong> and{' '}
+          <strong>Holy Communion</strong> documented (parish record and/or certificate, as you enter below).
+        </p>
+        {!confirmationRequired && parishRequiresConfirmation === false && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            This parish does not require <strong>Confirmation</strong>. The register entry is still anchored using
+            parish Baptism and Holy Communion (the groom&apos;s, or the bride&apos;s if the groom has no in-parish
+            baptism).
+          </p>
+        )}
+        {confirmationRequired && (
+          <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            This parish also requires <strong>Confirmation</strong> for <strong>both</strong> the groom and the bride
+            before the marriage can be registered (parish record and/or certificate). At least one in-parish
+            Confirmation record must be linked for the parish sacramental chain.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Groom & Bride: two columns */}
@@ -530,9 +588,9 @@ export default function MarriageCreateContent() {
                   churchName={groom.communionChurch}
                   setChurchName={(v) => setGroom((p) => ({ ...p, communionChurch: v }))}
                 />
-                {/* Groom: Confirmation */}
                 <SacramentSection
                   title="Confirmation"
+                  required={confirmationRequired}
                   labelSearch="Select Confirmation Record"
                   source={groomConfirmationSource}
                   setSource={setGroomConfirmationSource}
@@ -647,6 +705,7 @@ export default function MarriageCreateContent() {
                 />
                 <SacramentSection
                   title="Confirmation"
+                  required={confirmationRequired}
                   labelSearch="Select Confirmation Record"
                   source={brideConfirmationSource}
                   setSource={setBrideConfirmationSource}
