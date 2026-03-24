@@ -32,6 +32,7 @@ jest.mock('@/lib/api', () => ({
 import { useNetworkStatus } from '@/lib/offline/network';
 import { getOfflineQueueItem, listOfflineQueueItems, subscribeToOfflineQueueItemUpdates, updateOfflineQueueItemStatus } from '@/lib/offline/queue';
 import { replayOfflineQueue, retryOfflineQueueItem } from '@/lib/offline/replay';
+import { clearAuth } from '@/lib/api';
 
 describe('PendingSyncOutbox', () => {
   let setIntervalSpy: jest.SpyInstance;
@@ -203,6 +204,35 @@ describe('PendingSyncOutbox', () => {
       })
     );
     expect(replayOfflineQueue).toHaveBeenCalledWith({ onlyItemId: itemId });
+  });
+
+  it('shows auth-required UI and triggers sign-in flow', async () => {
+    const authItem: OfflineQueueItem = {
+      id: 'auth-item',
+      createdAt: 1_700_000_000_000,
+      updatedAt: 1_700_000_010_000,
+      status: 'queued',
+      retryCount: 0,
+      lastError: 'Session expired. Please sign in again to continue syncing offline submissions.',
+      submission: { kind: 'holy_order_create', payload: {} },
+      replayState: {
+        authRequiredAt: 1_700_000_010_000,
+      },
+    };
+
+    (listOfflineQueueItems as jest.Mock).mockResolvedValue([authItem]);
+
+    render(<PendingSyncOutbox />);
+
+    expect(await screen.findByText('Session expired')).toBeInTheDocument();
+    const btn = await screen.findByRole('button', { name: 'Sign in again' });
+
+    await act(async () => {
+      btn.click();
+    });
+
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith('/login');
   });
 });
 

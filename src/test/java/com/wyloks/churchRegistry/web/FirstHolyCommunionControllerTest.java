@@ -2,6 +2,8 @@ package com.wyloks.churchRegistry.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wyloks.churchRegistry.dto.BaptismRequest;
+import com.wyloks.churchRegistry.dto.BaptismResponse;
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionRequest;
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionResponse;
 import com.wyloks.churchRegistry.security.SacramentAuthorizationService;
@@ -31,10 +33,18 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.mockito.ArgumentCaptor;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -115,5 +125,44 @@ class FirstHolyCommunionControllerTest {
 
         mvc.perform(get("/api/communions/999"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void createMultipart_externalBaptism_returns201_whenCertificateMissing() throws Exception {
+        doNothing().when(sacramentAuthorizationService).requireWriteAccessForParish(1L);
+
+        when(baptismService.create(eq(1L), any(BaptismRequest.class)))
+                .thenReturn(BaptismResponse.builder().id(42L).build());
+
+        FirstHolyCommunionResponse communionResponse = FirstHolyCommunionResponse.builder()
+                .id(99L)
+                .baptismId(42L)
+                .communionDate(LocalDate.of(2025, 6, 1))
+                .officiatingPriest("Fr. Smith")
+                .parish("St Mary")
+                .build();
+        when(communionService.create(any(FirstHolyCommunionRequest.class))).thenReturn(communionResponse);
+
+        mvc.perform(multipart("/api/communions")
+                        .param("baptismSource", "external")
+                        .param("parishId", "1")
+                        .param("communionDate", "2025-06-01")
+                        .param("officiatingPriest", "Fr. Smith")
+                        .param("parish", "St Mary")
+                        .param("externalBaptismName", "John")
+                        .param("externalSurname", "Doe"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(99))
+                .andExpect(jsonPath("$.baptismId").value(42));
+
+        verify(remoteFileService, never()).upload(anyString(), anyString(), any(), anyString());
+
+        ArgumentCaptor<BaptismRequest> baptismCaptor = ArgumentCaptor.forClass(BaptismRequest.class);
+        verify(baptismService).create(eq(1L), baptismCaptor.capture());
+        assertNull(baptismCaptor.getValue().getExternalCertificatePath());
+
+        ArgumentCaptor<FirstHolyCommunionRequest> communionCaptor = ArgumentCaptor.forClass(FirstHolyCommunionRequest.class);
+        verify(communionService).create(communionCaptor.capture());
+        assertNull(communionCaptor.getValue().getBaptismCertificatePath());
     }
 }

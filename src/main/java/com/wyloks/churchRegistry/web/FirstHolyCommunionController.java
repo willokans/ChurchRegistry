@@ -176,11 +176,8 @@ public class FirstHolyCommunionController {
             Long parishId, String communionDate, String officiatingPriest, String parish,
             MultipartFile baptismCertificate, String externalBaptismName, String externalSurname, String externalOtherNames,
             String externalGender, String externalFathersName, String externalMothersName, String externalBaptisedChurchAddress) {
-        if (baptismCertificate == null || baptismCertificate.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Upload a baptism certificate when selecting Baptism from another Parish.");
-        }
-        if (baptismCertificate.getSize() > MAX_CERTIFICATE_SIZE) {
+        boolean hasCertificate = baptismCertificate != null && !baptismCertificate.isEmpty();
+        if (hasCertificate && baptismCertificate.getSize() > MAX_CERTIFICATE_SIZE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Certificate file is too large. Maximum size is 2 MB.");
         }
         if (parishId == null || parishId <= 0) {
@@ -191,18 +188,21 @@ public class FirstHolyCommunionController {
         }
         authorizationService.requireWriteAccessForParish(parishId);
 
-        String safeName = System.currentTimeMillis() + "-" + (baptismCertificate.getOriginalFilename() != null
-                ? baptismCertificate.getOriginalFilename().replaceAll("[^a-zA-Z0-9._-]", "_") : "file");
-        String contentType = baptismCertificate.getContentType();
-        if (contentType == null || contentType.isBlank()) contentType = "application/octet-stream";
-        String certPath;
-        try {
-            certPath = remoteFileService.upload(BAPTISM_CERTIFICATES_BUCKET, safeName,
-                    baptismCertificate.getBytes(), contentType);
-        } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to upload certificate: " + e.getMessage());
+        String baptismCertStoredPath = null;
+        if (hasCertificate) {
+            String safeName = System.currentTimeMillis() + "-" + (baptismCertificate.getOriginalFilename() != null
+                    ? baptismCertificate.getOriginalFilename().replaceAll("[^a-zA-Z0-9._-]", "_") : "file");
+            String contentType = baptismCertificate.getContentType();
+            if (contentType == null || contentType.isBlank()) contentType = "application/octet-stream";
+            String certPath;
+            try {
+                certPath = remoteFileService.upload(BAPTISM_CERTIFICATES_BUCKET, safeName,
+                        baptismCertificate.getBytes(), contentType);
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to upload certificate: " + e.getMessage());
+            }
+            baptismCertStoredPath = BAPTISM_CERTIFICATES_BUCKET + "/" + certPath;
         }
-        String baptismCertStoredPath = BAPTISM_CERTIFICATES_BUCKET + "/" + certPath;
 
         String placeOfBaptism = externalBaptisedChurchAddress != null && !externalBaptisedChurchAddress.isBlank()
                 ? externalBaptisedChurchAddress.trim() : "See Certificate";

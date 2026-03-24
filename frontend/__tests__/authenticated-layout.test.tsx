@@ -43,6 +43,23 @@ describe('AuthenticatedLayout', () => {
     (useParish as jest.Mock).mockReturnValue(defaultParishContext);
   });
 
+  it('shows the offline banner when navigator is offline', () => {
+    const originalOnLine = window.navigator.onLine;
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+
+    expect(
+      screen.getByText(/you are offline\. new submissions will be saved locally and synced automatically when you are back online\./i)
+    ).toBeInTheDocument();
+
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: originalOnLine });
+  });
+
   it('renders header with Parish Registry branding when authenticated', () => {
     render(
       <AuthenticatedLayout>
