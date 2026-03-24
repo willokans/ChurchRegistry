@@ -208,11 +208,11 @@ export default function BaptismCertificatePage() {
               </div>
             </div>
 
-            {/* Footer: Church crest (left) | Signature + church + Date, ID, QR (right) — same level */}
+            {/* Footer: Church crest (bottom-left) | Signature + church + Date, ID (right) — bottoms aligned */}
             <footer className="mt-12 pt-8 relative z-10">
-              <div className="flex flex-wrap items-start justify-between gap-8">
-                {/* Left: Church crest (seal) + parish name */}
-                <div className="flex flex-col items-center shrink-0">
+              <div className="flex flex-wrap items-end justify-between gap-8">
+                {/* Bottom-left: Church crest (seal) + parish name — left-aligned */}
+                <div className="flex flex-col items-start shrink-0 self-end">
                   <div className="h-20 w-20 rounded-full border-2 border-sancta-gold flex items-center justify-center overflow-hidden bg-white/80">
                     <Image
                       src="/images/holy-family-church-logo.png"
@@ -223,12 +223,12 @@ export default function BaptismCertificatePage() {
                       unoptimized
                     />
                   </div>
-                  <p className="mt-2 text-[10px] font-medium uppercase text-center text-gray-600 leading-tight max-w-[120px]">
+                  <p className="mt-2 text-[10px] font-medium uppercase text-left text-gray-600 leading-tight max-w-[120px]">
                     {parishName}
                   </p>
                 </div>
 
-                {/* Right: Signature, church, disclaimer, Date Issued, Certificate ID, QR + Verify Certificate */}
+                {/* Right: Signature, church, disclaimer, Date Issued, Certificate ID */}
                 <div className="text-right shrink-0 ml-auto flex flex-col items-end">
                   <div className="h-10 border-b border-gray-500 w-[200px]" />
                   <p className="mt-2 text-sm font-semibold text-gray-900">{baptism.officiatingPriest || '—'}</p>
@@ -237,12 +237,6 @@ export default function BaptismCertificatePage() {
                   <p className="mt-2 text-xs text-gray-600">This certificate is issued for official use.</p>
                   <p className="mt-4 text-sm"><span className="font-medium text-gray-600">Date Issued:</span> {formatDateIssued()}</p>
                   <p className="text-sm mt-0.5"><span className="font-medium text-gray-600">Certificate ID:</span> {certificateId(baptism.id, parishName)}</p>
-                  <div className="mt-3 flex flex-col items-end">
-                    <div className="h-16 w-16 border border-gray-300 bg-white flex items-center justify-center text-[10px] text-gray-400">
-                      QR
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Verify Certificate</p>
-                  </div>
                 </div>
               </div>
             </footer>

@@ -177,7 +177,7 @@ export function buildBaptismCertificatePdf(data: CertificateData): Buffer {
 
   y = Math.max(yLeft, yRight) + 18;
 
-  // Footer: Church crest (left) | Signature + church + date/ID/QR (right) — same level
+  // Footer: Church crest (left) | Signature + church + date/ID (right) — same level
   const footerY = y;
   const sealX = margin + 15;
   const rightX = pageW - margin;
@@ -191,7 +191,7 @@ export function buildBaptismCertificatePdf(data: CertificateData): Buffer {
   doc.setFont('helvetica', 'bold');
   doc.text(parishName, sealX, footerY + 28, { align: 'center', maxWidth: 35 });
 
-  // Right: signature line, name, title, church, disclaimer, Date Issued, Certificate ID, QR
+  // Right: signature line, name, title, church, disclaimer, Date Issued, Certificate ID
   doc.setDrawColor(100, 100, 100);
   doc.line(rightX - 50, footerY, rightX, footerY);
   doc.setFont('helvetica', 'normal');
@@ -211,13 +211,6 @@ export function buildBaptismCertificatePdf(data: CertificateData): Buffer {
   doc.setTextColor(0, 0, 0);
   doc.text(`Date Issued: ${formatDateIssued()}`, rightX, footerY + 36, { align: 'right' });
   doc.text(`Certificate ID: ${certificateId(baptism.id, parishName)}`, rightX, footerY + 43, { align: 'right' });
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(rightX - 12, footerY + 46, 12, 12);
-  doc.setFontSize(6);
-  doc.setTextColor(150, 150, 150);
-  doc.text('QR', rightX - 6, footerY + 53, { align: 'center' });
-  doc.setFontSize(7);
-  doc.text('Verify Certificate', rightX - 6, footerY + 60, { align: 'center' });
 
   const arrayBuffer = doc.output('arraybuffer');
   return Buffer.from(arrayBuffer);
