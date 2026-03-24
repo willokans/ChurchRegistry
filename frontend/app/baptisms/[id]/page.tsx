@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, type ChangeEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -11,6 +11,7 @@ import {
   emailBaptismCertificate,
   fetchBaptismNoteHistory,
   fetchBaptismExternalCertificate,
+  uploadBaptismExternalCertificate,
   type BaptismResponse,
   type BaptismNoteResponse,
 } from '@/lib/api';
@@ -40,6 +41,17 @@ function sanitizeFilenamePart(value: string | null | undefined): string {
     .replace(/^-|-$/g, '') || '';
 }
 
+/** External baptism: certificate on file, or issuing parish recorded (pending proof), or legacy placeholder row. */
+function isExternalBaptismRecord(b: BaptismResponse): boolean {
+  if ((b.externalCertificatePath ?? '').trim()) return true;
+  if ((b.externalCertificateIssuingParish ?? '').trim()) return true;
+  return Boolean(
+    (b.parishAddress ?? '').trim() &&
+      b.sponsorNames === 'See Certificate' &&
+      b.officiatingPriest === 'See Certificate'
+  );
+}
+
 const cardClass = 'rounded-xl border border-gray-200 bg-white p-5 shadow-sm';
 
 export default function BaptismViewPage() {
@@ -62,12 +74,47 @@ export default function BaptismViewPage() {
   const [certificateError, setCertificateError] = useState<string | null>(null);
   const [certificateLoading, setCertificateLoading] = useState(false);
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [externalCertUploadFile, setExternalCertUploadFile] = useState<File | null>(null);
+  const [externalCertUploading, setExternalCertUploading] = useState(false);
+  const [externalCertUploadError, setExternalCertUploadError] = useState<string | null>(null);
+  const externalCertFileInputRef = useRef<HTMLInputElement>(null);
 
-  const isExternalBaptism = Boolean(baptism?.externalCertificatePath);
+  const isExternalBaptism = baptism != null ? isExternalBaptismRecord(baptism) : false;
+  const hasUploadedExternalCertificate =
+    baptism != null ? Boolean((baptism.externalCertificatePath ?? '').trim()) : false;
+  const externalCertificatePending = isExternalBaptism && !hasUploadedExternalCertificate;
+  const canViewExternalCertificate = isExternalBaptism && hasUploadedExternalCertificate;
 
   const openCertificateModal = useCallback(() => {
-    if (isExternalBaptism) setCertificateModalOpen(true);
-  }, [isExternalBaptism]);
+    if (canViewExternalCertificate) setCertificateModalOpen(true);
+  }, [canViewExternalCertificate]);
+
+  const handleExternalCertFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    setExternalCertUploadFile(f ?? null);
+    setExternalCertUploadError(null);
+  }, []);
+
+  const handleUploadExternalCertificate = useCallback(async () => {
+    if (!externalCertUploadFile || baptism == null) return;
+    const maxBytes = 2 * 1024 * 1024;
+    if (externalCertUploadFile.size > maxBytes) {
+      setExternalCertUploadError('Certificate file is too large. Maximum size is 2 MB.');
+      return;
+    }
+    setExternalCertUploading(true);
+    setExternalCertUploadError(null);
+    try {
+      const updated = await uploadBaptismExternalCertificate(baptism.id, externalCertUploadFile);
+      setBaptism(updated);
+      setExternalCertUploadFile(null);
+      if (externalCertFileInputRef.current) externalCertFileInputRef.current.value = '';
+    } catch (e) {
+      setExternalCertUploadError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setExternalCertUploading(false);
+    }
+  }, [externalCertUploadFile, baptism]);
 
   useEffect(() => {
     if (Number.isNaN(id)) {
@@ -104,7 +151,7 @@ export default function BaptismViewPage() {
   }, [id, baptism?.id]);
 
   useEffect(() => {
-    if (!certificateModalOpen || !isExternalBaptism || Number.isNaN(id)) return;
+    if (!certificateModalOpen || !canViewExternalCertificate || Number.isNaN(id)) return;
     let cancelled = false;
     setCertificateLoading(true);
     setCertificateError(null);
@@ -131,10 +178,10 @@ export default function BaptismViewPage() {
       }
       setCertificateObjectUrl(null);
     };
-  }, [id, isExternalBaptism, certificateModalOpen]);
+  }, [id, canViewExternalCertificate, certificateModalOpen]);
 
   const handleDownloadCertificate = useCallback(async (format: 'pdf' | 'image' = 'pdf') => {
-    if (!id || !isExternalBaptism || !baptism) return;
+    if (!id || !canViewExternalCertificate || !baptism) return;
     try {
       const blob = await fetchBaptismExternalCertificate(id);
       const url = URL.createObjectURL(blob);
@@ -150,10 +197,10 @@ export default function BaptismViewPage() {
     } catch {
       setCertificateError('Download failed');
     }
-  }, [id, isExternalBaptism, baptism]);
+  }, [id, canViewExternalCertificate, baptism]);
 
   const handleViewFullscreen = useCallback(async () => {
-    if (!id || !isExternalBaptism) return;
+    if (!id || !canViewExternalCertificate) return;
     try {
       const blob = await fetchBaptismExternalCertificate(id);
       const url = URL.createObjectURL(blob);
@@ -162,7 +209,7 @@ export default function BaptismViewPage() {
     } catch {
       setCertificateError('Failed to open certificate');
     }
-  }, [id, isExternalBaptism]);
+  }, [id, canViewExternalCertificate]);
 
   async function handleSaveNotes() {
     if (baptism == null) return;
@@ -278,7 +325,7 @@ export default function BaptismViewPage() {
         />
       )}
 
-      {certificateModalOpen && isExternalBaptism && (
+      {certificateModalOpen && canViewExternalCertificate && (
         <CertificatePopupModal
           certificateObjectUrl={certificateObjectUrl}
           certificateIsPdf={certificateIsPdf}
@@ -296,7 +343,15 @@ export default function BaptismViewPage() {
                 <WarningIcon className="h-6 w-6" />
               </span>
               <p className="text-sm text-amber-900">
-                This child was baptized in another parish. The certificate below was provided by the original parish and is for reference only.
+                {externalCertificatePending ? (
+                  <>
+                    This child was baptized in another parish. Proof of baptism from the original parish has not been uploaded yet. Use the upload section on the right when the certificate is available.
+                  </>
+                ) : (
+                  <>
+                    This child was baptized in another parish. The certificate below was provided by the original parish and is for reference only.
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -308,7 +363,16 @@ export default function BaptismViewPage() {
             </h2>
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
               <DetailRow label="Baptism Name" value={baptism.baptismName || '—'} />
-              <DetailRow label="Other Names" value={baptism.otherNames || '—'} linkToCertificate={isExternalBaptism} onSeeCertificate={openCertificateModal} />
+              <DetailRow
+                label="Other Names"
+                value={
+                  externalCertificatePending && baptism.otherNames === 'See Certificate'
+                    ? 'Awaiting baptism proof'
+                    : (baptism.otherNames || '—')
+                }
+                linkToCertificate={canViewExternalCertificate}
+                onSeeCertificate={openCertificateModal}
+              />
               <DetailRow label="Surname" value={baptism.surname || '—'} />
               <DetailRow label="Date of Birth" value={formatDisplayDate(baptism.dateOfBirth)} />
               <DetailRow label="Place of Birth" value={baptism.placeOfBirth || '—'} />
@@ -335,13 +399,17 @@ export default function BaptismViewPage() {
             </h2>
             <p className="mt-3 text-gray-900">
               {isExternalBaptism && baptism.sponsorNames === 'See Certificate' ? (
-                <button
-                  type="button"
-                  onClick={openCertificateModal}
-                  className="text-sancta-maroon hover:underline font-medium text-left"
-                >
-                  See Certificate
-                </button>
+                canViewExternalCertificate ? (
+                  <button
+                    type="button"
+                    onClick={openCertificateModal}
+                    className="text-sancta-maroon hover:underline font-medium text-left"
+                  >
+                    See Certificate
+                  </button>
+                ) : (
+                  <span className="text-gray-600">Awaiting baptism proof</span>
+                )
               ) : (
                 baptism.sponsorNames || '—'
               )}
@@ -360,7 +428,16 @@ export default function BaptismViewPage() {
                 <DetailRow label="Baptism Parish (Original)" value={baptism.parishAddress} />
               )}
               {baptism.liberNo && <DetailRow label="Liber No." value={baptism.liberNo} />}
-              <DetailRow label="Officiating Priest" value={baptism.officiatingPriest || '—'} linkToCertificate={isExternalBaptism} onSeeCertificate={openCertificateModal} />
+              <DetailRow
+                label="Officiating Priest"
+                value={
+                  externalCertificatePending && baptism.officiatingPriest === 'See Certificate'
+                    ? 'Awaiting baptism proof'
+                    : (baptism.officiatingPriest || '—')
+                }
+                linkToCertificate={canViewExternalCertificate}
+                onSeeCertificate={openCertificateModal}
+              />
               <DetailRow label="Remarks" value={baptism.note || '—'} />
             </dl>
           </section>
@@ -416,18 +493,20 @@ export default function BaptismViewPage() {
 
         {isExternalBaptism && (
           <div className="space-y-6">
-            <section className={cardClass}>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleDownloadCertificate()}
-                  className="inline-flex items-center gap-2 rounded-lg bg-sancta-maroon px-4 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  Download External Certificate (PDF)
-                </button>
-              </div>
-            </section>
+            {hasUploadedExternalCertificate && (
+              <section className={cardClass}>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadCertificate()}
+                    className="inline-flex items-center gap-2 rounded-lg bg-sancta-maroon px-4 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    Download External Certificate (PDF)
+                  </button>
+                </div>
+              </section>
+            )}
 
             <section className={cardClass} id="external-certificate">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -435,69 +514,124 @@ export default function BaptismViewPage() {
                 External Baptism Certificate
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Issued by: {baptism.parishAddress?.trim() || 'Unknown'}
+                Issued by: {baptism.parishAddress?.trim() || baptism.externalCertificateIssuingParish?.trim() || 'Unknown'}
               </p>
-              <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
-                {certificateLoading && (
-                  <p className="text-gray-500 p-4">Loading certificate…</p>
-                )}
-                {certificateError && (
-                  <p className="text-red-600 text-sm p-4">{certificateError}</p>
-                )}
-                {!certificateLoading && !certificateError && certificateObjectUrl && (
-                  certificateIsPdf ? (
-                    <iframe
-                      src={`${certificateObjectUrl}#view=FitH`}
-                      title="External baptism certificate"
-                      className="w-full h-full min-w-0 min-h-0 border-0 rounded"
-                    />
-                  ) : (
-                    <div className="relative w-full h-full min-h-[200px]">
-                      <Image
-                        src={certificateObjectUrl}
-                        alt="External baptism certificate"
-                        fill
-                        className="object-contain border-0 rounded"
-                        unoptimized
-                      />
+              {externalCertificatePending ? (
+                <>
+                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 flex gap-3" role="status">
+                    <span className="flex h-6 w-6 shrink-0 text-amber-600" aria-hidden>
+                      <ClockIcon className="h-6 w-6" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-amber-900">Awaiting baptism proof</p>
+                      <p className="mt-1 text-sm text-amber-800">
+                        The certificate from the original parish has not been uploaded yet. Choose a PDF or image (max 2 MB), then upload it here.
+                      </p>
                     </div>
-                  )
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleViewFullscreen}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <ExpandIcon className="h-4 w-4" />
-                  View Fullscreen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadCertificate('pdf')}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  Download PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadCertificate('image')}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  Download Image
-                </button>
-              </div>
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 flex gap-2">
-                <span className="text-amber-600 shrink-0 mt-0.5" aria-hidden>
-                  <InfoIcon className="h-5 w-5" />
-                </span>
-                <p className="text-sm text-amber-900">
-                  This certificate is not editable and is stored for reference only.
-                </p>
-              </div>
+                  </div>
+                  <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+                    <input
+                      ref={externalCertFileInputRef}
+                      type="file"
+                      accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
+                      className="sr-only"
+                      aria-label="Select baptism certificate file"
+                      onChange={handleExternalCertFileChange}
+                    />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                      <button
+                        type="button"
+                        onClick={() => externalCertFileInputRef.current?.click()}
+                        className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Choose file
+                      </button>
+                      {externalCertUploadFile && (
+                        <span className="text-sm text-gray-700 truncate max-w-full" title={externalCertUploadFile.name}>
+                          {externalCertUploadFile.name}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleUploadExternalCertificate()}
+                        disabled={!externalCertUploadFile || externalCertUploading}
+                        className="inline-flex items-center justify-center rounded-lg bg-sancta-maroon px-4 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        {externalCertUploading ? 'Uploading…' : 'Upload certificate'}
+                      </button>
+                    </div>
+                    {externalCertUploadError && (
+                      <p role="alert" className="mt-3 text-sm text-red-600">
+                        {externalCertUploadError}
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mt-4 rounded-lg border-2 border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center h-[300px] sm:h-[320px] max-h-[40vh]">
+                    {certificateLoading && (
+                      <p className="text-gray-500 p-4">Loading certificate…</p>
+                    )}
+                    {certificateError && (
+                      <p className="text-red-600 text-sm p-4">{certificateError}</p>
+                    )}
+                    {!certificateLoading && !certificateError && certificateObjectUrl && (
+                      certificateIsPdf ? (
+                        <iframe
+                          src={`${certificateObjectUrl}#view=FitH`}
+                          title="External baptism certificate"
+                          className="w-full h-full min-w-0 min-h-0 border-0 rounded"
+                        />
+                      ) : (
+                        <div className="relative w-full h-full min-h-[200px]">
+                          <Image
+                            src={certificateObjectUrl}
+                            alt="External baptism certificate"
+                            fill
+                            className="object-contain border-0 rounded"
+                            unoptimized
+                          />
+                        </div>
+                      )
+                    )}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleViewFullscreen}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ExpandIcon className="h-4 w-4" />
+                      View Fullscreen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCertificate('pdf')}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                      Download PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCertificate('image')}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                      Download Image
+                    </button>
+                  </div>
+                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 flex gap-2">
+                    <span className="text-amber-600 shrink-0 mt-0.5" aria-hidden>
+                      <InfoIcon className="h-5 w-5" />
+                    </span>
+                    <p className="text-sm text-amber-900">
+                      This certificate is not editable and is stored for reference only.
+                    </p>
+                  </div>
+                </>
+              )}
             </section>
 
             <section className={cardClass}>

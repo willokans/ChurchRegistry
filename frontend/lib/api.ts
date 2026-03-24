@@ -574,6 +574,38 @@ export async function fetchBaptismExternalCertificate(baptismId: number): Promis
   return res.blob();
 }
 
+/** Upload an external baptism certificate when it was not provided at registration (multipart field `file`). */
+export async function uploadBaptismExternalCertificate(
+  baptismId: number,
+  file: File
+): Promise<BaptismResponse> {
+  const formData = new FormData();
+  formData.set('file', file);
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/baptisms/${baptismId}/external-certificate`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string; message?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+      else if (typeof json?.message === 'string') msg = json.message;
+    } catch {
+      if (text && text.length < 200) msg = text;
+    }
+    throw new Error(msg || 'Failed to upload certificate');
+  }
+  return res.json();
+}
+
 export async function createBaptism(parishId: number, body: BaptismRequest): Promise<BaptismResponse> {
   const res = await fetchWithRetry(`${getBaseUrl()}/api/parishes/${parishId}/baptisms`, {
     method: 'POST',

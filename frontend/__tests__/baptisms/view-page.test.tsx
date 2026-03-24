@@ -7,7 +7,15 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import BaptismViewPage from '@/app/baptisms/[id]/page';
-import { getStoredToken, getStoredUser, fetchBaptism, fetchBaptismNoteHistory, updateBaptismNotes, fetchBaptismExternalCertificate } from '@/lib/api';
+import {
+  getStoredToken,
+  getStoredUser,
+  fetchBaptism,
+  fetchBaptismNoteHistory,
+  updateBaptismNotes,
+  fetchBaptismExternalCertificate,
+  uploadBaptismExternalCertificate,
+} from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -23,6 +31,7 @@ jest.mock('@/lib/api', () => ({
   fetchBaptismNoteHistory: jest.fn(),
   emailBaptismCertificate: jest.fn(),
   fetchBaptismExternalCertificate: jest.fn(),
+  uploadBaptismExternalCertificate: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -370,5 +379,98 @@ describe('Baptism view page when baptized in another parish (external certificat
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: /external baptism certificate/i })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('Baptism view page when external baptism proof is pending', () => {
+  const pendingBaptismFromApi = {
+    id: 123,
+    baptismName: 'Maria',
+    otherNames: 'See Certificate',
+    surname: 'Okoro',
+    gender: 'FEMALE',
+    dateOfBirth: '2018-05-10',
+    fathersName: 'Paul',
+    mothersName: 'Grace',
+    sponsorNames: 'See Certificate',
+    officiatingPriest: 'See Certificate',
+    parishId: 10,
+    parishAddress: 'Christ the King Catholic Church, Lagos',
+    externalCertificatePath: null as string | null,
+    externalCertificateIssuingParish: 'St Mary Catholic Church, Ikeja',
+  };
+
+  beforeEach(() => {
+    (getStoredToken as jest.Mock).mockReturnValue('token');
+    (getStoredUser as jest.Mock).mockReturnValue({ username: 'admin', displayName: 'Admin', role: 'ADMIN' });
+    (useParams as jest.Mock).mockReturnValue({ id: '123' });
+    (fetchBaptism as jest.Mock).mockResolvedValue({ ...pendingBaptismFromApi });
+    (fetchBaptismNoteHistory as jest.Mock).mockResolvedValue([]);
+    (fetchBaptismExternalCertificate as jest.Mock).mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
+    (fetchBaptismExternalCertificate as jest.Mock).mockClear();
+    (uploadBaptismExternalCertificate as jest.Mock).mockReset();
+  });
+
+  it('shows awaiting baptism proof messaging and upload controls', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Maria/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText('• Baptized in Another Parish')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/awaiting baptism proof/i);
+    expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /upload certificate/i })).toBeDisabled();
+    expect(screen.getByLabelText(/select baptism certificate file/i)).toBeInTheDocument();
+  });
+
+  it('does not offer See Certificate, download, or view actions until certificate is uploaded', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Maria/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /^see certificate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /download external certificate \(pdf\)/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /view fullscreen/i })).not.toBeInTheDocument();
+    expect(fetchBaptismExternalCertificate).not.toHaveBeenCalled();
+  });
+
+  it('shows Awaiting baptism proof for other names, officiating priest, and sponsors', async () => {
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Maria/i)).toBeInTheDocument();
+    });
+    const awaiting = screen.getAllByText(/awaiting baptism proof/i);
+    expect(awaiting.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('calls upload API and updates UI when certificate is uploaded', async () => {
+    const user = userEvent.setup();
+    const file = new File(['%PDF-1.4'], 'cert.pdf', { type: 'application/pdf' });
+    const afterUpload = {
+      ...pendingBaptismFromApi,
+      externalCertificatePath: 'baptism-certificates/cert.pdf',
+    };
+    (uploadBaptismExternalCertificate as jest.Mock).mockResolvedValue(afterUpload);
+
+    render(<BaptismViewPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Maria/i)).toBeInTheDocument();
+    });
+
+    const input = screen.getByLabelText(/select baptism certificate file/i);
+    await user.upload(input, file);
+
+    const uploadBtn = screen.getByRole('button', { name: /upload certificate/i });
+    expect(uploadBtn).not.toBeDisabled();
+    await user.click(uploadBtn);
+
+    await waitFor(() => {
+      expect(uploadBaptismExternalCertificate).toHaveBeenCalledWith(123, file);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /download external certificate \(pdf\)/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /view fullscreen/i })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
