@@ -2,6 +2,7 @@ import {
   createBaptism,
   createCommunion,
   createCommunionWithCertificate,
+  createCommunionWithExternalBaptismPendingProof,
   createCommunionWithCommunionCertificate,
   createConfirmation,
   createMarriageWithParties,
@@ -264,14 +265,26 @@ async function executeSubmission(item: OfflineQueueItem, persistReplayState: (ne
       const done = replayState.steps?.[STEP.COMMUNION_CREATE_EXTERNAL_DONE] && typeof replayState.createdCommunionId === 'number';
       if (done) return replayState;
 
-      const attachmentRef = payload.certificateAttachment as OfflineQueueFileRef | null;
-      if (!attachmentRef?.fileRefId) throw new Error('Missing offline certificate reference.');
-      const blob = await loadOfflineBlob(attachmentRef.fileRefId);
-      if (!blob) throw new Error('Certificate file is not stored offline. Re-upload when online, then retry.');
-      const certificateFile = blobToFile(blob, attachmentRef);
+      const attachmentRef = payload.certificateAttachment as OfflineQueueFileRef | null | undefined;
       let created;
       try {
-        created = await createCommunionWithCertificate(payload.effectiveParishId, payload.communionRequest, certificateFile, payload.externalBaptism);
+        if (attachmentRef?.fileRefId) {
+          const blob = await loadOfflineBlob(attachmentRef.fileRefId);
+          if (!blob) throw new Error('Certificate file is not stored offline. Re-upload when online, then retry.');
+          const certificateFile = blobToFile(blob, attachmentRef);
+          created = await createCommunionWithCertificate(
+            payload.effectiveParishId,
+            payload.communionRequest,
+            certificateFile,
+            payload.externalBaptism
+          );
+        } else {
+          created = await createCommunionWithExternalBaptismPendingProof(
+            payload.effectiveParishId,
+            payload.communionRequest,
+            payload.externalBaptism
+          );
+        }
       } catch (err) {
         if (isUnauthorizedError(err)) {
           replayState = { ...replayState, authRequiredAt: Date.now() };

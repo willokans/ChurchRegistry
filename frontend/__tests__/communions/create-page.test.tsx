@@ -7,7 +7,14 @@ import { render, screen, waitFor, within, fireEvent } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import CommunionCreatePage from '@/app/communions/new/page';
-import { getStoredToken, getStoredUser, fetchBaptisms, createCommunion, createCommunionWithCertificate } from '@/lib/api';
+import {
+  getStoredToken,
+  getStoredUser,
+  fetchBaptisms,
+  createCommunion,
+  createCommunionWithCertificate,
+  createCommunionWithExternalBaptismPendingProof,
+} from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { defaultParishContext } from '../test-utils';
 
@@ -23,6 +30,7 @@ jest.mock('@/lib/api', () => ({
   fetchBaptisms: jest.fn(),
   createCommunion: jest.fn(),
   createCommunionWithCertificate: jest.fn(),
+  createCommunionWithExternalBaptismPendingProof: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -47,8 +55,15 @@ describe('Communion create page', () => {
     });
     (createCommunion as jest.Mock).mockResolvedValue({ id: 99, baptismId: 5, communionDate: '2024-05-01' });
     (createCommunionWithCertificate as jest.Mock).mockResolvedValue({ id: 100, baptismId: 50, communionDate: '2024-05-01' });
+    (createCommunionWithExternalBaptismPendingProof as jest.Mock).mockResolvedValue({
+      id: 101,
+      baptismId: 51,
+      communionDate: '2024-05-01',
+      baptismCertificatePending: true,
+    });
     (createCommunion as jest.Mock).mockClear();
     (createCommunionWithCertificate as jest.Mock).mockClear();
+    (createCommunionWithExternalBaptismPendingProof as jest.Mock).mockClear();
   });
 
   it('shows form with heading and required fields', async () => {
@@ -278,7 +293,7 @@ describe('Communion create page', () => {
       expect(createCommunion).not.toHaveBeenCalled();
     });
 
-    it('Save button is disabled when external selected but required fields or certificate missing', async () => {
+    it('Save button is disabled when external selected but required name fields are missing', async () => {
       const user = userEvent.setup();
       render(<CommunionCreatePage />);
       await waitFor(() => {
@@ -352,6 +367,62 @@ describe('Communion create page', () => {
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/communions');
       });
+      expect(createCommunion).not.toHaveBeenCalled();
+    });
+
+    it('on submit with external baptism and no certificate calls createCommunionWithExternalBaptismPendingProof and redirects', async () => {
+      const user = userEvent.setup();
+      render(<CommunionCreatePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /communion details/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('radio', { name: /baptism from another parish/i }));
+      await waitFor(() => {
+        expect(screen.getByLabelText(/baptism name/i)).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText(/baptism name/i), 'John');
+      await user.type(screen.getByLabelText(/^surname$/i), 'Smith');
+      await user.type(screen.getByLabelText(/other names/i), 'Paul');
+      await user.selectOptions(screen.getByLabelText(/gender/i), 'MALE');
+      await user.type(screen.getByLabelText(/father's name/i), 'James Smith');
+      await user.type(screen.getByLabelText(/mother's name/i), 'Mary Smith');
+      await user.type(screen.getByLabelText(/baptised church address/i), '123 Church St');
+
+      await user.type(screen.getByLabelText(/communion date/i), '2024-05-01');
+      await user.type(screen.getByLabelText(/officiating priest/i), 'Fr. Jones');
+      await user.selectOptions(screen.getByRole('combobox', { name: /mass venue/i }), 'St Mary');
+
+      const saveBtn = screen.getByRole('button', { name: /save.*register communion|register communion/i });
+      await waitFor(() => {
+        expect(saveBtn).not.toBeDisabled();
+      });
+      await user.click(saveBtn);
+
+      await waitFor(() => {
+        expect(createCommunionWithExternalBaptismPendingProof).toHaveBeenCalledWith(
+          10,
+          expect.objectContaining({
+            communionDate: '2024-05-01',
+            officiatingPriest: 'Fr. Jones',
+            parish: 'St Mary',
+          }),
+          expect.objectContaining({
+            baptismName: 'John',
+            surname: 'Smith',
+            otherNames: 'Paul',
+            gender: 'MALE',
+            fathersName: 'James Smith',
+            mothersName: 'Mary Smith',
+            baptisedChurchAddress: '123 Church St',
+          })
+        );
+      });
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/communions');
+      });
+      expect(createCommunionWithCertificate).not.toHaveBeenCalled();
       expect(createCommunion).not.toHaveBeenCalled();
     });
 

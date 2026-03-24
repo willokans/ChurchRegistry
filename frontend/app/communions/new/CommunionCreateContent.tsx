@@ -10,6 +10,7 @@ import {
   fetchBaptisms,
   createCommunion,
   createCommunionWithCertificate,
+  createCommunionWithExternalBaptismPendingProof,
   getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionRequest,
@@ -300,17 +301,6 @@ export default function CommunionCreateContent() {
       return;
     }
     if (baptismSource === 'external') {
-      if (isOnline) {
-        if (!certificateFile || certificateFile.size === 0) {
-          setError('Upload a baptism certificate when selecting Baptism from another Parish.');
-          return;
-        }
-      } else {
-        if (!certificateFileMetaFromDraft?.fileRefId) {
-          setError('Upload a baptism certificate (or resume an offline draft with it) before saving offline.');
-          return;
-        }
-      }
       if (!externalBaptism.baptismName.trim()) {
         setError('Baptism name is required for Baptism from another Parish.');
         return;
@@ -338,36 +328,39 @@ export default function CommunionCreateContent() {
       if (!isOnline) {
         if (baptismSource === 'external') {
           const attachmentRef = certificateFileMetaFromDraft;
-          if (!attachmentRef?.fileRefId) throw new Error('Missing offline certificate file reference.');
+          const payloadBase = {
+            baptismSource: 'external' as const,
+            effectiveParishId,
+            communionRequest: {
+              communionDate: form.communionDate,
+              officiatingPriest: form.officiatingPriest,
+              parish: form.parish,
+            },
+            externalBaptism: {
+              baptismName: externalBaptism.baptismName.trim(),
+              surname: externalBaptism.surname.trim(),
+              otherNames: externalBaptism.otherNames.trim(),
+              gender: externalBaptism.gender,
+              fathersName: externalBaptism.fathersName.trim(),
+              mothersName: externalBaptism.mothersName.trim(),
+              baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+            },
+          };
+          const payload =
+            attachmentRef?.fileRefId != null
+              ? {
+                  ...payloadBase,
+                  certificateAttachment: {
+                    fileRefId: attachmentRef.fileRefId,
+                    name: attachmentRef.name,
+                    mimeType: attachmentRef.type,
+                    size: attachmentRef.size,
+                  },
+                }
+              : payloadBase;
 
           const itemId = await enqueueOfflineSubmission(
-            {
-              kind: 'communion_create',
-              payload: {
-                baptismSource: 'external',
-                effectiveParishId,
-                certificateAttachment: {
-                  fileRefId: attachmentRef.fileRefId,
-                  name: attachmentRef.name,
-                  mimeType: attachmentRef.type,
-                  size: attachmentRef.size,
-                },
-                communionRequest: {
-                  communionDate: form.communionDate,
-                  officiatingPriest: form.officiatingPriest,
-                  parish: form.parish,
-                },
-                externalBaptism: {
-                  baptismName: externalBaptism.baptismName.trim(),
-                  surname: externalBaptism.surname.trim(),
-                  otherNames: externalBaptism.otherNames.trim(),
-                  gender: externalBaptism.gender,
-                  fathersName: externalBaptism.fathersName.trim(),
-                  mothersName: externalBaptism.mothersName.trim(),
-                  baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
-                },
-              },
-            },
+            { kind: 'communion_create', payload },
             { draftId: draftId ?? undefined }
           );
 
@@ -395,25 +388,35 @@ export default function CommunionCreateContent() {
         return;
       }
 
-      if (baptismSource === 'external' && certificateFile) {
-        await createCommunionWithCertificate(
-          effectiveParishId!,
-          {
-            communionDate: form.communionDate,
-            officiatingPriest: form.officiatingPriest,
-            parish: form.parish,
-          },
-          certificateFile,
-          {
-            baptismName: externalBaptism.baptismName.trim(),
-            surname: externalBaptism.surname.trim(),
-            otherNames: externalBaptism.otherNames.trim(),
-            gender: externalBaptism.gender,
-            fathersName: externalBaptism.fathersName.trim(),
-            mothersName: externalBaptism.mothersName.trim(),
-            baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
-          }
-        );
+      if (baptismSource === 'external') {
+        const externalPayload = {
+          baptismName: externalBaptism.baptismName.trim(),
+          surname: externalBaptism.surname.trim(),
+          otherNames: externalBaptism.otherNames.trim(),
+          gender: externalBaptism.gender,
+          fathersName: externalBaptism.fathersName.trim(),
+          mothersName: externalBaptism.mothersName.trim(),
+          baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+        };
+        const communionFields = {
+          communionDate: form.communionDate,
+          officiatingPriest: form.officiatingPriest,
+          parish: form.parish,
+        };
+        if (certificateFile && certificateFile.size > 0) {
+          await createCommunionWithCertificate(
+            effectiveParishId!,
+            communionFields,
+            certificateFile,
+            externalPayload
+          );
+        } else {
+          await createCommunionWithExternalBaptismPendingProof(
+            effectiveParishId!,
+            communionFields,
+            externalPayload
+          );
+        }
       } else {
         await createCommunion({
           baptismId: form.baptismId,
@@ -521,7 +524,9 @@ export default function CommunionCreateContent() {
                     />
                     <span>
                       <span className="font-medium text-gray-900">Baptism from another Parish</span>
-                      <span className="block text-sm text-gray-500">Select if baptized elsewhere (upload certificate)</span>
+                      <span className="block text-sm text-gray-500">
+                        Select if baptized elsewhere (certificate optional if proof is still pending)
+                      </span>
                     </span>
                   </label>
                 </div>
@@ -733,9 +738,11 @@ export default function CommunionCreateContent() {
                     </div>
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700">
-                        Upload Baptism Certificate <span className="text-red-500">(Required)</span>
+                        Upload Baptism Certificate <span className="text-gray-500">(Optional)</span>
                       </label>
-                      <p className="mt-1 text-xs text-gray-500">Select if baptized in another parish</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Upload if you have it now; otherwise you can add proof later from the baptism record.
+                      </p>
                       <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-4 py-3">
                         <span className="text-gray-400" aria-hidden>
                           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -957,13 +964,11 @@ export default function CommunionCreateContent() {
                     !form.officiatingPriest.trim() ||
                     !form.parish.trim() ||
                     (baptismSource === 'this_parish' && form.baptismId <= 0) ||
-                    (baptismSource === 'external' && (
-                      (isOnline ? !certificateFile || certificateFile.size === 0 : !certificateFileMetaFromDraft?.fileRefId) ||
-                      !externalBaptism.baptismName.trim() ||
-                      !externalBaptism.surname.trim() ||
-                      !externalBaptism.fathersName.trim() ||
-                      !externalBaptism.mothersName.trim()
-                    ))
+                    (baptismSource === 'external' &&
+                      (!externalBaptism.baptismName.trim() ||
+                        !externalBaptism.surname.trim() ||
+                        !externalBaptism.fathersName.trim() ||
+                        !externalBaptism.mothersName.trim()))
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
                 >
