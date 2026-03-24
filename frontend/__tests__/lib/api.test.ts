@@ -2,6 +2,7 @@
  * Tests for API functions.
  */
 import {
+  createCommunionWithExternalBaptismPendingProof,
   fetchDioceseDashboard,
   getStoredDioceseId,
   setStoredDioceseId,
@@ -144,5 +145,94 @@ describe('getStoredDioceseId / setStoredDioceseId', () => {
   it('returns null for invalid stored value', () => {
     localStorage.setItem('church_registry_diocese_id', 'invalid');
     expect(getStoredDioceseId()).toBeNull();
+  });
+});
+
+const externalBaptismPayload = {
+  baptismName: 'Jane',
+  surname: 'Doe',
+  otherNames: '',
+  gender: 'FEMALE',
+  fathersName: 'Father',
+  mothersName: 'Mother',
+  baptisedChurchAddress: 'St Elsewhere, Other Town',
+};
+
+describe('createCommunionWithExternalBaptismPendingProof', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem('church_registry_token', 'jwt-test');
+  });
+
+  it('POSTs multipart to /api/communions without a certificate field', async () => {
+    const mockResponse = {
+      id: 1,
+      baptismId: 2,
+      communionDate: '2024-06-01',
+      officiatingPriest: 'Fr X',
+      parish: 'St A',
+      baptismCertificatePending: true,
+    };
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+    global.fetch = mockFetch;
+
+    const result = await createCommunionWithExternalBaptismPendingProof(
+      10,
+      { communionDate: '2024-06-01', officiatingPriest: 'Fr X', parish: 'St A' },
+      externalBaptismPayload
+    );
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:8080/api/communions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer jwt-test',
+        }),
+      })
+    );
+    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    expect(init.headers).not.toHaveProperty('Content-Type');
+    const body = init.body as FormData;
+    expect(Array.from(body.keys())).not.toContain('certificate');
+    expect(body.get('baptismSource')).toBe('external');
+    expect(body.get('parishId')).toBe('10');
+    expect(body.get('communionDate')).toBe('2024-06-01');
+    expect(body.get('externalBaptismName')).toBe('Jane');
+    expect(body.get('externalBaptisedChurchAddress')).toBe('St Elsewhere, Other Town');
+    expect(result).toEqual(mockResponse);
+    expect(result.baptismCertificatePending).toBe(true);
+  });
+
+  it('throws Unauthorized on 401', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401 });
+
+    await expect(
+      createCommunionWithExternalBaptismPendingProof(
+        1,
+        { communionDate: '2024-06-01', officiatingPriest: 'Fr X', parish: 'St A' },
+        externalBaptismPayload
+      )
+    ).rejects.toThrow('Unauthorized');
+  });
+
+  it('throws with server error message from JSON body on non-401 failure', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: () => Promise.resolve(JSON.stringify({ error: 'Parish is required for external baptism.' })),
+    });
+
+    await expect(
+      createCommunionWithExternalBaptismPendingProof(
+        1,
+        { communionDate: '2024-06-01', officiatingPriest: 'Fr X', parish: 'St A' },
+        externalBaptismPayload
+      )
+    ).rejects.toThrow('Parish is required for external baptism.');
   });
 });

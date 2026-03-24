@@ -667,6 +667,11 @@ export interface FirstHolyCommunionResponse {
   parish: string;
   baptismCertificatePath?: string | null;
   communionCertificatePath?: string | null;
+  /**
+   * True when baptism was recorded as external but the certificate file is not yet uploaded.
+   * Omitted in older API responses; treat as false when absent.
+   */
+  baptismCertificatePending?: boolean;
   /** From baptism (when loaded with communion). */
   baptismName?: string;
   otherNames?: string;
@@ -877,6 +882,53 @@ export async function createCommunionWithCertificate(
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   // Do not set Content-Type; browser sets multipart/form-data with boundary
+
+  const res = await fetchWithRetry(`${getBaseUrl()}/api/communions`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
+    const text = await res.text();
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (typeof json?.error === 'string') msg = json.error;
+    } catch {
+      if (!text) msg = 'Failed to create communion';
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Create communion with "Baptism from another Parish" when the external baptism certificate is not yet available.
+ * Same multipart contract as {@link createCommunionWithCertificate} but omits the `certificate` part.
+ */
+export async function createCommunionWithExternalBaptismPendingProof(
+  parishId: number,
+  data: { communionDate: string; officiatingPriest: string; parish: string },
+  externalBaptism: ExternalBaptismPayload
+): Promise<FirstHolyCommunionResponse> {
+  const formData = new FormData();
+  formData.set('baptismSource', 'external');
+  formData.set('parishId', String(parishId));
+  formData.set('communionDate', data.communionDate);
+  formData.set('officiatingPriest', data.officiatingPriest);
+  formData.set('parish', data.parish);
+  formData.set('externalBaptismName', externalBaptism.baptismName);
+  formData.set('externalSurname', externalBaptism.surname);
+  formData.set('externalOtherNames', externalBaptism.otherNames);
+  formData.set('externalGender', externalBaptism.gender);
+  formData.set('externalFathersName', externalBaptism.fathersName);
+  formData.set('externalMothersName', externalBaptism.mothersName);
+  formData.set('externalBaptisedChurchAddress', externalBaptism.baptisedChurchAddress);
+
+  const token = getStoredToken();
+  const headers: HeadersInit = {};
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
   const res = await fetchWithRetry(`${getBaseUrl()}/api/communions`, {
     method: 'POST',
