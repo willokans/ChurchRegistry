@@ -31,6 +31,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CertificateController {
 
+    private static final String BAPTISM_CERTIFICATES_BUCKET = "baptism-certificates";
+    private static final long MAX_CERTIFICATE_SIZE = 2L * 1024 * 1024;
+
     private final BaptismService baptismService;
     private final BaptismRepository baptismRepository;
     private final FirstHolyCommunionRepository communionRepository;
@@ -60,6 +63,45 @@ public class CertificateController {
                 .parishName(parishName)
                 .dioceseName(dioceseName)
                 .build();
+    }
+
+    @PostMapping(path = "/baptisms/{id}/external-certificate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BaptismResponse> uploadExternalCertificate(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is required");
+        }
+        if (file.getSize() > MAX_CERTIFICATE_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Certificate file is too large. Maximum size is 2 MB.");
+        }
+        Long parishId = authorizationService.findBaptismParishId(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Baptism not found or has no parish"));
+        authorizationService.requireWriteAccessForParish(parishId);
+
+        String safeName = System.currentTimeMillis() + "-" + (file.getOriginalFilename() != null
+                ? file.getOriginalFilename().replaceAll("[^a-zA-Z0-9._-]", "_") : "file");
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = "application/octet-stream";
+        }
+        String certPath;
+        try {
+            certPath = remoteFileService.upload(BAPTISM_CERTIFICATES_BUCKET, safeName,
+                    file.getBytes(), contentType);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to upload certificate: " + e.getMessage());
+        }
+        String storedPath = BAPTISM_CERTIFICATES_BUCKET + "/" + certPath;
+        try {
+            BaptismResponse updated = baptismService.attachExternalCertificate(id, storedPath);
+            auditService.logUpdate(SacramentType.BAPTISM, id, parishId, "external_certificate_upload");
+            return ResponseEntity.ok(updated);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+        }
     }
 
     @GetMapping("/baptisms/{id}/external-certificate")

@@ -4,9 +4,11 @@ import com.wyloks.churchRegistry.dto.BaptismRequest;
 import com.wyloks.churchRegistry.dto.BaptismResponse;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.entity.Baptism;
+import com.wyloks.churchRegistry.entity.FirstHolyCommunion;
 import com.wyloks.churchRegistry.entity.Parish;
 import com.wyloks.churchRegistry.entity.SacramentNoteHistory;
 import com.wyloks.churchRegistry.repository.BaptismRepository;
+import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
 import com.wyloks.churchRegistry.repository.ParishRepository;
 import com.wyloks.churchRegistry.repository.SacramentNoteHistoryRepository;
 import com.wyloks.churchRegistry.security.AppUserDetails;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 public class BaptismServiceImpl implements BaptismService {
 
     private final BaptismRepository baptismRepository;
+    private final FirstHolyCommunionRepository firstHolyCommunionRepository;
     private final ParishRepository parishRepository;
     private final SacramentNoteHistoryRepository noteHistoryRepository;
 
@@ -99,6 +102,38 @@ public class BaptismServiceImpl implements BaptismService {
                 .build();
         entity = baptismRepository.save(entity);
         return toResponse(entity);
+    }
+
+    @Override
+    @Transactional
+    public BaptismResponse attachExternalCertificate(Long baptismId, String storedPath) {
+        if (storedPath == null || storedPath.isBlank()) {
+            throw new IllegalArgumentException("Stored certificate path is required");
+        }
+        Baptism baptism = baptismRepository.findById(baptismId)
+                .orElseThrow(() -> new IllegalArgumentException("Baptism not found: " + baptismId));
+        String issuing = baptism.getExternalCertificateIssuingParish();
+        if (issuing == null || issuing.isBlank()) {
+            throw new IllegalArgumentException("External baptism certificate upload applies only to external baptisms");
+        }
+        if (baptism.getExternalCertificatePath() != null && !baptism.getExternalCertificatePath().isBlank()) {
+            throw new IllegalStateException("External baptism certificate is already stored for this record");
+        }
+        Optional<FirstHolyCommunion> communionOpt = firstHolyCommunionRepository.findByBaptismId(baptismId);
+        if (communionOpt.isPresent()) {
+            FirstHolyCommunion communion = communionOpt.get();
+            String communionPath = communion.getBaptismCertificatePath();
+            if (communionPath != null && !communionPath.isBlank()) {
+                throw new IllegalStateException("Baptism certificate path is already set on the linked communion");
+            }
+        }
+        baptism.setExternalCertificatePath(storedPath.trim());
+        baptism = baptismRepository.save(baptism);
+        communionOpt.ifPresent(communion -> {
+            communion.setBaptismCertificatePath(storedPath.trim());
+            firstHolyCommunionRepository.save(communion);
+        });
+        return toResponse(baptism);
     }
 
     @Override
