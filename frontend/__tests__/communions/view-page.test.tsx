@@ -3,6 +3,8 @@
  * - When authenticated, fetches communion by id and shows details
  * - Two-column layout: communicant info, baptism record, communion details, notes; certificate and record summary
  * - When communion has baptism certificate, shows baptism cert preview and fetches external cert
+ * - When baptismCertificatePending, shows awaiting proof message (not in-parish copy)
+ * - When no cert and not pending, shows in-parish no-certificate copy
  * - When not found, shows not-found message
  */
 import { render, screen, waitFor } from '@testing-library/react';
@@ -155,6 +157,24 @@ describe('Communion view page', () => {
     });
   });
 
+  describe('when no baptism certificate and proof not pending (in-parish baptism)', () => {
+    it('shows in-parish no-certificate copy and link to baptism record', async () => {
+      render(<CommunionViewPage />);
+      await waitFor(() => {
+        expect(screen.getByText(/Communicant's Baptism Certificate/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(
+          /Baptism was recorded in this parish\. No certificate file is on file for this communion record\./i
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Awaiting baptism proof/i)).not.toBeInTheDocument();
+      const baptismRecordLinks = screen.getAllByRole('link', { name: /View Baptism Record/i });
+      expect(baptismRecordLinks.length).toBeGreaterThanOrEqual(1);
+      expect(baptismRecordLinks[0]).toHaveAttribute('href', '/baptisms/5');
+    });
+  });
+
   describe('when communion has baptism certificate (baptism from another parish)', () => {
     beforeEach(() => {
       (fetchCommunion as jest.Mock).mockResolvedValue({
@@ -210,6 +230,57 @@ describe('Communion view page', () => {
         expect(screen.getByText(/Original baptism certificate received and uploaded/i)).toBeInTheDocument();
       });
       expect(screen.getByText(/for reference only/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('when baptism proof is pending (external baptism, no certificate file yet)', () => {
+    beforeEach(() => {
+      (fetchCommunion as jest.Mock).mockResolvedValue({
+        id: 42,
+        baptismId: 7,
+        communionDate: '2024-05-01',
+        officiatingPriest: 'Fr. Smith',
+        parish: 'St Mary',
+        baptismName: 'Maria',
+        surname: 'Garcia',
+        dateOfBirth: '2015-04-10',
+        baptismParishName: 'Sacred Heart elsewhere',
+        baptismCertificatePending: true,
+      });
+    });
+
+    it('shows Awaiting baptism proof and explanation, with link to baptism record', async () => {
+      render(<CommunionViewPage />);
+      await waitFor(() => {
+        expect(screen.getByText(/Awaiting baptism proof/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(/The baptism took place in another parish; the certificate has not been uploaded yet/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/When it is added on the baptism record, it will appear here automatically/i)
+      ).toBeInTheDocument();
+      const baptismRecordLink = screen.getByRole('link', { name: /View Baptism Record/i });
+      expect(baptismRecordLink).toHaveAttribute('href', '/baptisms/7');
+    });
+
+    it('does not show the in-parish no-certificate copy', async () => {
+      render(<CommunionViewPage />);
+      await waitFor(() => {
+        expect(screen.getByText(/Awaiting baptism proof/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Baptism was recorded in this parish\. No certificate file is on file/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not show baptism View certificate or fetch external cert', async () => {
+      render(<CommunionViewPage />);
+      await waitFor(() => {
+        expect(fetchCommunion).toHaveBeenCalledWith(42);
+      });
+      expect(screen.queryAllByRole('button', { name: /view certificate/i })).toHaveLength(0);
+      expect(fetchBaptismExternalCertificate).not.toHaveBeenCalled();
     });
   });
 });

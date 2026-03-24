@@ -1,4 +1,11 @@
-import { createBaptismWithCertificate, createCommunion, createConfirmation, createHolyOrder } from '@/lib/api';
+import {
+  createBaptismWithCertificate,
+  createCommunion,
+  createCommunionWithCertificate,
+  createCommunionWithExternalBaptismPendingProof,
+  createConfirmation,
+  createHolyOrder,
+} from '@/lib/api';
 import type { HolyOrderRequest } from '@/lib/api';
 import { enqueueOfflineSubmission, getOfflineQueueItem, updateOfflineQueueItemStatus } from '@/lib/offline/queue';
 import { replayOfflineQueue, retryOfflineQueueItem } from '@/lib/offline/replay';
@@ -8,6 +15,7 @@ jest.mock('@/lib/api', () => ({
   createBaptismWithCertificate: jest.fn(),
   createCommunion: jest.fn(),
   createCommunionWithCertificate: jest.fn(),
+  createCommunionWithExternalBaptismPendingProof: jest.fn(),
   createCommunionWithCommunionCertificate: jest.fn(),
   createConfirmation: jest.fn(),
   createMarriageWithParties: jest.fn(),
@@ -28,6 +36,7 @@ describe('offline replay module', () => {
     (createHolyOrder as jest.Mock).mockReset();
     (createBaptismWithCertificate as jest.Mock).mockReset();
     (createCommunion as jest.Mock).mockReset();
+    (createCommunionWithExternalBaptismPendingProof as jest.Mock).mockReset();
     (createConfirmation as jest.Mock).mockReset();
   });
 
@@ -58,6 +67,49 @@ describe('offline replay module', () => {
     expect(updated!.status).toBe('synced');
     expect(createHolyOrder).toHaveBeenCalledTimes(1);
     expect(createHolyOrder).toHaveBeenCalledWith(payload);
+  });
+
+  it('replays communion_create (external baptism) without certificate via createCommunionWithExternalBaptismPendingProof', async () => {
+    (createCommunionWithExternalBaptismPendingProof as jest.Mock).mockResolvedValue({ id: 99 });
+
+    const communionRequest = {
+      communionDate: '2026-04-12',
+      officiatingPriest: 'Fr. Lee',
+      parish: 'St Mary',
+    };
+    const externalBaptism = {
+      baptismName: 'Anna',
+      surname: 'Ng',
+      otherNames: '',
+      gender: 'FEMALE',
+      fathersName: 'F',
+      mothersName: 'M',
+      baptisedChurchAddress: 'Holy Cross, Elsewhere',
+    };
+
+    const itemId = await enqueueOfflineSubmission({
+      kind: 'communion_create',
+      payload: {
+        baptismSource: 'external',
+        effectiveParishId: 10,
+        communionRequest,
+        externalBaptism,
+      },
+    });
+
+    await replayOfflineQueue({ onlyItemId: itemId });
+
+    expect(createCommunionWithCertificate).not.toHaveBeenCalled();
+    expect(createCommunionWithExternalBaptismPendingProof).toHaveBeenCalledTimes(1);
+    expect(createCommunionWithExternalBaptismPendingProof).toHaveBeenCalledWith(
+      10,
+      communionRequest,
+      externalBaptism
+    );
+
+    const updated = await getOfflineQueueItem(itemId);
+    expect(updated).not.toBeNull();
+    expect(updated!.status).toBe('synced');
   });
 
   it('marks item as failed when replay throws, and retry increments retryCount', async () => {
