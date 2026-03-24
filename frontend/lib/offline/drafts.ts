@@ -1,3 +1,5 @@
+import { openOfflineDb } from '@/lib/offline/openOfflineDb';
+
 export type OfflineDraftRecord<TPayload> = {
   /**
    * Stable key for draft payload references.
@@ -10,12 +12,7 @@ export type OfflineDraftRecord<TPayload> = {
   payload: TPayload;
 };
 
-const DB_NAME = 'church_registry_offline';
-const DB_VERSION = 1;
-
 const DRAFTS_STORE = 'drafts';
-const FILES_STORE = 'files';
-const QUEUE_STORE = 'queue';
 
 const POINTER_PREFIX = 'church_registry_offline_draft_ptr:';
 
@@ -31,22 +28,8 @@ function pointerKey(draftId: string) {
   return `${POINTER_PREFIX}${draftId}`;
 }
 
-async function openDb(): Promise<IDBDatabase> {
-  return await new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(DRAFTS_STORE)) db.createObjectStore(DRAFTS_STORE, { keyPath: 'id' });
-      if (!db.objectStoreNames.contains(FILES_STORE)) db.createObjectStore(FILES_STORE, { keyPath: 'id' });
-      if (!db.objectStoreNames.contains(QUEUE_STORE)) db.createObjectStore(QUEUE_STORE, { keyPath: 'id' });
-    };
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
 async function idbGet<T>(storeName: string, id: string): Promise<T | null> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
@@ -57,7 +40,7 @@ async function idbGet<T>(storeName: string, id: string): Promise<T | null> {
 }
 
 async function idbPut<T extends { id: string }>(storeName: string, value: T): Promise<void> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
@@ -68,7 +51,7 @@ async function idbPut<T extends { id: string }>(storeName: string, value: T): Pr
 }
 
 async function idbDelete(storeName: string, id: string): Promise<void> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
@@ -95,7 +78,14 @@ export async function saveDraft<TPayload>(
     localStorage.setItem(pointerKey(id), JSON.stringify({ draftId: id, formType, updatedAt }));
     return;
   }
-  await idbPut(DRAFTS_STORE, record);
+  // Round-trip through JSON so IndexedDB structured clone only sees plain data (avoids DataCloneError).
+  let storable: OfflineDraftRecord<TPayload>;
+  try {
+    storable = JSON.parse(JSON.stringify(record)) as OfflineDraftRecord<TPayload>;
+  } catch {
+    throw new Error('Draft payload could not be serialized for local storage.');
+  }
+  await idbPut(DRAFTS_STORE, storable);
   if (hasLocalStorage()) localStorage.setItem(pointerKey(id), JSON.stringify({ draftId: id, formType, updatedAt }));
 }
 
@@ -185,7 +175,7 @@ export async function listDrafts(): Promise<OfflineDraftRecord<any>[]> {
     return results;
   }
 
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise<OfflineDraftRecord<any>[]>((resolve, reject) => {
     const tx = db.transaction(DRAFTS_STORE, 'readonly');
     const store = tx.objectStore(DRAFTS_STORE);

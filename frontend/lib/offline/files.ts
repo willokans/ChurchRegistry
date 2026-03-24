@@ -1,3 +1,5 @@
+import { openOfflineDb } from '@/lib/offline/openOfflineDb';
+
 export type OfflineFileMeta = {
   fileRefId: string;
   mimeType: string;
@@ -16,12 +18,7 @@ type OfflineFileRecord = {
   updatedAt: number;
 };
 
-const DB_NAME = 'church_registry_offline';
-const DB_VERSION = 1;
-
-const DRAFTS_STORE = 'drafts';
 const FILES_STORE = 'files';
-const QUEUE_STORE = 'queue';
 
 export const DEFAULT_MAX_OFFLINE_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
 export const DEFAULT_MAX_OFFLINE_TOTAL_BYTES = 25 * 1024 * 1024; // ~25 MB per device
@@ -139,22 +136,8 @@ async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
   return new Blob([bytes], { type: mimeType });
 }
 
-async function openDb(): Promise<IDBDatabase> {
-  return await new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(DRAFTS_STORE)) db.createObjectStore(DRAFTS_STORE, { keyPath: 'id' });
-      if (!db.objectStoreNames.contains(FILES_STORE)) db.createObjectStore(FILES_STORE, { keyPath: 'id' });
-      if (!db.objectStoreNames.contains(QUEUE_STORE)) db.createObjectStore(QUEUE_STORE, { keyPath: 'id' });
-    };
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
 async function idbGet<T>(storeName: string, id: string): Promise<T | null> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
@@ -165,7 +148,7 @@ async function idbGet<T>(storeName: string, id: string): Promise<T | null> {
 }
 
 async function idbPut<T>(storeName: string, value: T): Promise<void> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
@@ -176,7 +159,7 @@ async function idbPut<T>(storeName: string, value: T): Promise<void> {
 }
 
 async function idbDelete(storeName: string, id: string): Promise<void> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
@@ -310,7 +293,7 @@ async function getOfflineStoredBlobBytes(): Promise<number> {
     return total;
   }
 
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise<number>((resolve, reject) => {
     const tx = db.transaction(FILES_STORE, 'readonly');
     const store = tx.objectStore(FILES_STORE);
@@ -491,7 +474,7 @@ export async function listOfflineFiles(): Promise<OfflineFileListing[]> {
     return results;
   }
 
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise<OfflineFileListing[]>((resolve, reject) => {
     const tx = db.transaction(FILES_STORE, 'readonly');
     const store = tx.objectStore(FILES_STORE);

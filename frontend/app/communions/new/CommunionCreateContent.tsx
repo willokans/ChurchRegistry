@@ -10,7 +10,6 @@ import {
   fetchBaptisms,
   createCommunion,
   createCommunionWithCertificate,
-  createCommunionWithExternalBaptismPendingProof,
   getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionRequest,
@@ -218,7 +217,13 @@ export default function CommunionCreateContent() {
     if (!draftId) return;
     setDraftStatus('Saving draft locally…');
     try {
-      if (certificatePersistTaskRef.current) await certificatePersistTaskRef.current;
+      if (certificatePersistTaskRef.current) {
+        try {
+          await certificatePersistTaskRef.current;
+        } catch {
+          // Certificate blob persist can fail or reject; still save the form draft with current fields.
+        }
+      }
       const payload: CommunionDraftPayload = {
         baptismSource,
         form,
@@ -307,14 +312,6 @@ export default function CommunionCreateContent() {
       }
       if (!externalBaptism.surname.trim()) {
         setError('Surname is required for Baptism from another Parish.');
-        return;
-      }
-      if (!externalBaptism.fathersName.trim()) {
-        setError("Father's name is required.");
-        return;
-      }
-      if (!externalBaptism.mothersName.trim()) {
-        setError("Mother's name is required.");
         return;
       }
       if (effectiveParishId === null || Number.isNaN(effectiveParishId)) {
@@ -411,6 +408,12 @@ export default function CommunionCreateContent() {
             externalPayload
           );
         } else {
+          const { createCommunionWithExternalBaptismPendingProof } = await import('@/lib/api');
+          if (typeof createCommunionWithExternalBaptismPendingProof !== 'function') {
+            throw new Error(
+              'Saving communion without a baptism certificate is not available in this build. Try a hard refresh; if it persists, redeploy the frontend.'
+            );
+          }
           await createCommunionWithExternalBaptismPendingProof(
             effectiveParishId!,
             communionFields,
@@ -525,7 +528,7 @@ export default function CommunionCreateContent() {
                     <span>
                       <span className="font-medium text-gray-900">Baptism from another Parish</span>
                       <span className="block text-sm text-gray-500">
-                        Select if baptized elsewhere (certificate optional if proof is still pending)
+                        Select if baptized elsewhere. Upload a certificate if you already have it, or add proof later once you receive it from the parish of baptism.
                       </span>
                     </span>
                   </label>
@@ -635,7 +638,12 @@ export default function CommunionCreateContent() {
                 {baptismSource === 'external' && (
                   <>
                     <div className="mt-4 space-y-4">
-                      <p className="text-sm text-gray-600">Enter details from the baptism certificate (from the other parish).</p>
+                      <p className="text-sm text-gray-600">
+                        Enter what you have: <span className="font-medium text-gray-800">baptism name</span> and{' '}
+                        <span className="font-medium text-gray-800">surname</span> are required to register. Father&apos;s name,
+                        mother&apos;s name, and uploading the baptism certificate are optional—you can add them when you have them
+                        from the parish of baptism.
+                      </p>
                       <div>
                         <label htmlFor="external-baptismName" className="block text-sm font-medium text-gray-700">
                           Baptism Name <span className="text-red-500">*</span>
@@ -666,7 +674,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-otherNames" className="block text-sm font-medium text-gray-700">
-                          Other Names <span className="text-gray-500">(Optional)</span>
+                          Other Names
                         </label>
                         <input
                           id="external-otherNames"
@@ -695,7 +703,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-fathersName" className="block text-sm font-medium text-gray-700">
-                          Father&apos;s Name <span className="text-red-500">*</span>
+                          Father&apos;s Name
                         </label>
                         <input
                           id="external-fathersName"
@@ -709,7 +717,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-mothersName" className="block text-sm font-medium text-gray-700">
-                          Mother&apos;s Name <span className="text-red-500">*</span>
+                          Mother&apos;s Name
                         </label>
                         <input
                           id="external-mothersName"
@@ -723,7 +731,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-baptisedChurchAddress" className="block text-sm font-medium text-gray-700">
-                          Baptised Church Address <span className="text-gray-500">(Optional)</span>
+                          Baptised Church Address
                         </label>
                         <textarea
                           id="external-baptisedChurchAddress"
@@ -738,7 +746,7 @@ export default function CommunionCreateContent() {
                     </div>
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700">
-                        Upload Baptism Certificate <span className="text-gray-500">(Optional)</span>
+                        Upload Baptism Certificate
                       </label>
                       <p className="mt-1 text-xs text-gray-500">
                         Upload if you have it now; otherwise you can add proof later from the baptism record.
@@ -771,19 +779,25 @@ export default function CommunionCreateContent() {
                                 fileRefId: existingFileRefId,
                                 maxBytesPerFile: 2 * 1024 * 1024,
                                 maxTotalBytes: 25 * 1024 * 1024,
-                              }).then((res) => {
-                                setCertificateFileMetaFromDraft({
-                                  fileRefId: res.fileRefId,
-                                  name: file.name,
-                                  size: file.size,
-                                  type: res.mimeType,
-                                  storedBlob: res.storedBlob,
-                                  deferredReason: res.deferredReason,
+                              })
+                                .then((res) => {
+                                  setCertificateFileMetaFromDraft({
+                                    fileRefId: res.fileRefId,
+                                    name: file.name,
+                                    size: file.size,
+                                    type: res.mimeType,
+                                    storedBlob: res.storedBlob,
+                                    deferredReason: res.deferredReason,
+                                  });
+                                  setCertificateAttachmentWarning(
+                                    res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.'
+                                  );
+                                })
+                                .catch(() => {
+                                  setCertificateAttachmentWarning(
+                                    'Could not store this file locally. You can still save your draft; try the file again when online.'
+                                  );
                                 });
-                                setCertificateAttachmentWarning(
-                                  res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.'
-                                );
-                              });
                             }}
                           />
                         </label>
@@ -966,9 +980,7 @@ export default function CommunionCreateContent() {
                     (baptismSource === 'this_parish' && form.baptismId <= 0) ||
                     (baptismSource === 'external' &&
                       (!externalBaptism.baptismName.trim() ||
-                        !externalBaptism.surname.trim() ||
-                        !externalBaptism.fathersName.trim() ||
-                        !externalBaptism.mothersName.trim()))
+                        !externalBaptism.surname.trim()))
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
                 >

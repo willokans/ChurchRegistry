@@ -1,3 +1,5 @@
+import { openOfflineDb } from '@/lib/offline/openOfflineDb';
+
 export type OfflineQueueItemStatus = 'queued' | 'syncing' | 'synced' | 'failed';
 
 export type OfflineSubmissionKind =
@@ -75,8 +77,6 @@ export type OfflineQueueItem = {
   draftId?: string;
 };
 
-const DB_NAME = 'church_registry_offline';
-const DB_VERSION = 1;
 const QUEUE_STORE = 'queue';
 
 const LS_QUEUE_ITEM_PREFIX = 'church_registry_offline_queue_item:';
@@ -97,20 +97,8 @@ function localKey(itemId: string) {
   return `${LS_QUEUE_ITEM_PREFIX}${itemId}`;
 }
 
-async function openDb(): Promise<IDBDatabase> {
-  return await new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(QUEUE_STORE)) db.createObjectStore(QUEUE_STORE, { keyPath: 'id' });
-    };
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
 async function idbGet<T>(storeName: string, id: string): Promise<T | null> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
@@ -121,7 +109,7 @@ async function idbGet<T>(storeName: string, id: string): Promise<T | null> {
 }
 
 async function idbPut<T>(storeName: string, value: T): Promise<void> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
@@ -132,7 +120,7 @@ async function idbPut<T>(storeName: string, value: T): Promise<void> {
 }
 
 async function idbDelete(storeName: string, id: string): Promise<void> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
@@ -143,7 +131,7 @@ async function idbDelete(storeName: string, id: string): Promise<void> {
 }
 
 async function idbGetAll<T>(storeName: string): Promise<T[]> {
-  const db = await openDb();
+  const db = await openOfflineDb();
   return await new Promise<T[]>((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
