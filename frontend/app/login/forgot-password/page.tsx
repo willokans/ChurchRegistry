@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
               onChange={(e) => setIdentifier(e.target.value)}
               required
               autoComplete="username"
-              placeholder="e.g. name@parish.org or your username"
+              placeholder="Enter your username"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-500 text-base"
             />
           </div>

@@ -13,7 +13,7 @@ Domain purchased from [GO54](https://app.go54.com/domain/new).
 ### API app (church-registry-api)
 
 ```bash
-fly certs add api.sacramentregistry.com --app church-registry-api --org wyloks-166
+fly certs add api.sacramentregistry.com --app church-registry-api
 ```
 
 Or via Fly dashboard: **church-registry-api** → **Settings** → **Domains** → **Add domain** → `api.sacramentregistry.com`
@@ -21,7 +21,7 @@ Or via Fly dashboard: **church-registry-api** → **Settings** → **Domains** �
 ### Frontend app (church-registry)
 
 ```bash
-fly certs add sacramentregistry.com --app church-registry --org wyloks-166
+fly certs add sacramentregistry.com --app church-registry
 ```
 
 Or via Fly dashboard: **church-registry** → **Settings** → **Domains** → **Add domain** → `sacramentregistry.com`
@@ -38,7 +38,7 @@ At GO54 (or your DNS provider for sacramentregistry.com), add these records:
 | A | `@` | (see below) | 3600 |
 | AAAA | `@` | (see below) | 3600 |
 
-**For root domain (sacramentregistry.com):** Run `fly certs setup sacramentregistry.com --app church-registry --org wyloks-166` to get the exact A and AAAA values. Some DNS providers (e.g. Cloudflare) support CNAME flattening for root—use `church-registry.fly.dev` if available.
+**For root domain (sacramentregistry.com):** Run `fly certs setup sacramentregistry.com --app church-registry` to get the exact A and AAAA values. (`fly certs` does not take `--org`; the app name is enough.) Some DNS providers (e.g. Cloudflare) support CNAME flattening for root—use `church-registry.fly.dev` if available.
 
 **For api subdomain:** CNAME `api` → `church-registry-api.fly.dev`
 
@@ -51,8 +51,8 @@ At GO54 (or your DNS provider for sacramentregistry.com), add these records:
 After DNS propagates (5–30 minutes):
 
 ```bash
-fly certs show api.sacramentregistry.com --app church-registry-api --org wyloks-166
-fly certs show sacramentregistry.com --app church-registry --org wyloks-166
+fly certs show api.sacramentregistry.com --app church-registry-api
+fly certs show sacramentregistry.com --app church-registry
 ```
 
 Status should be `Ready` when certificates are issued.

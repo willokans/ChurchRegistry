@@ -103,11 +103,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email or Phone number */}
+          {/* Username */}
           <div>
             <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
               <EnvelopeIcon className="w-4 h-4 text-gray-500" />
-              Email or Phone number
+              Username
             </label>
             <input
               id="username"
@@ -116,7 +116,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              placeholder="e.g. 0801 234 5678 or name@parish.org"
+              placeholder="Enter username"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-500"
             />
           </div>
