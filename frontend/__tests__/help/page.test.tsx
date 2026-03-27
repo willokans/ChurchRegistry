@@ -107,6 +107,12 @@ describe('Help page', () => {
     expect(link).toHaveAttribute('href', 'mailto:support@sacramentregistry.com');
   });
 
+  it('links to privacy notice from Contact Support section', () => {
+    render(<HelpPage />);
+    const link = screen.getByRole('link', { name: /Read Privacy Notice/i });
+    expect(link).toHaveAttribute('href', '/privacy');
+  });
+
   it('redirects to /login when not authenticated', () => {
     (getStoredToken as jest.Mock).mockReturnValue(null);
     render(<HelpPage />);

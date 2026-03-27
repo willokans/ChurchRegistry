@@ -31,6 +31,11 @@ The frontend is UI-only and does not fall back to same-origin Next route handler
 - In production, internal Next `/api/*` routes are blocked except `/api/health`.
 - Set `NEXT_ALLOW_INTERNAL_API_ROUTES=true` only for emergency rollback scenarios.
 
+## Governance Docs
+
+- Public privacy notice (share with users): `docs/PRIVACY_NOTICE.md`
+- Internal governance runbook (ops/compliance only): `docs/NDPA_GOVERNANCE_PACK.md`
+
 ## Deploy to Fly.io (staging)
 
 From the `frontend/` directory:

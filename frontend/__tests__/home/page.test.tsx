@@ -58,6 +58,12 @@ describe('Landing page (home)', () => {
     expect(document.body).toHaveTextContent(/Sacramental Record Management System/i);
   });
 
+  it('shows Privacy Notice link in footer', () => {
+    render(<LandingPage />);
+    const privacyLink = screen.getByRole('link', { name: 'Privacy Notice' });
+    expect(privacyLink).toHaveAttribute('href', '/privacy');
+  });
+
   it('when authenticated redirects to /dashboard', async () => {
     const api = require('@/lib/api');
     api.getStoredToken.mockReturnValue('jwt-123');

@@ -288,6 +288,9 @@ export default function LandingPage() {
             <Link href="/login" className="text-sm font-medium text-sancta-maroon hover:underline">
               Sign in
             </Link>
+            <Link href="/privacy" className="text-sm font-medium text-sancta-maroon hover:underline">
+              Privacy Notice
+            </Link>
             <a href="mailto:support@sacramentregistry.com" className="text-sm text-gray-600 hover:text-sancta-maroon">
               Support
             </a>

@@ -295,6 +295,7 @@ export default function AuthenticatedLayout({
                   { href: '/holy-orders', label: 'Holy Order' },
                   { href: '/offline-outbox', label: 'Pending Sync' },
                   { href: '/help', label: 'Help' },
+                  { href: '/privacy', label: 'Privacy Notice' },
                 ].map(({ href, label }) => (
                   <li key={href}>
                     <Link
@@ -520,6 +521,14 @@ export default function AuthenticatedLayout({
                 Help
               </Link>
             </li>
+            <li>
+              <Link
+                href="/privacy"
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Privacy Notice
+              </Link>
+            </li>
           </ul>
         </nav>
         <button
@@ -535,6 +544,9 @@ export default function AuthenticatedLayout({
           <Link href="/help" prefetch={false} className="flex items-center gap-1.5 text-sm text-sancta-maroon hover:underline">
             <HelpIcon className="w-4 h-4 shrink-0" />
             Help
+          </Link>
+          <Link href="/privacy" prefetch={false} className="text-sm text-sancta-maroon hover:underline">
+            Privacy Notice
           </Link>
           <span className="text-sm text-gray-600">
             {user.displayName || user.username}

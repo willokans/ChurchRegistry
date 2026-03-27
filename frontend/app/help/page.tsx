@@ -282,6 +282,15 @@ export default function HelpPage() {
           <p className="mt-2 text-gray-600 text-sm leading-relaxed">
             Contact your parish administrator for assistance with access, data questions, or technical issues.
           </p>
+          <p className="mt-3 text-gray-600 text-sm leading-relaxed">
+            For how personal data is handled, review our privacy notice.
+          </p>
+          <Link
+            href="/privacy"
+            className="mt-1 inline-block text-sm font-medium text-sancta-maroon hover:underline"
+          >
+            Read Privacy Notice →
+          </Link>
           <a
             href="mailto:support@sacramentregistry.com"
             className="mt-3 inline-block text-sm font-medium text-sancta-maroon hover:underline"

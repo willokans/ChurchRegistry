@@ -129,6 +129,16 @@ describe('AuthenticatedLayout', () => {
     expect(helpLink).toHaveAttribute('href', '/help');
   });
 
+  it('Privacy Notice link points to /privacy in authenticated surfaces', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const privacyLinks = screen.getAllByRole('link', { name: 'Privacy Notice' });
+    expect(privacyLinks.some((link) => link.getAttribute('href') === '/privacy')).toBe(true);
+  });
+
   it('redirects to /login when no token', () => {
     (getStoredToken as jest.Mock).mockReturnValue(null);
     render(

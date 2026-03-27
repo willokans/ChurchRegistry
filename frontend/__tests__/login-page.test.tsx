@@ -45,6 +45,12 @@ describe('Login page', () => {
     expect(screen.getByRole('button', { name: /sign in|login/i })).toBeInTheDocument();
   });
 
+  it('shows a Privacy Notice link', () => {
+    render(<LoginPage />);
+    const privacyLink = screen.getByRole('link', { name: 'Privacy Notice' });
+    expect(privacyLink).toHaveAttribute('href', '/privacy');
+  });
+
   it('on successful login stores token and redirects to dashboard', async () => {
     const user = userEvent.setup();
     const mockResponse = {
