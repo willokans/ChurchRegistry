@@ -206,15 +206,27 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
-          # Same project URL for all; fallbacks help Pre Postgres when only one name is set in GitHub
-          NEXT_PUBLIC_SUPABASE_URL_PROD: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.SUPABASE_URL_PROD }}
+          # Same project URL for all; repo variable is public URL (optional)
+          NEXT_PUBLIC_SUPABASE_URL_PROD: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.SUPABASE_URL_PROD || vars.NEXT_PUBLIC_SUPABASE_URL }}
+          API_DATABASE_USERNAME_PROD: ${{ secrets.API_DATABASE_USERNAME_PROD }}
           SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
         run: |
           set -euo pipefail
           FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
 
-          if [ -z "${NEXT_PUBLIC_SUPABASE_URL_PROD:-}" ]; then
-            echo "::error::Set a Supabase project URL secret: NEXT_PUBLIC_SUPABASE_URL_PROD (preferred), or NEXT_PUBLIC_SUPABASE_URL, or SUPABASE_URL_PROD — same value as your DB project (staging URL OK until prod Supabase exists)"
+          # Resolve Supabase project URL: explicit secrets/vars, else derive postgres.<ref> → https://<ref>.supabase.co (same project as JDBC)
+          SUPABASE_URL_RESOLVED="${NEXT_PUBLIC_SUPABASE_URL_PROD:-}"
+          if [ -z "$SUPABASE_URL_RESOLVED" ] && [ -n "${API_DATABASE_USERNAME_PROD:-}" ]; then
+            case "$API_DATABASE_USERNAME_PROD" in
+              postgres.*)
+                _ref="${API_DATABASE_USERNAME_PROD#postgres.}"
+                SUPABASE_URL_RESOLVED="https://${_ref}.supabase.co"
+                echo "Derived NEXT_PUBLIC_SUPABASE_URL from API_DATABASE_USERNAME_PROD (postgres.<ref>)"
+                ;;
+            esac
+          fi
+          if [ -z "$SUPABASE_URL_RESOLVED" ]; then
+            echo "::error::Set NEXT_PUBLIC_SUPABASE_URL_PROD or vars.NEXT_PUBLIC_SUPABASE_URL, or rely on API_DATABASE_USERNAME_PROD (postgres.<ref>) so the URL can be derived"
             exit 1
           fi
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY_PROD:-}" ]; then
@@ -227,7 +239,7 @@ jobs:
           trap 'rm -f "$SECRETS_IMPORT"' EXIT
           {
             printf 'NEXT_PUBLIC_API_URL=%s\n' "$(printf '%s' "$FRONTEND_API_URL" | tr -d '\n')"
-            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$(printf '%s' "$NEXT_PUBLIC_SUPABASE_URL_PROD" | tr -d '\n')"
+            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$(printf '%s' "$SUPABASE_URL_RESOLVED" | tr -d '\n')"
             printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
           } > "$SECRETS_IMPORT"
           flyctl secrets import --stage --app church-registry < "$SECRETS_IMPORT"
