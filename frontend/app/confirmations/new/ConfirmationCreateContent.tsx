@@ -187,11 +187,7 @@ export default function ConfirmationCreateContent() {
       certificateAttachment: certificateFileMetaFromDraft,
       communionCertificateAttachment: communionCertificateFileMetaFromDraft,
     },
-    enabled: Boolean(draftId),
-    onAutosaved: (record) => {
-      setDraftRecord(record);
-      setDraftStatus('Draft autosaved locally.');
-    },
+    enabled: false,
   });
 
   useEffect(() => {

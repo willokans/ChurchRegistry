@@ -188,11 +188,7 @@ export default function MarriageCreateContent() {
       marriageDetails,
       witnesses,
     },
-    enabled: Boolean(draftId),
-    onAutosaved: (record) => {
-      setDraftRecord(record);
-      setDraftStatus('Draft autosaved locally.');
-    },
+    enabled: false,
   });
 
   useEffect(() => {

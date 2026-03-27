@@ -71,6 +71,8 @@ export default function BaptismCreatePage() {
     router.push('/baptisms');
   }, [queuedItem, draftId, router]);
 
+  // Autosave off: parish prefill and other defaults would otherwise persist and show the draft banner
+  // even when the user never clicked "Save Draft". Drafts are saved only via the Save Draft button.
   useDebouncedDraftAutosave<BaptismDraftPayload>({
     draftId,
     formType: 'baptism_create',
@@ -80,11 +82,7 @@ export default function BaptismCreatePage() {
       parentAddressLine,
       parentAddressState,
     },
-    enabled: Boolean(draftId),
-    onAutosaved: (record) => {
-      setDraftRecord(record);
-      setDraftStatus('Draft autosaved locally.');
-    },
+    enabled: false,
   });
 
   // Pre-fill Place of baptism with parish name when available; user can edit or clear

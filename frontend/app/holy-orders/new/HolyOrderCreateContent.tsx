@@ -60,11 +60,7 @@ export default function HolyOrderCreateContent() {
     draftId,
     formType: 'holy_order_create',
     payload: { form },
-    enabled: Boolean(draftId),
-    onAutosaved: (record) => {
-      setDraftRecord(record);
-      setDraftStatus('Draft autosaved locally.');
-    },
+    enabled: false,
   });
 
   useEffect(() => {
