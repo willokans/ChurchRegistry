@@ -107,7 +107,9 @@ jobs:
             exit 1
           fi
 
-          # Use secrets import (stdin) to preserve & and other special chars in URL
+          # Temp file (not `{ } | flyctl`) so optional SUPABASE_URL does not make `[ -n ... ] &&` exit 1 under pipefail
+          SECRETS_IMPORT="$(mktemp)"
+          trap 'rm -f "$SECRETS_IMPORT"' EXIT
           {
             printf 'SPRING_DATASOURCE_URL=%s\n' "$API_DATABASE_URL_PROD"
             printf 'SPRING_DATASOURCE_USERNAME=%s\n' "$API_DATABASE_USERNAME_PROD"
@@ -117,8 +119,11 @@ jobs:
             printf 'JWT_EXPIRATION_MS=%s\n' "${API_JWT_EXPIRATION_MS_PROD:-3600000}"
             printf 'JWT_REFRESH_EXPIRATION_MS=%s\n' "${API_JWT_REFRESH_EXPIRATION_MS_PROD:-604800000}"
             printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
-            [ -n "${SUPABASE_URL_PROD:-}" ] && printf 'SUPABASE_URL=%s\n' "$(printf '%s' "$SUPABASE_URL_PROD" | tr -d '\n')"
-          } | flyctl secrets import --stage --app "$APP_NAME"
+            if [ -n "${SUPABASE_URL_PROD:-}" ]; then
+              printf 'SUPABASE_URL=%s\n' "$(printf '%s' "$SUPABASE_URL_PROD" | tr -d '\n')"
+            fi
+          } > "$SECRETS_IMPORT"
+          flyctl secrets import --stage --app "$APP_NAME" < "$SECRETS_IMPORT"
 
       - name: Deploy API to Fly production
         id: deploy
@@ -212,12 +217,15 @@ jobs:
             exit 1
           fi
 
-          # stdin import preserves special characters in keys (e.g. JWT padding '=')
+          # Temp file + stdin import preserves special characters in keys (e.g. JWT padding '=')
+          SECRETS_IMPORT="$(mktemp)"
+          trap 'rm -f "$SECRETS_IMPORT"' EXIT
           {
             printf 'NEXT_PUBLIC_API_URL=%s\n' "$(printf '%s' "$FRONTEND_API_URL" | tr -d '\n')"
             printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$(printf '%s' "$NEXT_PUBLIC_SUPABASE_URL_PROD" | tr -d '\n')"
             printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
-          } | flyctl secrets import --stage --app church-registry
+          } > "$SECRETS_IMPORT"
+          flyctl secrets import --stage --app church-registry < "$SECRETS_IMPORT"
 
       - name: Deploy to Fly production
         working-directory: frontend
