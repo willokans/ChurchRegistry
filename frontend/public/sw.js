@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 
-const STATIC_CACHE = 'church-registry-static-v1';
+const STATIC_CACHE = 'church-registry-static-v2';
 const VERSIONED_CACHES = [STATIC_CACHE];
 
 // Keep this list small. We cache create-flow documents opportunistically

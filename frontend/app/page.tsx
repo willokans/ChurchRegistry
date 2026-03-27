@@ -114,7 +114,7 @@ function DashboardPreview() {
       <div className="rounded-lg border-2 border-gray-300 bg-white shadow-xl overflow-hidden">
         <Image
           src="/images/dashboard-preview.png"
-          alt="Parish Registry dashboard showing sacrament records, quick actions, and parish management"
+          alt="Sacrament Registry dashboard showing sacrament records, quick actions, and parish management"
           width={800}
           height={600}
           className="w-full h-auto object-cover"
@@ -165,7 +165,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2 min-w-0">
             <CrossIcon className="h-7 w-7 sm:h-8 sm:w-8 text-sancta-gold shrink-0" />
-            <span className="font-serif text-lg sm:text-xl font-semibold text-sancta-maroon truncate">Parish Registry</span>
+            <span className="font-serif text-lg sm:text-xl font-semibold text-sancta-maroon truncate">Sacrament Registry</span>
           </Link>
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6">
@@ -210,7 +210,7 @@ export default function LandingPage() {
               Sacramental Record Management for Catholic Parishes
             </h1>
             <p className="mt-3 sm:mt-4 text-base text-gray-600 sm:text-lg md:text-xl">
-              Parish Registry helps priests and parish staff securely manage baptism, communion, confirmation, marriage, and holy orders records.
+              Sacrament Registry helps priests and parish staff securely manage baptism, communion, confirmation, marriage, and holy orders records.
             </p>
             <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
               <Link
@@ -261,7 +261,7 @@ export default function LandingPage() {
             Access is by invitation only
           </h2>
           <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base px-2">
-            Parish Registry is available to Catholic parishes and dioceses. Contact your parish office or diocesan administrator to request access.
+            Sacrament Registry is available to Catholic parishes and dioceses. Contact your parish office or diocesan administrator to request access.
           </p>
           <div className="mt-6 sm:mt-8 flex justify-center">
             <Link
@@ -279,7 +279,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl text-center">
           <div className="flex items-center justify-center gap-2">
             <CrossIcon className="h-5 w-5 sm:h-6 sm:w-6 text-sancta-gold shrink-0" />
-            <span className="font-serif text-base sm:text-lg font-semibold text-sancta-maroon">Parish Registry</span>
+            <span className="font-serif text-base sm:text-lg font-semibold text-sancta-maroon">Sacrament Registry</span>
           </div>
           <p className="mt-2 sm:mt-3 text-sm text-gray-600">
             Sacramental Record Management System
@@ -288,7 +288,7 @@ export default function LandingPage() {
             <Link href="/login" className="text-sm font-medium text-sancta-maroon hover:underline">
               Sign in
             </Link>
-            <a href="mailto:parishregistry@example.com" className="text-sm text-gray-600 hover:text-sancta-maroon">
+            <a href="mailto:support@sacramentregistry.com" className="text-sm text-gray-600 hover:text-sancta-maroon">
               Support
             </a>
             <a href="#" className="text-sm text-gray-600 hover:text-sancta-maroon">
@@ -296,7 +296,7 @@ export default function LandingPage() {
             </a>
           </div>
           <p className="mt-6 text-sm text-gray-500">
-            Support: parishregistry@example.com
+            Support: support@sacramentregistry.com
           </p>
         </div>
       </footer>

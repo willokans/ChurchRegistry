@@ -132,7 +132,7 @@ describe('Dashboard page', () => {
     await waitFor(() => {
       expect(screen.getByText('Select a diocese in the sidebar to view the diocesan dashboard.')).toBeInTheDocument();
     });
-    expect(screen.queryByText(/Welcome to St Mary Parish Registry/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Welcome to St Mary Sacrament Registry/)).not.toBeInTheDocument();
   });
 
   it('shows select-diocese message when ADMIN (not super) has All dioceses selected', async () => {
@@ -167,7 +167,7 @@ describe('Dashboard page', () => {
     await waitFor(() => {
       expect(screen.getByText('Select a diocese in the sidebar to view the diocesan dashboard.')).toBeInTheDocument();
     });
-    expect(screen.queryByText(/Welcome to St Mary Parish Registry/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Welcome to St Mary Sacrament Registry/)).not.toBeInTheDocument();
   });
 
   it('shows parish dashboard when non-admin has parish selected (diocese prompt only for admins)', async () => {
@@ -207,7 +207,7 @@ describe('Dashboard page', () => {
     render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
-      expect(screen.getByText(/Welcome to St Mary Parish Registry/i)).toBeInTheDocument();
+      expect(screen.getByText(/Welcome to St Mary Sacrament Registry/i)).toBeInTheDocument();
     });
     expect(screen.queryByText('Select a diocese in the sidebar to view the diocesan dashboard.')).not.toBeInTheDocument();
   });
@@ -230,7 +230,7 @@ describe('Dashboard page', () => {
     render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
-      expect(screen.getByText(/welcome to st mary parish registry/i)).toBeInTheDocument();
+      expect(screen.getByText(/welcome to st mary sacrament registry/i)).toBeInTheDocument();
     });
     const main = screen.getByRole('main');
     expect(main).toHaveTextContent(/Administrator/);

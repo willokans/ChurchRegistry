@@ -1,6 +1,6 @@
-# Parish Registry – Frontend
+# Sacrament Registry – Frontend
 
-Next.js 14 (App Router) app for the Parish Registry. Login and home are implemented with TDD.
+Next.js 14 (App Router) app for the Sacrament Registry. Login and home are implemented with TDD.
 
 ## Setup
 
@@ -19,7 +19,7 @@ cp .env.local.example .env.local
 ## Auth
 
 - **Login:** `/login` – username/password; on success stores token and refresh token in `localStorage` and redirects to home.
-- **Home:** `/` – protected; redirects to `/login` if not authenticated. Shows “Parish Registry” and “Welcome, {displayName}”.
+- **Home:** `/` – protected; redirects to `/login` if not authenticated. Shows “Sacrament Registry” and “Welcome, {displayName}”.
 
 Ensure the Spring backend is running (e.g. `./mvnw spring-boot:run` in the repo root) and `NEXT_PUBLIC_API_URL` points to it.
 The frontend is UI-only and does not fall back to same-origin Next route handlers.

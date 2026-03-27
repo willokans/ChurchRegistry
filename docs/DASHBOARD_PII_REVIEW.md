@@ -44,7 +44,7 @@ Dates (dateOfBirth, communionDate, confirmationDate, marriageDate) are PII under
 
 ## Recommendations
 
-1. **Current design is acceptable** for parish registry use: authorized parish staff need to identify records for quick navigation. Full names and dates support that workflow.
+1. **Current design is acceptable** for sacrament registry use: authorized parish staff need to identify records for quick navigation. Full names and dates support that workflow.
 2. **API over-fetching:** The dashboard API returns full DTOs. Consider a lighter `DashboardRecentRecord` DTO with only `id`, `type`, `label` (or `displayName`), and `date` if you want to minimize PII in the response. This would require backend changes.
 3. **Future diocesan dashboard:** When implementing the diocesan dashboard (Phase 1), apply the same PII review—diocesan admins will see recent records across parishes. Ensure access control is strictly ADMIN/SUPER_ADMIN.
 4. **Logging/analytics:** Ensure dashboard API responses are not logged in full; avoid logging PII in request/response interceptors.

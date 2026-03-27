@@ -17,12 +17,12 @@ const CHURCH_BRANDING: Record<string, ChurchBranding> = {
   'holy family': {
     logoPath: '/images/holy-family-church-logo.png',
     logoAlt: 'Holy Family Catholic Church, Life Camp - Abuja',
-    appTitle: 'Holy Family Catholic Church, Abuja Parish Registry',
+    appTitle: 'Holy Family Catholic Church, Abuja Sacrament Registry',
   },
   'church of the assumption': {
     logoPath: '/images/assumption-church-logo.png',
     logoAlt: 'Church of The Assumption, Abuja',
-    appTitle: 'Church of The Assumption, Abuja Parish Registry',
+    appTitle: 'Church of The Assumption, Abuja Sacrament Registry',
   },
 };
 

@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This document describes how to deploy Church Registry to production using Fly.io and Supabase. Domain: **parishregistry.ng** — use `app.parishregistry.ng` (frontend) and `api.parishregistry.ng` (API).
+This document describes how to deploy Sacrament Registry to production using Fly.io and Supabase. Domain: **sacramentregistry.com** — use `app.sacramentregistry.com` (frontend) and `api.sacramentregistry.com` (API).
 
 ---
 
@@ -92,15 +92,15 @@ When the production Supabase project exists and buckets are created, **point pro
    | `API_DATABASE_PASSWORD_PROD` | Production database password |
    | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Production **service_role** key (must match this project) |
    | `NEXT_PUBLIC_SUPABASE_URL_PROD` | Production project URL — **must** match the project used for DB + storage so login and API routes stay consistent |
-   | `API_CORS_ALLOWED_ORIGINS_PROD` | Your production frontend origin(s), e.g. `https://app.parishregistry.ng` |
-   | `NEXT_PUBLIC_API_URL_PROD` | Public API base URL, e.g. `https://api.parishregistry.ng` |
+   | `API_CORS_ALLOWED_ORIGINS_PROD` | Your production frontend origin(s), e.g. `https://app.sacramentregistry.com` |
+   | `NEXT_PUBLIC_API_URL_PROD` | Public API base URL, e.g. `https://api.sacramentregistry.com` |
    | `API_JWT_SECRET_PROD` | Prefer a **new** strong secret for production (users must sign in again) or keep existing if you must avoid invalidating sessions |
 
    Optional: `SUPABASE_URL_PROD` — set to the same Project URL if you want the Spring API to use an explicit `SUPABASE_URL` (otherwise it is inferred from `SPRING_DATASOURCE_USERNAME`).
 
 4. **Redeploy:** Push to `main` or run **Deploy to Production** manually (Actions → workflow_dispatch). The workflow syncs Fly secrets for `church-registry-api` and `church-registry`, then deploys both.
 
-5. **Verify:** `GET https://api.parishregistry.ng/api/health` (or your Fly URL), sign in on the production app, upload a test certificate if applicable.
+5. **Verify:** `GET https://api.sacramentregistry.com/api/health` (or your Fly URL), sign in on the production app, upload a test certificate if applicable.
 
 6. **Manual Fly alternative** (without GitHub): from the repo root, set secrets on each app to match the table above, e.g. `fly secrets import --app church-registry-api` with `SPRING_DATASOURCE_*`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `SUPABASE_SERVICE_ROLE_KEY`, and optionally `SUPABASE_URL`; then `fly secrets import --app church-registry` with `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Deploy with `fly deploy -c fly.api.prod.toml --app church-registry-api` and `cd frontend && fly deploy -c fly.prod.toml --app church-registry`.
 
@@ -125,7 +125,7 @@ Set these on `church-registry-api`:
 | `SPRING_DATASOURCE_USERNAME` | Production DB username |
 | `SPRING_DATASOURCE_PASSWORD` | Production DB password |
 | `JWT_SECRET` | **Distinct** from staging; min 32 bytes |
-| `CORS_ALLOWED_ORIGINS` | `https://app.parishregistry.ng` (and custom domain when ready) |
+| `CORS_ALLOWED_ORIGINS` | `https://app.sacramentregistry.com` (and custom domain when ready) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Production Supabase service role key |
 
 Optional: `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL` if storage URL inference fails.
@@ -136,7 +136,7 @@ Set on `church-registry`:
 
 | Secret | Description |
 |--------|-------------|
-| `NEXT_PUBLIC_API_URL` | `https://api.parishregistry.ng` (or Fly URL before custom domain) |
+| `NEXT_PUBLIC_API_URL` | `https://api.sacramentregistry.com` (or Fly URL before custom domain) |
 
 ---
 
@@ -151,10 +151,10 @@ Use `.github/workflows/deploy-production.yml` (trigger: `push` to `main`). Requi
 | `API_DATABASE_USERNAME_PROD` | Production DB username |
 | `API_DATABASE_PASSWORD_PROD` | Production DB password |
 | `API_JWT_SECRET_PROD` | Production JWT secret (distinct from staging) |
-| `API_CORS_ALLOWED_ORIGINS_PROD` | `https://app.parishregistry.ng` |
+| `API_CORS_ALLOWED_ORIGINS_PROD` | `https://app.sacramentregistry.com` |
 | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Production Supabase service role key |
 | `NEXT_PUBLIC_SUPABASE_URL_PROD` | Production Supabase project URL (same project as DB) |
-| `NEXT_PUBLIC_API_URL_PROD` | `https://api.parishregistry.ng` |
+| `NEXT_PUBLIC_API_URL_PROD` | `https://api.sacramentregistry.com` |
 | `SUPABASE_URL_PROD` | Optional; explicit `SUPABASE_URL` for the API |
 
 ---
@@ -164,12 +164,12 @@ Use `.github/workflows/deploy-production.yml` (trigger: `push` to `main`). Requi
 **See [docs/CUSTOM_DOMAIN_SETUP.md](docs/CUSTOM_DOMAIN_SETUP.md)** for the full step-by-step guide.
 
 Summary:
-1. Add domains in Fly: `fly certs add parishregistry.ng --app church-registry`, `fly certs add api.parishregistry.ng --app church-registry-api`
+1. Add domains in Fly: `fly certs add sacramentregistry.com --app church-registry`, `fly certs add api.sacramentregistry.com --app church-registry-api`
 2. Add DNS records: root (A/AAAA) and `api` (CNAME) per `fly certs setup`
 3. Update GitHub secrets `API_CORS_ALLOWED_ORIGINS_PROD` and `NEXT_PUBLIC_API_URL_PROD` to use custom domains
 4. Redeploy
 
-Production URLs: https://parishregistry.ng (frontend), https://api.parishregistry.ng (API)
+Production URLs: https://sacramentregistry.com (frontend), https://api.sacramentregistry.com (API)
 
 ---
 

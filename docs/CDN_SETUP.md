@@ -1,6 +1,6 @@
 # CDN Setup for Frontend Static Assets
 
-This document describes how to add CDN caching for the Church Registry frontend to improve load times for low-bandwidth users (e.g. Nigeria). **Only enable when static asset size justifies**—typically when `_next/static` bundle is large enough that edge caching materially reduces latency.
+This document describes how to add CDN caching for the Sacrament Registry frontend to improve load times for low-bandwidth users (e.g. Nigeria). **Only enable when static asset size justifies**—typically when `_next/static` bundle is large enough that edge caching materially reduces latency.
 
 ## What's Already Configured
 
