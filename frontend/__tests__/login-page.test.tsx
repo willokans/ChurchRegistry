@@ -6,15 +6,17 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoginPage from '@/app/login/page';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/login');
 
 describe('Login page', () => {
   let locationHref: string;

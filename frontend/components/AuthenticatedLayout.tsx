@@ -1,12 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getStoredToken, getStoredUser, clearAuth } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { getChurchBranding } from '@/lib/church-branding';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { useOfflineQueueReplayer } from '@/lib/offline/useOfflineQueueReplayer';
+import RetryFailedSubmissionsBanner from '@/components/offline/RetryFailedSubmissionsBanner';
+import OfflineStorageHygieneBanner from '@/components/offline/OfflineStorageHygieneBanner';
+import ConflictResolutionDialog from '@/components/offline/ConflictResolutionDialog';
 
 function CrossIcon({ className }: { className?: string }) {
   return (
@@ -48,13 +53,21 @@ export default function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { parishId, setParishId, dioceseId, setDioceseId, parishes = [], dioceses = [], loading: parishLoading, error: parishError, refetch } = useParish();
 
+  const { isOnline } = useNetworkStatus();
+  useOfflineQueueReplayer();
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -108,6 +121,14 @@ export default function AuthenticatedLayout({
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-sancta-beige">
+      {!isOnline && (
+        <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-2 text-amber-900 text-sm">
+          You are offline. New submissions will be saved locally and synced automatically when you are back online.
+        </div>
+      )}
+      <OfflineStorageHygieneBanner />
+      <RetryFailedSubmissionsBanner />
+      <ConflictResolutionDialog />
       {/* Mobile header with hamburger */}
       <header className="md:hidden flex items-center justify-between gap-2 py-3 px-4 border-b border-gray-200 bg-white/80">
         <button
@@ -260,12 +281,11 @@ export default function AuthenticatedLayout({
               <ul className="space-y-1">
                 {[
                   ...(isAdmin || isSuperAdmin ? [{ href: '/dashboard/diocese', label: 'Diocese Dashboard' }] : []),
-                  { href: '/dashboard', label: 'Dashboard' },
+                  { href: '/dashboard', label: 'Parish Dashboard' },
                   ...(isAdmin || isSuperAdmin
                     ? [
-                        ...(isSuperAdmin ? [{ href: '/users/setup', label: 'User Setup' }] : []),
                         { href: '/parishes', label: 'Dioceses & Parishes' },
-                        { href: '/users', label: 'User Access' },
+                        { href: '/settings', label: 'Settings' },
                       ]
                     : []),
                   { href: '/baptisms', label: 'Baptisms' },
@@ -273,6 +293,7 @@ export default function AuthenticatedLayout({
                   { href: '/confirmations', label: 'Confirmation' },
                   { href: '/marriages', label: 'Marriage' },
                   { href: '/holy-orders', label: 'Holy Order' },
+                  { href: '/offline-outbox', label: 'Pending Sync' },
                   { href: '/help', label: 'Help' },
                 ].map(({ href, label }) => (
                   <li key={href}>
@@ -412,21 +433,11 @@ export default function AuthenticatedLayout({
                 prefetch={false}
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
-                Dashboard
+                Parish Dashboard
               </Link>
             </li>
             {(isAdmin || isSuperAdmin) && (
               <>
-                {isSuperAdmin && (
-                  <li>
-                    <Link
-                      href="/users/setup"
-                      className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
-                    >
-                      User Setup
-                    </Link>
-                  </li>
-                )}
                 <li>
                   <Link
                     href="/parishes"
@@ -438,11 +449,11 @@ export default function AuthenticatedLayout({
                 </li>
                 <li>
                   <Link
-                    href="/users"
+                    href="/settings"
                     prefetch={false}
                     className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
                   >
-                    User Access
+                    Settings
                   </Link>
                 </li>
               </>
@@ -489,6 +500,15 @@ export default function AuthenticatedLayout({
                 className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
               >
                 Holy Order
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/offline-outbox"
+                prefetch={false}
+                className="block px-3 py-2 rounded-lg text-sancta-maroon font-medium hover:bg-sancta-maroon/10"
+              >
+                Pending Sync
               </Link>
             </li>
             <li>

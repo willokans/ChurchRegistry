@@ -31,5 +31,9 @@ public class BaptismResponse {
     private String note;
     private String externalCertificatePath;
     private String externalCertificateIssuingParish;
+    private String placeOfBirth;
+    private String placeOfBaptism;
+    private LocalDate dateOfBaptism;
+    private String liberNo;
     private OffsetDateTime createdAt;
 }

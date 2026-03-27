@@ -7,7 +7,7 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SWRConfig } from 'swr';
 import DioceseDashboardPage from '@/app/dashboard/diocese/page';
 
@@ -21,6 +21,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -30,6 +31,7 @@ jest.mock('@/context/ParishContext', () => ({
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace, push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/dashboard/diocese');
 
 const defaultDioceseContext = {
   parishId: 10,

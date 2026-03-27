@@ -26,5 +26,11 @@ public interface BaptismService {
 
     BaptismResponse updateNote(Long id, String note);
 
+    /**
+     * Sets the stored path for an external baptism certificate on the baptism and on any linked
+     * First Holy Communion. Only for external baptisms (issuing parish set) when proof is not yet stored.
+     */
+    BaptismResponse attachExternalCertificate(Long baptismId, String storedPath);
+
     List<SacramentNoteResponse> getNoteHistory(Long id);
 }

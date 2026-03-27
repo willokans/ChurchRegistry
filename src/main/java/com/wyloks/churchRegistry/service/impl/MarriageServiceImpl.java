@@ -3,11 +3,14 @@ package com.wyloks.churchRegistry.service.impl;
 import com.wyloks.churchRegistry.dto.MarriageRequest;
 import com.wyloks.churchRegistry.dto.MarriagePartyResponse;
 import com.wyloks.churchRegistry.dto.MarriageResponse;
+import com.wyloks.churchRegistry.dto.CreateMarriageWithPartiesRequest;
 import com.wyloks.churchRegistry.dto.MarriageWitnessResponse;
 import com.wyloks.churchRegistry.dto.SacramentNoteResponse;
 import com.wyloks.churchRegistry.entity.Baptism;
 import com.wyloks.churchRegistry.entity.Confirmation;
+import com.wyloks.churchRegistry.entity.FirstHolyCommunion;
 import com.wyloks.churchRegistry.entity.Marriage;
+import com.wyloks.churchRegistry.entity.Parish;
 import com.wyloks.churchRegistry.entity.MarriagePartyLegacy;
 import com.wyloks.churchRegistry.entity.MarriageWitnessLegacy;
 import com.wyloks.churchRegistry.entity.SacramentNoteHistory;
@@ -17,6 +20,8 @@ import com.wyloks.churchRegistry.repository.HolyOrderRepository;
 import com.wyloks.churchRegistry.repository.MarriagePartyLegacyRepository;
 import com.wyloks.churchRegistry.repository.MarriageRepository;
 import com.wyloks.churchRegistry.repository.MarriageWitnessLegacyRepository;
+import com.wyloks.churchRegistry.repository.FirstHolyCommunionRepository;
+import com.wyloks.churchRegistry.repository.ParishRepository;
 import com.wyloks.churchRegistry.repository.SacramentNoteHistoryRepository;
 import com.wyloks.churchRegistry.security.AppUserDetails;
 import com.wyloks.churchRegistry.service.MarriageService;
@@ -29,6 +34,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +54,8 @@ public class MarriageServiceImpl implements MarriageService {
     private final MarriagePartyLegacyRepository marriagePartyLegacyRepository;
     private final MarriageWitnessLegacyRepository marriageWitnessLegacyRepository;
     private final BaptismRepository baptismRepository;
+    private final FirstHolyCommunionRepository firstHolyCommunionRepository;
+    private final ParishRepository parishRepository;
     private final SacramentNoteHistoryRepository noteHistoryRepository;
 
     @Override
@@ -114,6 +123,12 @@ public class MarriageServiceImpl implements MarriageService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<MarriageResponse> findByBaptismId(Long baptismId) {
+        return marriageRepository.findByBaptismId(baptismId).map(this::toResponse);
+    }
+
+    @Override
     @Transactional
     public MarriageResponse create(MarriageRequest request) {
         Confirmation confirmation = confirmationRepository.findById(request.getConfirmationId())
@@ -142,6 +157,243 @@ public class MarriageServiceImpl implements MarriageService {
                 .build();
         entity = marriageRepository.save(entity);
         return toResponse(entity);
+    }
+
+    @Override
+    @Transactional
+    public MarriageResponse createWithParties(CreateMarriageWithPartiesRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request is required");
+        }
+        if (request.getGroom() == null || request.getBride() == null || request.getMarriage() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "groom, bride, and marriage are required");
+        }
+
+        Long parishId = request.getMarriage().getParishId();
+        if (parishId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "marriage.parishId is required");
+        }
+        Parish parish = parishRepository.findById(parishId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parish not found: " + parishId));
+
+        String partnersName = request.getMarriage().getPartnersName();
+        if (partnersName == null || partnersName.isBlank()) {
+            partnersName = (request.getGroom().getFullName() + " & " + request.getBride().getFullName()).trim();
+        }
+
+        java.util.Optional<Long> optionalConfirmationId = resolveOptionalConfirmationId(request);
+        boolean parishRequiresConfirmation = parish.isRequireMarriageConfirmation();
+
+        MarriageResponse created;
+        if (parishRequiresConfirmation || optionalConfirmationId.isPresent()) {
+            if (parishRequiresConfirmation) {
+                validateBothPartiesDocumentConfirmation(request);
+            }
+            if (optionalConfirmationId.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "confirmationId is required (groom or bride confirmationId)");
+            }
+            long confirmationId = optionalConfirmationId.get();
+            Long confirmationParishId = confirmationRepository.findParishIdById(confirmationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Confirmation not found or has no parish"));
+            if (!confirmationParishId.equals(parishId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Confirmation parish does not match marriage parish");
+            }
+            MarriageRequest marriageRequest = MarriageRequest.builder()
+                    .confirmationId(confirmationId)
+                    .partnersName(partnersName)
+                    .marriageDate(request.getMarriage().getMarriageDate())
+                    .marriageTime(request.getMarriage().getMarriageTime())
+                    .churchName(request.getMarriage().getChurchName())
+                    .marriageRegister(request.getMarriage().getMarriageRegister())
+                    .diocese(request.getMarriage().getDiocese())
+                    .civilRegistryNumber(request.getMarriage().getCivilRegistryNumber())
+                    .dispensationGranted(request.getMarriage().getDispensationGranted())
+                    .canonicalNotes(request.getMarriage().getCanonicalNotes())
+                    .officiatingPriest(request.getMarriage().getOfficiatingPriest())
+                    .parish(request.getMarriage().getParish())
+                    .build();
+            created = create(marriageRequest);
+        } else {
+            created = createMarriageWithoutConfirmationRecord(request, parishId, partnersName);
+        }
+
+        Integer marriageId = toIntId(created.getId());
+        if (marriageId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid marriage id");
+        }
+
+        persistPartiesAndWitnesses(marriageId, request);
+
+        return findById(created.getId()).orElse(created);
+    }
+
+    private void persistPartiesAndWitnesses(Integer marriageId, CreateMarriageWithPartiesRequest request) {
+        MarriagePartyLegacy groomParty = toPartyLegacy(marriageId, "GROOM", request.getGroom());
+        MarriagePartyLegacy brideParty = toPartyLegacy(marriageId, "BRIDE", request.getBride());
+        marriagePartyLegacyRepository.save(groomParty);
+        marriagePartyLegacyRepository.save(brideParty);
+
+        if (request.getWitnesses() != null && !request.getWitnesses().isEmpty()) {
+            List<MarriageWitnessLegacy> witnessEntities = new java.util.ArrayList<>();
+            int idx = 0;
+            for (CreateMarriageWithPartiesRequest.WitnessDetails w : request.getWitnesses()) {
+                if (w == null || w.getFullName() == null || w.getFullName().isBlank()) continue;
+                Integer sortOrder = w.getSortOrder() != null ? w.getSortOrder() : idx;
+                witnessEntities.add(MarriageWitnessLegacy.builder()
+                        .marriageId(marriageId)
+                        .fullName(w.getFullName().trim())
+                        .phone(w.getPhone() != null ? w.getPhone().trim() : null)
+                        .address(w.getAddress() != null ? w.getAddress().trim() : null)
+                        .sortOrder(sortOrder)
+                        .build());
+                idx++;
+            }
+            if (!witnessEntities.isEmpty()) {
+                marriageWitnessLegacyRepository.saveAll(witnessEntities);
+            }
+        }
+    }
+
+    private MarriageResponse createMarriageWithoutConfirmationRecord(
+            CreateMarriageWithPartiesRequest request,
+            Long parishId,
+            String partnersName) {
+        CreateMarriageWithPartiesRequest.PartyDetails anchorParty;
+        Baptism baptism;
+        if (request.getGroom().getBaptismId() != null) {
+            anchorParty = request.getGroom();
+            baptism = loadBaptismForParish(anchorParty.getBaptismId(), parishId, "Groom");
+        } else if (request.getBride().getBaptismId() != null) {
+            anchorParty = request.getBride();
+            baptism = loadBaptismForParish(anchorParty.getBaptismId(), parishId, "Bride");
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "In-parish baptism ID is required on groom or bride when confirmation is not linked for this parish");
+        }
+        FirstHolyCommunion communion = resolveCommunionForAnchor(anchorParty, baptism);
+        if (marriageRepository.findByBaptismId(baptism.getId()).isPresent()) {
+            throw new IllegalArgumentException("Marriage already exists for this baptism record");
+        }
+        if (holyOrderRepository.findByBaptismId(baptism.getId()).isPresent()) {
+            throw new IllegalArgumentException("Cannot receive Marriage: person has already received Holy Order");
+        }
+        Marriage entity = Marriage.builder()
+                .baptism(baptism)
+                .firstHolyCommunion(communion)
+                .confirmation(null)
+                .partnersName(NameUtils.capitalizeNameOrEmpty(partnersName))
+                .marriageDate(request.getMarriage().getMarriageDate())
+                .marriageTime(request.getMarriage().getMarriageTime())
+                .churchName(NameUtils.capitalizeNameOrEmpty(request.getMarriage().getChurchName()))
+                .marriageRegister(request.getMarriage().getMarriageRegister())
+                .diocese(NameUtils.capitalizeNameOrEmpty(request.getMarriage().getDiocese()))
+                .civilRegistryNumber(request.getMarriage().getCivilRegistryNumber())
+                .dispensationGranted(request.getMarriage().getDispensationGranted())
+                .canonicalNotes(request.getMarriage().getCanonicalNotes())
+                .officiatingPriest(NameUtils.capitalizeNameOrEmpty(request.getMarriage().getOfficiatingPriest()))
+                .parish(NameUtils.capitalizeNameOrEmpty(request.getMarriage().getParish()))
+                .build();
+        entity = marriageRepository.save(entity);
+        return toResponse(entity);
+    }
+
+    private Baptism loadBaptismForParish(Integer baptismId, Long parishId, String partyLabel) {
+        Baptism b = baptismRepository.findById(baptismId.longValue())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, partyLabel + " baptism not found"));
+        if (!b.getParish().getId().equals(parishId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    partyLabel + " baptism is not in the selected parish");
+        }
+        return b;
+    }
+
+    private FirstHolyCommunion resolveCommunionForAnchor(
+            CreateMarriageWithPartiesRequest.PartyDetails anchorParty,
+            Baptism baptism) {
+        if (anchorParty.getCommunionId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "In-parish communion ID is required for the party used as sacramental anchor when confirmation is not linked");
+        }
+        FirstHolyCommunion c = firstHolyCommunionRepository.findById(anchorParty.getCommunionId().longValue())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Communion not found for anchor party"));
+        if (!c.getBaptism().getId().equals(baptism.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Communion does not match the anchor baptism");
+        }
+        return c;
+    }
+
+    private java.util.Optional<Long> resolveOptionalConfirmationId(CreateMarriageWithPartiesRequest request) {
+        Integer groomConfirmationId = request.getGroom().getConfirmationId();
+        if (groomConfirmationId != null) {
+            return java.util.Optional.of(groomConfirmationId.longValue());
+        }
+        Integer brideConfirmationId = request.getBride().getConfirmationId();
+        if (brideConfirmationId != null) {
+            return java.util.Optional.of(brideConfirmationId.longValue());
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * When the parish requires Confirmation, both parties must document it (parish record and/or certificate).
+     * At least one in-parish {@code confirmationId} is required so the marriage row can link to the sacramental chain.
+     */
+    private void validateBothPartiesDocumentConfirmation(CreateMarriageWithPartiesRequest request) {
+        CreateMarriageWithPartiesRequest.PartyDetails g = request.getGroom();
+        CreateMarriageWithPartiesRequest.PartyDetails b = request.getBride();
+        if (!partyDocumentsConfirmation(g) || !partyDocumentsConfirmation(b)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "When this parish requires Confirmation, both parties must document Confirmation (in-parish record or certificate).");
+        }
+        if (g.getConfirmationId() == null && b.getConfirmationId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "At least one party must have an in-parish Confirmation record linked for the marriage register.");
+        }
+    }
+
+    private static boolean partyDocumentsConfirmation(CreateMarriageWithPartiesRequest.PartyDetails p) {
+        if (p.getConfirmationId() != null) {
+            return true;
+        }
+        String path = p.getConfirmationCertificatePath();
+        return path != null && !path.isBlank();
+    }
+
+    private MarriagePartyLegacy toPartyLegacy(Integer marriageId, String role, CreateMarriageWithPartiesRequest.PartyDetails party) {
+        if (party == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Party is required");
+        }
+        return MarriagePartyLegacy.builder()
+                .marriageId(marriageId)
+                .role(role)
+                .fullName(party.getFullName().trim())
+                .dateOfBirth(party.getDateOfBirth())
+                .placeOfBirth(trimToNull(party.getPlaceOfBirth()))
+                .nationality(trimToNull(party.getNationality()))
+                .residentialAddress(trimToNull(party.getResidentialAddress()))
+                .phone(trimToNull(party.getPhone()))
+                .email(trimToNull(party.getEmail()))
+                .occupation(trimToNull(party.getOccupation()))
+                .maritalStatus(trimToNull(party.getMaritalStatus()))
+                .baptismId(party.getBaptismId())
+                .communionId(party.getCommunionId())
+                .confirmationId(party.getConfirmationId())
+                .baptismCertificatePath(trimToNull(party.getBaptismCertificatePath()))
+                .communionCertificatePath(trimToNull(party.getCommunionCertificatePath()))
+                .confirmationCertificatePath(trimToNull(party.getConfirmationCertificatePath()))
+                .baptismChurch(trimToNull(party.getBaptismChurch()))
+                .communionChurch(trimToNull(party.getCommunionChurch()))
+                .confirmationChurch(trimToNull(party.getConfirmationChurch()))
+                .build();
+    }
+
+    private String trimToNull(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        return t.isEmpty() ? null : t;
     }
 
     @Override
@@ -224,9 +476,9 @@ public class MarriageServiceImpl implements MarriageService {
 
         return MarriageResponse.builder()
                 .id(e.getId())
-                .baptismId(e.getBaptism().getId())
-                .communionId(e.getFirstHolyCommunion().getId())
-                .confirmationId(e.getConfirmation().getId())
+                .baptismId(e.getBaptism() != null ? e.getBaptism().getId() : null)
+                .communionId(e.getFirstHolyCommunion() != null ? e.getFirstHolyCommunion().getId() : null)
+                .confirmationId(e.getConfirmation() != null ? e.getConfirmation().getId() : null)
                 .partnersName(e.getPartnersName())
                 .marriageDate(e.getMarriageDate())
                 .marriageTime(e.getMarriageTime())

@@ -45,6 +45,18 @@ export async function POST(
       );
     }
   }
+  const placeOfBirth = String(body.placeOfBirth ?? '').trim();
+  const placeOfBaptism = String(body.placeOfBaptism ?? '').trim();
+  const dateOfBaptism = body.dateOfBaptism ? String(body.dateOfBaptism) : '';
+  if (!placeOfBirth) {
+    return NextResponse.json({ error: 'Place of birth is required.' }, { status: 400 });
+  }
+  if (!placeOfBaptism) {
+    return NextResponse.json({ error: 'Place of baptism is required.' }, { status: 400 });
+  }
+  if (!dateOfBaptism) {
+    return NextResponse.json({ error: 'Date of baptism is required.' }, { status: 400 });
+  }
   const baptismName = String(body.baptismName ?? '').trim();
   const otherNames = String(body.otherNames ?? '').trim();
   const surname = String(body.surname ?? '').trim();
@@ -77,6 +89,10 @@ export async function POST(
     address: body.address != null ? String(body.address) : undefined,
     parishAddress: body.parishAddress != null ? String(body.parishAddress) : undefined,
     parentAddress: body.parentAddress != null ? String(body.parentAddress) : undefined,
+    placeOfBirth,
+    placeOfBaptism,
+    dateOfBaptism,
+    liberNo: body.liberNo != null && String(body.liberNo).trim() ? String(body.liberNo).trim() : undefined,
   };
   const created = await addBaptism(record);
   return NextResponse.json(created);

@@ -15,4 +15,6 @@ public class ParishResponse {
     private String parishName;
     private Long dioceseId;
     private String description;
+    /** When true, creating a marriage requires a Confirmation record for this parish. */
+    private boolean requireMarriageConfirmation;
 }

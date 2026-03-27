@@ -3,8 +3,9 @@
  * - When authenticated: renders header with Parish Registry branding and cross, sidebar, and children
  * - When not authenticated: redirects to /login and does not render layout content
  */
-import { render, screen, within } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { render, screen, within, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useRouter, usePathname } from 'next/navigation';
 import { getStoredToken, getStoredUser } from '@/lib/api';
 import { useParish } from '@/context/ParishContext';
 import { defaultParishContext } from './test-utils';
@@ -12,6 +13,7 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -25,17 +27,37 @@ jest.mock('@/context/ParishContext', () => ({
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/dashboard');
 
 describe('AuthenticatedLayout', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
     (getStoredToken as jest.Mock).mockReturnValue('token');
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'admin',
       displayName: 'Admin',
       role: 'ADMIN',
     });
+    window.localStorage.clear();
     (useParish as jest.Mock).mockReturnValue(defaultParishContext);
+  });
+
+  it('shows the offline banner when navigator is offline', () => {
+    const originalOnLine = window.navigator.onLine;
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+
+    expect(
+      screen.getByText(/you are offline\. new submissions will be saved locally and synced automatically when you are back online\./i)
+    ).toBeInTheDocument();
+
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: originalOnLine });
   });
 
   it('renders header with Parish Registry branding when authenticated', () => {
@@ -76,13 +98,13 @@ describe('AuthenticatedLayout', () => {
     expect(screen.getByText('Dashboard content')).toBeInTheDocument();
   });
 
-  it('Dashboard link points to /dashboard', () => {
+  it('Parish Dashboard link points to /dashboard', () => {
     render(
       <AuthenticatedLayout>
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    const dashboardLink = screen.getByRole('link', { name: 'Dashboard' });
+    const dashboardLink = screen.getByRole('link', { name: 'Parish Dashboard' });
     expect(dashboardLink).toHaveAttribute('href', '/dashboard');
   });
 
@@ -169,7 +191,17 @@ describe('AuthenticatedLayout', () => {
     expect(screen.getByText('No parish assigned. Contact admin.')).toBeInTheDocument();
   });
 
-  it('SUPER_ADMIN sees User Setup link in sidebar', () => {
+  it('ADMIN sees Settings link pointing to /settings in sidebar', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const settingsLinks = screen.getAllByRole('link', { name: 'Settings' });
+    expect(settingsLinks.some((el) => el.getAttribute('href') === '/settings')).toBe(true);
+  });
+
+  it('SUPER_ADMIN sees Settings link in sidebar (User Setup moved under Settings)', () => {
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'superadmin',
       displayName: 'Super Administrator',
@@ -180,10 +212,12 @@ describe('AuthenticatedLayout', () => {
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    expect(screen.getByRole('link', { name: 'User Setup' })).toHaveAttribute('href', '/users/setup');
+    expect(screen.queryByRole('link', { name: 'User Setup' })).not.toBeInTheDocument();
+    const settingsLinks = screen.getAllByRole('link', { name: 'Settings' });
+    expect(settingsLinks.some((el) => el.getAttribute('href') === '/settings')).toBe(true);
   });
 
-  it('ADMIN does not see User Setup link', () => {
+  it('ADMIN does not see User Setup link in sidebar', () => {
     (getStoredUser as jest.Mock).mockReturnValue({
       username: 'admin',
       displayName: 'Admin',
@@ -244,5 +278,30 @@ describe('AuthenticatedLayout', () => {
     );
     expect(screen.getByText('No parish selected')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /add diocese & parish/i })).toBeInTheDocument();
+  });
+
+  it('closes mobile menu overlay when pathname changes', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard content')).toBeInTheDocument();
+    });
+    const openMenuBtn = screen.getByRole('button', { name: /open menu/i });
+    await user.click(openMenuBtn);
+    const overlay = document.querySelector('.bg-black\\/50');
+    expect(overlay).toBeInTheDocument();
+    (usePathname as jest.Mock).mockReturnValue('/baptisms');
+    rerender(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.bg-black\\/50')).not.toBeInTheDocument();
+    });
   });
 });

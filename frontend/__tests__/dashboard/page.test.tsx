@@ -4,7 +4,7 @@
  * - When authenticated, shows time-based greeting and user display name
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SWRConfig } from 'swr';
 import DashboardPage from '@/app/dashboard/page';
 
@@ -18,6 +18,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/context/ParishContext', () => ({
@@ -67,6 +68,7 @@ jest.mock('@/lib/api', () => ({
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace, push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/dashboard');
 
 const defaultParishContext = {
   parishId: 10,
@@ -471,7 +473,7 @@ describe('Dashboard page', () => {
     expect(screen.getByText(/Start by registering your first communion/)).toBeInTheDocument();
   });
 
-  it('shows Latest sacrament records with baptism full name and date', async () => {
+  it('shows latest sacramental register entries with baptism full name and date', async () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue({
       username: 'admin',
@@ -507,7 +509,7 @@ describe('Dashboard page', () => {
     render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
-      expect(screen.getByText('Latest sacrament records')).toBeInTheDocument();
+      expect(screen.getByText('Latest sacramental register entries')).toBeInTheDocument();
     });
     expect(screen.getAllByText('Alice Mary Smith').length).toBeGreaterThan(0);
     expect(screen.getAllByText('2018-03-15').length).toBeGreaterThan(0);
@@ -515,7 +517,7 @@ describe('Dashboard page', () => {
     expect(links[0]).toHaveAttribute('href', '/baptisms/42');
   });
 
-  it('shows Latest sacrament records with marriage partners name and date', async () => {
+  it('shows latest sacramental register entries with marriage partners name and date', async () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue({
       username: 'admin',
@@ -555,7 +557,7 @@ describe('Dashboard page', () => {
     expect(links[0]).toHaveAttribute('href', '/marriages/7');
   });
 
-  it('shows Latest sacrament records with communion and confirmation generic labels', async () => {
+  it('shows latest sacramental register entries with communion and confirmation generic labels', async () => {
     const api = require('@/lib/api');
     api.getStoredUser.mockReturnValue({
       username: 'admin',
@@ -619,7 +621,7 @@ describe('Dashboard page', () => {
     render(<TestWrapper><DashboardPage /></TestWrapper>);
 
     await waitFor(() => {
-      expect(screen.getByText('Latest sacrament records')).toBeInTheDocument();
+      expect(screen.getByText('Latest sacramental register entries')).toBeInTheDocument();
     });
     expect(screen.getByText('No recent records yet.')).toBeInTheDocument();
     expect(screen.getByText('No recent activity.')).toBeInTheDocument();

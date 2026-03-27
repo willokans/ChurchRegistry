@@ -68,6 +68,18 @@ public class Baptism {
     @Column(name = "external_certificate_issuing_parish", length = 255)
     private String externalCertificateIssuingParish;
 
+    @Column(name = "place_of_birth", length = 255)
+    private String placeOfBirth;
+
+    @Column(name = "place_of_baptism", length = 255)
+    private String placeOfBaptism;
+
+    @Column(name = "date_of_baptism")
+    private LocalDate dateOfBaptism;
+
+    @Column(name = "liber_no", length = 50)
+    private String liberNo;
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 

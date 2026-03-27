@@ -5,13 +5,14 @@
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import HolyOrderCreatePage from '@/app/holy-orders/new/page';
 import { getStoredToken, getStoredUser, fetchConfirmations, createHolyOrder } from '@/lib/api';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useSearchParams: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -37,6 +38,7 @@ jest.mock('@/context/ParishContext', () => ({
 
 const mockPush = jest.fn();
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+(usePathname as jest.Mock).mockReturnValue('/holy-orders/new');
 
 describe('Holy Order create page', () => {
   beforeEach(() => {
@@ -74,7 +76,7 @@ describe('Holy Order create page', () => {
     await user.type(screen.getByLabelText(/ordination date|date/i), '2025-09-01');
     await user.selectOptions(screen.getByLabelText(/order type/i), 'PRIEST');
     await user.type(screen.getByLabelText(/officiating bishop|bishop/i), 'Bishop Jones');
-    await user.click(screen.getByRole('button', { name: /save|create|submit/i }));
+    await user.click(screen.getByRole('button', { name: /save holy order/i }));
 
     await waitFor(() => {
       expect(createHolyOrder).toHaveBeenCalledWith(

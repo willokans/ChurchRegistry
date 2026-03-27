@@ -56,6 +56,14 @@ public class ConfirmationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/communions/{communionId}/confirmation")
+    public ResponseEntity<ConfirmationResponse> getByCommunionId(@PathVariable Long communionId) {
+        authorizationService.findConfirmationParishIdByCommunionId(communionId).ifPresent(authorizationService::requireParishAccess);
+        return confirmationService.findByCommunionId(communionId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/confirmations")
     public ResponseEntity<ConfirmationResponse> create(@Valid @RequestBody ConfirmationRequest request) {
         Long communionId = request.getCommunionId();

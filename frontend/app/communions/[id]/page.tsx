@@ -441,6 +441,23 @@ export default function CommunionViewPage() {
                     </>
                   )}
                 </>
+              ) : communion.baptismCertificatePending ? (
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4 flex gap-3">
+                  <InfoIcon className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-900">Awaiting baptism proof</p>
+                    <p className="mt-1 text-sm text-amber-900/90">
+                      The baptism took place in another parish; the certificate has not been uploaded yet. When it is added on the baptism record, it will appear here automatically.
+                    </p>
+                    <Link
+                      href={`/baptisms/${communion.baptismId}`}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-950 hover:bg-amber-50"
+                    >
+                      <ExpandIcon className="h-4 w-4" />
+                      View Baptism Record
+                    </Link>
+                  </div>
+                </div>
               ) : (
                 <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                   <p className="text-sm text-gray-700">

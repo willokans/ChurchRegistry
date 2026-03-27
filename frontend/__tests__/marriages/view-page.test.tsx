@@ -4,7 +4,7 @@
  * - When not found, shows not-found message
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import MarriageViewPage from '@/app/marriages/[id]/page';
 import {
   getStoredToken,
@@ -23,6 +23,7 @@ import {
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -54,6 +55,7 @@ jest.mock('@/context/ParishContext', () => ({
 }));
 
 (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+(usePathname as jest.Mock).mockReturnValue('/marriages');
 
 describe('Marriage view page', () => {
   beforeEach(() => {

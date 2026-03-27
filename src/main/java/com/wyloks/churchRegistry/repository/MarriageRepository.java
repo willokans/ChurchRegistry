@@ -16,6 +16,8 @@ public interface MarriageRepository extends JpaRepository<Marriage, Long> {
 
     Optional<Marriage> findByConfirmationId(Long confirmationId);
 
+    Optional<Marriage> findByBaptismId(Long baptismId);
+
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation"})
     List<Marriage> findByBaptismParishId(Long parishId);
 

@@ -29,6 +29,15 @@ public class Parish {
     @Column(name = "description", length = 1000)
     private String description;
 
+    /**
+     * Baptism and Holy Communion are always required for both parties; when true, Confirmation is also required
+     * for both. At least one in-parish Confirmation id is needed to link the marriage register row.
+     * Only ADMIN/SUPER_ADMIN may change this flag (see parish marriage-requirements API).
+     */
+    @Column(name = "require_marriage_confirmation", nullable = false)
+    @Builder.Default
+    private boolean requireMarriageConfirmation = true;
+
     @OneToMany(mappedBy = "parish", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Priest> priests = new ArrayList<>();

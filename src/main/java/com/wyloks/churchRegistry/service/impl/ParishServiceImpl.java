@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.service.impl;
 
 import com.wyloks.churchRegistry.config.CacheConfig;
+import com.wyloks.churchRegistry.dto.ParishMarriageRequirementsResponse;
 import com.wyloks.churchRegistry.dto.ParishRequest;
 import com.wyloks.churchRegistry.dto.ParishResponse;
 import com.wyloks.churchRegistry.entity.Diocese;
@@ -64,9 +65,42 @@ public class ParishServiceImpl implements ParishService {
                 .parishName(parishName)
                 .diocese(diocese)
                 .description(request.getDescription())
+                .requireMarriageConfirmation(true)
                 .build();
         entity = parishRepository.save(entity);
         return toResponse(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ParishMarriageRequirementsResponse> getMarriageRequirements(Long parishId) {
+        return parishRepository.findById(parishId)
+                .map(p -> ParishMarriageRequirementsResponse.builder()
+                        .parishId(p.getId())
+                        .requireMarriageConfirmation(p.isRequireMarriageConfirmation())
+                        .build());
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DIOCESES_WITH_PARISHES, CacheConfig.CACHE_PARISHES_BY_DIOCESE}, allEntries = true)
+    public ParishMarriageRequirementsResponse updateMarriageRequirements(Long parishId, boolean requireMarriageConfirmation) {
+        Parish p = parishRepository.findById(parishId)
+                .orElseThrow(() -> new IllegalArgumentException("Parish not found: " + parishId));
+        p.setRequireMarriageConfirmation(requireMarriageConfirmation);
+        parishRepository.save(p);
+        return ParishMarriageRequirementsResponse.builder()
+                .parishId(parishId)
+                .requireMarriageConfirmation(requireMarriageConfirmation)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isMarriageConfirmationRequired(Long parishId) {
+        return parishRepository.findById(parishId)
+                .map(Parish::isRequireMarriageConfirmation)
+                .orElse(true);
     }
 
     private ParishResponse toResponse(Parish e) {
@@ -75,6 +109,7 @@ public class ParishServiceImpl implements ParishService {
                 .parishName(e.getParishName())
                 .dioceseId(e.getDiocese().getId())
                 .description(e.getDescription())
+                .requireMarriageConfirmation(e.isRequireMarriageConfirmation())
                 .build();
     }
 }

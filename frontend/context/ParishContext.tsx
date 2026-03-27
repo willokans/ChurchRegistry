@@ -18,6 +18,12 @@ import {
   type DioceseWithParishesResponse,
   type ParishResponse,
 } from '@/lib/api';
+import { getIsOnline } from '@/lib/offline/network';
+import {
+  loadCachedDioceseWithParishes,
+  loadCachedDioceseWithParishesByParishId,
+  saveCachedDioceseWithParishes,
+} from '@/lib/offline/referenceCache';
 
 type ParishContextValue = {
   parishId: number | null;
@@ -94,14 +100,32 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
           ? flatParishes.filter((p) => p.dioceseId === validDiocese)
           : flatParishes;
         const stored = getStoredParishId();
+        let selectedParishId: number | null = null;
         if (stored !== null && parishesForSelection.some((p) => p.id === stored)) {
+          selectedParishId = stored;
           setParishIdState(stored);
         } else if (parishesForSelection.length > 0) {
           const first = parishesForSelection[0].id;
+          selectedParishId = first;
           setParishIdState(first);
           setStoredParishId(first);
         } else {
           setParishIdState(null);
+        }
+
+        // Persist only the active diocese/parishes for offline reference (small, TTL-capped).
+        const activeDioceseForCache =
+          validDiocese ??
+          (selectedParishId != null ? flatParishes.find((p) => p.id === selectedParishId)?.dioceseId : null);
+        if (activeDioceseForCache != null) {
+          const dioceseEntry = fetchedDioceses.find((d) => d.id === activeDioceseForCache);
+          const dioceseName = dioceseEntry?.dioceseName ?? '';
+          const parishesToCache = flatParishes.filter((p) => p.dioceseId === activeDioceseForCache).map((p) => ({
+            id: p.id,
+            parishName: p.parishName,
+            dioceseId: p.dioceseId,
+          }));
+          saveCachedDioceseWithParishes(activeDioceseForCache, dioceseName, parishesToCache);
         }
       } catch (e) {
         if (!cancelled) {
@@ -115,6 +139,52 @@ export function ParishProvider({ children }: { children: React.ReactNode }) {
             setError('Session expired. Please sign in again.');
             return;
           }
+
+          // Offline fallback: only load the active parish/diocese cached references.
+          if (!getIsOnline()) {
+            const storedDiocese = getStoredDioceseId();
+            const storedParish = getStoredParishId();
+
+            const cached =
+              storedDiocese != null
+                ? loadCachedDioceseWithParishes(storedDiocese)
+                : null;
+            const cachedByParish =
+              !cached && storedParish != null ? loadCachedDioceseWithParishesByParishId(storedParish) : null;
+            const entry = cached ?? cachedByParish;
+
+            if (entry && entry.parishes.length > 0) {
+              const cachedParishes: ParishResponse[] = entry.parishes.map((p) => ({
+                id: p.id,
+                parishName: p.parishName,
+                dioceseId: p.dioceseId,
+              }));
+
+              const cachedDioceses: DioceseWithParishesResponse[] = [
+                {
+                  id: entry.dioceseId,
+                  dioceseName: entry.dioceseName,
+                  parishes: cachedParishes,
+                },
+              ];
+
+              setDioceses(cachedDioceses);
+              setAllParishes(cachedParishes);
+              setDioceseIdState(entry.dioceseId);
+              const nextParishId =
+                storedParish != null && entry.parishes.some((p) => p.id === storedParish)
+                  ? storedParish
+                  : entry.parishes[0]?.id ?? null;
+
+              if (nextParishId != null) setStoredParishId(nextParishId);
+              setParishIdState(nextParishId);
+              // Keep diocese selection consistent for future loads.
+              setStoredDioceseId(entry.dioceseId);
+              setError(null);
+              return;
+            }
+          }
+
           setError(message);
         }
       } finally {

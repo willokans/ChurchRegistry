@@ -3,6 +3,8 @@
 import React from 'react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import type { BaptismResponse, FirstHolyCommunionResponse, ConfirmationRequest } from '@/lib/api';
+import type { OfflineDraftRecord } from '@/lib/offline/drafts';
+import type { OfflineQueueItemStatus } from '@/lib/offline/queue';
 import ConfirmationCreateFormContent from './ConfirmationCreateFormContent';
 
 export interface ExternalBaptismState {
@@ -31,12 +33,12 @@ export interface ConfirmationCreateFormProps {
   baptismSource: 'this_parish' | 'external';
   baptisms: BaptismResponse[];
   setBaptismSource: React.Dispatch<React.SetStateAction<'this_parish' | 'external'>>;
-  setCertificateFile: React.Dispatch<React.SetStateAction<File | null>>;
+  setCertificateFile: (file: File | null) => void;
   setExternalBaptism: React.Dispatch<React.SetStateAction<ExternalBaptismState>>;
   setSelectedBaptismId: React.Dispatch<React.SetStateAction<number>>;
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   setCommunionSource: React.Dispatch<React.SetStateAction<'this_church' | 'other_church'>>;
-  setCommunionCertificateFile: React.Dispatch<React.SetStateAction<File | null>>;
+  setCommunionCertificateFile: (file: File | null) => void;
   selectedBaptism: BaptismResponse | null | undefined;
   fullNameBaptism: (b: BaptismResponse) => string;
   formatBaptismDate: (s: string) => string;
@@ -71,6 +73,18 @@ export interface ConfirmationCreateFormProps {
   selectedCommunionId: number;
   setSelectedCommunionId: React.Dispatch<React.SetStateAction<number>>;
   selectedCommunion: FirstHolyCommunionResponse | null;
+  draftRecord: OfflineDraftRecord<unknown> | null;
+  draftStatus: string | null;
+  handleSaveDraft: () => Promise<void>;
+  handleResumeDraft: () => void;
+  handleDiscardDraft: () => Promise<void>;
+  certificateFileNameFromDraft: string | null;
+  communionCertificateFileNameFromDraft: string | null;
+  certificateAttachmentWarning?: string | null;
+  communionAttachmentWarning?: string | null;
+  offlineQueueItemStatus?: OfflineQueueItemStatus;
+  offlineQueueItemError?: string;
+  onOfflineQueueRetry?: () => void;
 }
 
 export default function ConfirmationCreateForm(props: ConfirmationCreateFormProps) {
@@ -121,6 +135,15 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
     selectedCommunionId,
     setSelectedCommunionId,
     selectedCommunion,
+    draftRecord,
+    draftStatus,
+    handleSaveDraft,
+    handleResumeDraft,
+    handleDiscardDraft,
+    certificateFileNameFromDraft,
+    communionCertificateFileNameFromDraft,
+    certificateAttachmentWarning,
+    communionAttachmentWarning,
   } = props;
 
   return React.createElement(
@@ -173,6 +196,18 @@ export default function ConfirmationCreateForm(props: ConfirmationCreateFormProp
       selectedCommunionId,
       setSelectedCommunionId,
       selectedCommunion,
+      draftRecord,
+      draftStatus,
+      handleSaveDraft,
+      handleResumeDraft,
+      handleDiscardDraft,
+      certificateFileNameFromDraft,
+      communionCertificateFileNameFromDraft,
+      certificateAttachmentWarning,
+      communionAttachmentWarning,
+      offlineQueueItemStatus: props.offlineQueueItemStatus,
+      offlineQueueItemError: props.offlineQueueItemError,
+      onOfflineQueueRetry: props.onOfflineQueueRetry,
     })
   );
 }

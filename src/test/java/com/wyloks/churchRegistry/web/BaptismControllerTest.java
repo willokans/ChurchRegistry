@@ -111,6 +111,9 @@ class BaptismControllerTest {
                 .mothersName("Mary Doe")
                 .sponsorNames("Peter, Paul")
                 .parishId(1L)
+                .placeOfBirth("Lagos General Hospital")
+                .placeOfBaptism("St Mary Church")
+                .dateOfBaptism(LocalDate.of(2020, 2, 20))
                 .build();
         BaptismResponse response = BaptismResponse.builder()
                 .id(1L)

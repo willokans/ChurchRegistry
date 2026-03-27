@@ -1,5 +1,6 @@
 package com.wyloks.churchRegistry.service;
 
+import com.wyloks.churchRegistry.dto.ParishMarriageRequirementsResponse;
 import com.wyloks.churchRegistry.dto.ParishRequest;
 import com.wyloks.churchRegistry.dto.ParishResponse;
 
@@ -13,4 +14,10 @@ public interface ParishService {
     Optional<ParishResponse> findById(Long id);
 
     ParishResponse create(ParishRequest request);
+
+    Optional<ParishMarriageRequirementsResponse> getMarriageRequirements(Long parishId);
+
+    ParishMarriageRequirementsResponse updateMarriageRequirements(Long parishId, boolean requireMarriageConfirmation);
+
+    boolean isMarriageConfirmationRequired(Long parishId);
 }

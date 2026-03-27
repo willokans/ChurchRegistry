@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import {
@@ -87,7 +88,10 @@ export default function UsersPage() {
 
   return (
     <AuthenticatedLayout>
-      <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">
+      <Link href="/settings" prefetch={false} className="text-sm font-medium text-sancta-maroon hover:underline">
+        ← Settings
+      </Link>
+      <h1 className="mt-3 text-2xl font-serif font-semibold text-sancta-maroon">
         User Parish Access
       </h1>
       <p className="mt-2 text-gray-600">

@@ -10,9 +10,18 @@ import {
   fetchBaptisms,
   createCommunion,
   createCommunionWithCertificate,
+  getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionRequest,
 } from '@/lib/api';
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
+import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import OfflineQueueItemStatus from '@/components/offline/OfflineQueueItemStatus';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 function fullName(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -37,8 +46,20 @@ export default function CommunionCreateContent() {
   const [loadingBaptisms, setLoadingBaptisms] = useState(!!effectiveParishId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
+    fileRefId?: string;
+    name: string;
+    size: number;
+    type?: string;
+    storedBlob: boolean;
+    deferredReason?: string;
+  } | null>(null);
+  const [certificateAttachmentWarning, setCertificateAttachmentWarning] = useState<string | null>(null);
+
+  const certificatePersistTaskRef = useRef<Promise<void> | null>(null);
   const [externalBaptism, setExternalBaptism] = useState({
     baptismName: '',
     surname: '',
@@ -57,6 +78,53 @@ export default function CommunionCreateContent() {
     officiatingPriest: '',
     parish: '',
     remarks: '',
+  });
+
+  const storedUser = getStoredUser();
+  const draftId =
+    effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
+      ? `communion_create:${effectiveParishId}:${storedUser.username}`
+      : null;
+
+  const { isOnline } = useNetworkStatus();
+  const queuedItem = useOfflineQueueItem(queuedItemId);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/communions');
+  }, [queuedItem, draftId, router]);
+
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<CommunionDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  type CommunionDraftPayload = {
+    baptismSource: 'this_parish' | 'external';
+    form: typeof form;
+    externalBaptism: typeof externalBaptism;
+    certificateAttachment: {
+      fileRefId?: string;
+      name: string;
+      size: number;
+      type?: string;
+      storedBlob: boolean;
+      deferredReason?: string;
+    } | null;
+    // Legacy (pre-fileRefId) fields (optional) for older drafts.
+    certificateFileMeta?: { name: string; size: number; type?: string } | null;
+  };
+
+  useDebouncedDraftAutosave<CommunionDraftPayload>({
+    draftId,
+    formType: 'communion_create',
+    payload: {
+      baptismSource,
+      form,
+      externalBaptism,
+      certificateAttachment: certificateFileMetaFromDraft,
+    },
+    enabled: false,
   });
 
   useEffect(() => {
@@ -107,6 +175,24 @@ export default function CommunionCreateContent() {
     if (!inFiltered) setForm((f) => ({ ...f, baptismId: 0 }));
   }, [searchQuery, filteredBaptisms, form.baptismId, baptisms]);
 
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<CommunionDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
   const selectedBaptism = form.baptismId
     ? baptisms.find((b) => b.id === form.baptismId)
     : null;
@@ -123,31 +209,105 @@ export default function CommunionCreateContent() {
     );
   }
 
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      if (certificatePersistTaskRef.current) {
+        try {
+          await certificatePersistTaskRef.current;
+        } catch {
+          // Certificate blob persist can fail or reject; still save the form draft with current fields.
+        }
+      }
+      const payload: CommunionDraftPayload = {
+        baptismSource,
+        form,
+        externalBaptism,
+        certificateAttachment: certificateFileMetaFromDraft,
+      };
+      await saveDraft<CommunionDraftPayload>(draftId, 'communion_create', payload);
+      const loaded = await loadDraft<CommunionDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    void (async () => {
+      setBaptismSource(draftRecord.payload.baptismSource);
+      setForm(draftRecord.payload.form);
+      setExternalBaptism(draftRecord.payload.externalBaptism);
+
+      certificatePersistTaskRef.current = null;
+      setCertificateFile(null);
+
+      const legacyMeta = draftRecord.payload.certificateFileMeta;
+      const attachment =
+        draftRecord.payload.certificateAttachment ??
+        (legacyMeta
+          ? {
+              name: legacyMeta.name,
+              size: legacyMeta.size,
+              type: legacyMeta.type,
+              storedBlob: false as const,
+            }
+          : null);
+      setCertificateFileMetaFromDraft(attachment);
+      setCertificateAttachmentWarning(
+        attachment ? (attachment.storedBlob ? null : attachment.deferredReason ?? 'Certificate was not stored offline. Please re-upload when online.') : null
+      );
+
+      if (attachment?.storedBlob && attachment.fileRefId) {
+        const blob = await loadOfflineBlob(attachment.fileRefId);
+        if (blob) {
+          setCertificateFile(new File([blob], attachment.name, { type: attachment.type ?? blob.type }));
+        }
+      }
+
+      setDraftStatus('Draft loaded from this device.');
+    })();
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setCertificateFile(null);
+      setCertificateFileMetaFromDraft(null);
+      setCertificateAttachmentWarning(null);
+      certificatePersistTaskRef.current = null;
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (certificatePersistTaskRef.current) {
+      try {
+        await certificatePersistTaskRef.current;
+      } catch {
+        // ignore: we'll surface the user-facing error via enqueue/replay status
+      }
+    }
     if (baptismSource === 'this_parish' && form.baptismId <= 0) {
       setError('Select a baptism record.');
       return;
     }
     if (baptismSource === 'external') {
-      if (!certificateFile || certificateFile.size === 0) {
-        setError('Upload a baptism certificate when selecting Baptism from another Parish.');
-        return;
-      }
       if (!externalBaptism.baptismName.trim()) {
         setError('Baptism name is required for Baptism from another Parish.');
         return;
       }
       if (!externalBaptism.surname.trim()) {
         setError('Surname is required for Baptism from another Parish.');
-        return;
-      }
-      if (!externalBaptism.fathersName.trim()) {
-        setError("Father's name is required.");
-        return;
-      }
-      if (!externalBaptism.mothersName.trim()) {
-        setError("Mother's name is required.");
         return;
       }
       if (effectiveParishId === null || Number.isNaN(effectiveParishId)) {
@@ -158,25 +318,104 @@ export default function CommunionCreateContent() {
     setError(null);
     setSubmitting(true);
     try {
-      if (baptismSource === 'external' && certificateFile) {
-        await createCommunionWithCertificate(
-          effectiveParishId!,
+      if (!isOnline) {
+        if (baptismSource === 'external') {
+          const attachmentRef = certificateFileMetaFromDraft;
+          const payloadBase = {
+            baptismSource: 'external' as const,
+            effectiveParishId,
+            communionRequest: {
+              communionDate: form.communionDate,
+              officiatingPriest: form.officiatingPriest,
+              parish: form.parish,
+            },
+            externalBaptism: {
+              baptismName: externalBaptism.baptismName.trim(),
+              surname: externalBaptism.surname.trim(),
+              otherNames: externalBaptism.otherNames.trim(),
+              gender: externalBaptism.gender,
+              fathersName: externalBaptism.fathersName.trim(),
+              mothersName: externalBaptism.mothersName.trim(),
+              baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+            },
+          };
+          const payload =
+            attachmentRef?.fileRefId != null
+              ? {
+                  ...payloadBase,
+                  certificateAttachment: {
+                    fileRefId: attachmentRef.fileRefId,
+                    name: attachmentRef.name,
+                    mimeType: attachmentRef.type,
+                    size: attachmentRef.size,
+                  },
+                }
+              : payloadBase;
+
+          const itemId = await enqueueOfflineSubmission(
+            { kind: 'communion_create', payload },
+            { draftId: draftId ?? undefined }
+          );
+
+          setQueuedItemId(itemId);
+          return;
+        }
+
+        const itemId = await enqueueOfflineSubmission(
           {
-            communionDate: form.communionDate,
-            officiatingPriest: form.officiatingPriest,
-            parish: form.parish,
+            kind: 'communion_create',
+            payload: {
+              baptismSource: 'this_parish',
+              baptismId: form.baptismId,
+              communionRequest: {
+                communionDate: form.communionDate,
+                officiatingPriest: form.officiatingPriest,
+                parish: form.parish,
+              },
+            },
           },
-          certificateFile,
-          {
-            baptismName: externalBaptism.baptismName.trim(),
-            surname: externalBaptism.surname.trim(),
-            otherNames: externalBaptism.otherNames.trim(),
-            gender: externalBaptism.gender,
-            fathersName: externalBaptism.fathersName.trim(),
-            mothersName: externalBaptism.mothersName.trim(),
-            baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
-          }
+          { draftId: draftId ?? undefined }
         );
+
+        setQueuedItemId(itemId);
+        return;
+      }
+
+      if (baptismSource === 'external') {
+        const externalPayload = {
+          baptismName: externalBaptism.baptismName.trim(),
+          surname: externalBaptism.surname.trim(),
+          otherNames: externalBaptism.otherNames.trim(),
+          gender: externalBaptism.gender,
+          fathersName: externalBaptism.fathersName.trim(),
+          mothersName: externalBaptism.mothersName.trim(),
+          baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+        };
+        const communionFields = {
+          communionDate: form.communionDate,
+          officiatingPriest: form.officiatingPriest,
+          parish: form.parish,
+        };
+        if (certificateFile && certificateFile.size > 0) {
+          await createCommunionWithCertificate(
+            effectiveParishId!,
+            communionFields,
+            certificateFile,
+            externalPayload
+          );
+        } else {
+          const { createCommunionWithExternalBaptismPendingProof } = await import('@/lib/api');
+          if (typeof createCommunionWithExternalBaptismPendingProof !== 'function') {
+            throw new Error(
+              'Saving communion without a baptism certificate is not available in this build. Try a hard refresh; if it persists, redeploy the frontend.'
+            );
+          }
+          await createCommunionWithExternalBaptismPendingProof(
+            effectiveParishId!,
+            communionFields,
+            externalPayload
+          );
+        }
       } else {
         await createCommunion({
           baptismId: form.baptismId,
@@ -222,6 +461,31 @@ export default function CommunionCreateContent() {
           <p className="mt-1 text-gray-600">Register a parishioner&apos;s first Holy Communion.</p>
         </div>
 
+        {draftRecord && (
+          <div className="mt-6 max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <p className="text-sm font-medium">
+              Draft saved locally{draftRecord.updatedAt ? ` (${new Date(draftRecord.updatedAt).toLocaleString()})` : ''}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleResumeDraft}
+                className="rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+              >
+                Resume draft
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50"
+              >
+                Discard
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-amber-800">Offline drafts are stored on this device until they are submitted successfully.</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column: Select Baptism + Communion Details */}
             <div className="lg:col-span-2 space-y-6">
@@ -237,6 +501,9 @@ export default function CommunionCreateContent() {
                       onChange={() => {
                         setBaptismSource('this_parish');
                         setCertificateFile(null);
+                        setCertificateFileMetaFromDraft(null);
+                        setCertificateAttachmentWarning(null);
+                        certificatePersistTaskRef.current = null;
                         setExternalBaptism({ baptismName: '', surname: '', otherNames: '', gender: 'MALE', fathersName: '', mothersName: '', baptisedChurchAddress: '' });
                       }}
                       className="mt-1 text-sancta-maroon focus:ring-sancta-maroon"
@@ -256,7 +523,9 @@ export default function CommunionCreateContent() {
                     />
                     <span>
                       <span className="font-medium text-gray-900">Baptism from another Parish</span>
-                      <span className="block text-sm text-gray-500">Select if baptized elsewhere (upload certificate)</span>
+                      <span className="block text-sm text-gray-500">
+                        Select if baptized elsewhere. Upload a certificate if you already have it, or add proof later once you receive it from the parish of baptism.
+                      </span>
                     </span>
                   </label>
                 </div>
@@ -365,7 +634,12 @@ export default function CommunionCreateContent() {
                 {baptismSource === 'external' && (
                   <>
                     <div className="mt-4 space-y-4">
-                      <p className="text-sm text-gray-600">Enter details from the baptism certificate (from the other parish).</p>
+                      <p className="text-sm text-gray-600">
+                        Enter what you have: <span className="font-medium text-gray-800">baptism name</span> and{' '}
+                        <span className="font-medium text-gray-800">surname</span> are required to register. Father&apos;s name,
+                        mother&apos;s name, and uploading the baptism certificate are optional—you can add them when you have them
+                        from the parish of baptism.
+                      </p>
                       <div>
                         <label htmlFor="external-baptismName" className="block text-sm font-medium text-gray-700">
                           Baptism Name <span className="text-red-500">*</span>
@@ -396,7 +670,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-otherNames" className="block text-sm font-medium text-gray-700">
-                          Other Names <span className="text-gray-500">(Optional)</span>
+                          Other Names
                         </label>
                         <input
                           id="external-otherNames"
@@ -425,7 +699,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-fathersName" className="block text-sm font-medium text-gray-700">
-                          Father&apos;s Name <span className="text-red-500">*</span>
+                          Father&apos;s Name <span className="text-gray-500">(Optional)</span>
                         </label>
                         <input
                           id="external-fathersName"
@@ -439,7 +713,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-mothersName" className="block text-sm font-medium text-gray-700">
-                          Mother&apos;s Name <span className="text-red-500">*</span>
+                          Mother&apos;s Name <span className="text-gray-500">(Optional)</span>
                         </label>
                         <input
                           id="external-mothersName"
@@ -453,7 +727,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-baptisedChurchAddress" className="block text-sm font-medium text-gray-700">
-                          Baptised Church Address <span className="text-gray-500">(Optional)</span>
+                          Baptised Church Address
                         </label>
                         <textarea
                           id="external-baptisedChurchAddress"
@@ -468,9 +742,11 @@ export default function CommunionCreateContent() {
                     </div>
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700">
-                        Upload Baptism Certificate <span className="text-red-500">(Required)</span>
+                        Upload Baptism Certificate
                       </label>
-                      <p className="mt-1 text-xs text-gray-500">Select if baptized in another parish</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Upload if you have it now; otherwise you can add proof later from the baptism record.
+                      </p>
                       <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-4 py-3">
                         <span className="text-gray-400" aria-hidden>
                           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -478,18 +754,55 @@ export default function CommunionCreateContent() {
                           </svg>
                         </span>
                         <span className="text-sm text-gray-500">
-                          {certificateFile ? certificateFile.name : 'No file chosen'}
+                          {certificateFile ? certificateFile.name : certificateFileMetaFromDraft?.name ?? 'No file chosen'}
                         </span>
                         <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                          {certificateFile ? 'Change file' : 'Browse Files'}
+                          {certificateFile || certificateFileMetaFromDraft ? 'Change file' : 'Browse Files'}
                           <input
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
                             className="sr-only"
-                            onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              certificatePersistTaskRef.current = null;
+                              setCertificateAttachmentWarning(null);
+                              const existingFileRefId = certificateFileMetaFromDraft?.fileRefId;
+                              setCertificateFileMetaFromDraft(null);
+                              setCertificateFile(file);
+
+                              if (!file) return;
+                              certificatePersistTaskRef.current = persistOfflineAttachmentWithGuardrails(file, {
+                                fileRefId: existingFileRefId,
+                                maxBytesPerFile: 2 * 1024 * 1024,
+                                maxTotalBytes: 25 * 1024 * 1024,
+                              })
+                                .then((res) => {
+                                  setCertificateFileMetaFromDraft({
+                                    fileRefId: res.fileRefId,
+                                    name: file.name,
+                                    size: file.size,
+                                    type: res.mimeType,
+                                    storedBlob: res.storedBlob,
+                                    deferredReason: res.deferredReason,
+                                  });
+                                  setCertificateAttachmentWarning(
+                                    res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.'
+                                  );
+                                })
+                                .catch(() => {
+                                  setCertificateAttachmentWarning(
+                                    'Could not store this file locally. You can still save your draft; try the file again when online.'
+                                  );
+                                });
+                            }}
                           />
                         </label>
                       </div>
+                      {certificateAttachmentWarning && (
+                        <p role="status" className="mt-2 text-xs text-amber-800">
+                          {certificateAttachmentWarning}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -644,6 +957,15 @@ export default function CommunionCreateContent() {
                     {error}
                   </p>
                 )}
+                {draftStatus && <p className="text-xs text-gray-600">{draftStatus}</p>}
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
                 <button
                   type="submit"
                   disabled={
@@ -652,14 +974,9 @@ export default function CommunionCreateContent() {
                     !form.officiatingPriest.trim() ||
                     !form.parish.trim() ||
                     (baptismSource === 'this_parish' && form.baptismId <= 0) ||
-                    (baptismSource === 'external' && (
-                      !certificateFile ||
-                      certificateFile.size === 0 ||
-                      !externalBaptism.baptismName.trim() ||
-                      !externalBaptism.surname.trim() ||
-                      !externalBaptism.fathersName.trim() ||
-                      !externalBaptism.mothersName.trim()
-                    ))
+                    (baptismSource === 'external' &&
+                      (!externalBaptism.baptismName.trim() ||
+                        !externalBaptism.surname.trim()))
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
                 >
@@ -674,6 +991,15 @@ export default function CommunionCreateContent() {
                     </>
                   )}
                 </button>
+                {queuedItem ? (
+                  <OfflineQueueItemStatus
+                    status={queuedItem.status}
+                    error={queuedItem.lastError}
+                    onRetry={
+                      queuedItem.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined
+                    }
+                  />
+                ) : null}
                 <Link
                   href="/communions"
                   className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50"

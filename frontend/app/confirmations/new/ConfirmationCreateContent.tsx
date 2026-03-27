@@ -12,10 +12,19 @@ import {
   createBaptismWithCertificate,
   createCommunion,
   createCommunionWithCommunionCertificate,
+  getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
   type ConfirmationRequest,
 } from '@/lib/api';
+
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
+import { loadOfflineBlob, persistOfflineAttachmentWithGuardrails } from '@/lib/offline/files';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 import ConfirmationCreateForm from './ConfirmationCreateForm';
 
@@ -59,7 +68,29 @@ export default function ConfirmationCreateContent() {
   const [baptismSource, setBaptismSource] = useState<'this_parish' | 'external'>('this_parish');
   const [communionSource, setCommunionSource] = useState<'this_church' | 'other_church'>('this_church');
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateFileMetaFromDraft, setCertificateFileMetaFromDraft] = useState<{
+    fileRefId?: string;
+    name: string;
+    size: number;
+    type?: string;
+    storedBlob: boolean;
+    deferredReason?: string;
+  } | null>(null);
   const [communionCertificateFile, setCommunionCertificateFile] = useState<File | null>(null);
+  const [communionCertificateFileMetaFromDraft, setCommunionCertificateFileMetaFromDraft] = useState<{
+    fileRefId?: string;
+    name: string;
+    size: number;
+    type?: string;
+    storedBlob: boolean;
+    deferredReason?: string;
+  } | null>(null);
+  const [certificateAttachmentWarning, setCertificateAttachmentWarning] = useState<string | null>(null);
+  const [communionAttachmentWarning, setCommunionAttachmentWarning] = useState<string | null>(null);
+
+  // Ensure Save Draft uses the final attachment guardrails decision.
+  const certificatePersistTaskRef = useRef<Promise<void> | null>(null);
+  const communionPersistTaskRef = useRef<Promise<void> | null>(null);
   const [externalBaptism, setExternalBaptism] = useState({
     baptismName: '',
     surname: '',
@@ -93,6 +124,72 @@ export default function ConfirmationCreateContent() {
     parish: '',
   });
 
+  const storedUser = getStoredUser();
+  const draftId =
+    effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
+      ? `confirmation_create:${effectiveParishId}:${storedUser.username}`
+      : null;
+
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<ConfirmationDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  const { isOnline } = useNetworkStatus();
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
+  const queuedItem = useOfflineQueueItem(queuedItemId);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/confirmations');
+  }, [queuedItem, draftId, router]);
+
+  type ConfirmationDraftPayload = {
+    baptismSource: 'this_parish' | 'external';
+    communionSource: 'this_church' | 'other_church';
+    selectedBaptismId: number;
+    selectedCommunionId: number;
+    externalBaptism: typeof externalBaptism;
+    externalCommunion: typeof externalCommunion;
+    form: typeof form;
+    certificateAttachment: {
+      fileRefId?: string;
+      name: string;
+      size: number;
+      type?: string;
+      storedBlob: boolean;
+      deferredReason?: string;
+    } | null;
+    communionCertificateAttachment: {
+      fileRefId?: string;
+      name: string;
+      size: number;
+      type?: string;
+      storedBlob: boolean;
+      deferredReason?: string;
+    } | null;
+    // Legacy (pre-fileRefId) fields (optional) for older drafts.
+    certificateFileMeta?: { name: string; size: number; type?: string } | null;
+    communionCertificateFileMeta?: { name: string; size: number; type?: string } | null;
+  };
+
+  useDebouncedDraftAutosave<ConfirmationDraftPayload>({
+    draftId,
+    formType: 'confirmation_create',
+    payload: {
+      baptismSource,
+      communionSource,
+      selectedBaptismId,
+      selectedCommunionId,
+      externalBaptism,
+      externalCommunion,
+      form,
+      certificateAttachment: certificateFileMetaFromDraft,
+      communionCertificateAttachment: communionCertificateFileMetaFromDraft,
+    },
+    enabled: false,
+  });
+
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;
     let cancelled = false;
@@ -120,6 +217,24 @@ export default function ConfirmationCreateContent() {
       });
     return () => { cancelled = true; };
   }, [effectiveParishId, parishes]);
+
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<ConfirmationDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
 
   const filteredBaptisms = useMemo(() => {
     if (!searchQuery.trim()) return baptisms;
@@ -194,9 +309,194 @@ export default function ConfirmationCreateContent() {
     );
   }
 
+  const setCertificateFileWithDraftClear = (value: File | null) => {
+    const existingFileRefId = certificateFileMetaFromDraft?.fileRefId;
+    certificatePersistTaskRef.current = null;
+    setCertificateAttachmentWarning(null);
+    setCertificateFileMetaFromDraft(null);
+    setCertificateFile(value);
+
+    if (!value) return;
+    certificatePersistTaskRef.current = (async () => {
+      const res = await persistOfflineAttachmentWithGuardrails(value, {
+        fileRefId: existingFileRefId,
+        maxBytesPerFile: 2 * 1024 * 1024,
+        maxTotalBytes: 25 * 1024 * 1024,
+      });
+
+      setCertificateFileMetaFromDraft({
+        fileRefId: res.fileRefId,
+        name: value.name,
+        size: value.size,
+        type: res.mimeType,
+        storedBlob: res.storedBlob,
+        deferredReason: res.deferredReason,
+      });
+      setCertificateAttachmentWarning(res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.');
+    })().catch(() => {
+      setCertificateFileMetaFromDraft({
+        fileRefId: existingFileRefId,
+        name: value.name,
+        size: value.size,
+        storedBlob: false,
+        deferredReason: 'Failed to store certificate offline. It may need to be re-uploaded.',
+      });
+      setCertificateAttachmentWarning('Failed to store certificate offline. It may need to be re-uploaded.');
+    });
+  };
+
+  const setCommunionCertificateFileWithDraftClear = (value: File | null) => {
+    const existingFileRefId = communionCertificateFileMetaFromDraft?.fileRefId;
+    communionPersistTaskRef.current = null;
+    setCommunionAttachmentWarning(null);
+    setCommunionCertificateFileMetaFromDraft(null);
+    setCommunionCertificateFile(value);
+
+    if (!value) return;
+    communionPersistTaskRef.current = (async () => {
+      const res = await persistOfflineAttachmentWithGuardrails(value, {
+        fileRefId: existingFileRefId,
+        maxBytesPerFile: 2 * 1024 * 1024,
+        maxTotalBytes: 25 * 1024 * 1024,
+      });
+
+      setCommunionCertificateFileMetaFromDraft({
+        fileRefId: res.fileRefId,
+        name: value.name,
+        size: value.size,
+        type: res.mimeType,
+        storedBlob: res.storedBlob,
+        deferredReason: res.deferredReason,
+      });
+      setCommunionAttachmentWarning(res.storedBlob ? null : res.deferredReason ?? 'Some files will upload when online.');
+    })().catch(() => {
+      setCommunionCertificateFileMetaFromDraft({
+        fileRefId: existingFileRefId,
+        name: value.name,
+        size: value.size,
+        storedBlob: false,
+        deferredReason: 'Failed to store certificate offline. It may need to be re-uploaded.',
+      });
+      setCommunionAttachmentWarning('Failed to store certificate offline. It may need to be re-uploaded.');
+    });
+  };
+
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      if (certificatePersistTaskRef.current) await certificatePersistTaskRef.current;
+      if (communionPersistTaskRef.current) await communionPersistTaskRef.current;
+
+      const payload: ConfirmationDraftPayload = {
+        baptismSource,
+        communionSource,
+        selectedBaptismId,
+        selectedCommunionId,
+        externalBaptism,
+        externalCommunion,
+        form,
+        certificateAttachment: certificateFileMetaFromDraft,
+        communionCertificateAttachment: communionCertificateFileMetaFromDraft,
+      };
+      await saveDraft<ConfirmationDraftPayload>(draftId, 'confirmation_create', payload);
+      const loaded = await loadDraft<ConfirmationDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    void (async () => {
+      setBaptismSource(draftRecord.payload.baptismSource);
+      setCommunionSource(draftRecord.payload.communionSource);
+      setSelectedBaptismId(draftRecord.payload.selectedBaptismId);
+      setSelectedCommunionId(draftRecord.payload.selectedCommunionId);
+      setExternalBaptism(draftRecord.payload.externalBaptism);
+      setExternalCommunion(draftRecord.payload.externalCommunion);
+      setForm(draftRecord.payload.form);
+
+      certificatePersistTaskRef.current = null;
+      communionPersistTaskRef.current = null;
+
+      setCertificateFile(null);
+      setCommunionCertificateFile(null);
+
+      const legacyCert = draftRecord.payload.certificateFileMeta;
+      const certAttachment = draftRecord.payload.certificateAttachment ?? (legacyCert
+        ? { name: legacyCert.name, size: legacyCert.size, type: legacyCert.type, storedBlob: false as const }
+        : null);
+      setCertificateFileMetaFromDraft(certAttachment);
+      setCertificateAttachmentWarning(
+        certAttachment ? (certAttachment.storedBlob ? null : certAttachment.deferredReason ?? 'Certificate was not stored offline. Please re-upload when online.') : null
+      );
+
+      const legacyCommunionCert = draftRecord.payload.communionCertificateFileMeta;
+      const communionCertAttachment =
+        draftRecord.payload.communionCertificateAttachment ??
+        (legacyCommunionCert
+          ? { name: legacyCommunionCert.name, size: legacyCommunionCert.size, type: legacyCommunionCert.type, storedBlob: false as const }
+          : null);
+      setCommunionCertificateFileMetaFromDraft(communionCertAttachment);
+      setCommunionAttachmentWarning(
+        communionCertAttachment ? (communionCertAttachment.storedBlob ? null : communionCertAttachment.deferredReason ?? 'Certificate was not stored offline. Please re-upload when online.') : null
+      );
+
+      if (certAttachment?.storedBlob && certAttachment.fileRefId) {
+        const blob = await loadOfflineBlob(certAttachment.fileRefId);
+        if (blob) setCertificateFile(new File([blob], certAttachment.name, { type: certAttachment.type ?? blob.type }));
+      }
+      if (communionCertAttachment?.storedBlob && communionCertAttachment.fileRefId) {
+        const blob = await loadOfflineBlob(communionCertAttachment.fileRefId);
+        if (blob) {
+          setCommunionCertificateFile(new File([blob], communionCertAttachment.name, { type: communionCertAttachment.type ?? blob.type }));
+        }
+      }
+
+      setDraftStatus('Draft loaded from this device.');
+    })();
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setCertificateFile(null);
+      setCommunionCertificateFile(null);
+      setCertificateFileMetaFromDraft(null);
+      setCommunionCertificateFileMetaFromDraft(null);
+      setCertificateAttachmentWarning(null);
+      setCommunionAttachmentWarning(null);
+      certificatePersistTaskRef.current = null;
+      communionPersistTaskRef.current = null;
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (certificatePersistTaskRef.current) {
+      try {
+        await certificatePersistTaskRef.current;
+      } catch {
+        // ignore: we'll handle via queue sync status
+      }
+    }
+    if (communionPersistTaskRef.current) {
+      try {
+        await communionPersistTaskRef.current;
+      } catch {
+        // ignore: we'll handle via queue sync status
+      }
+    }
 
     if (baptismSource === 'this_parish') {
       if (selectedBaptismId <= 0 && !selectedCommunionId) {
@@ -211,9 +511,16 @@ export default function ConfirmationCreateContent() {
         setError('Search and select a Holy Communion record, or choose "Holy Communion in another church" to upload a certificate.');
         return;
       } else {
-        if (!communionCertificateFile || communionCertificateFile.size === 0) {
-          setError('Upload a Holy Communion certificate when Communion was in another church.');
-          return;
+        if (isOnline) {
+          if (!communionCertificateFile || communionCertificateFile.size === 0) {
+            setError('Upload a Holy Communion certificate when Communion was in another church.');
+            return;
+          }
+        } else {
+          if (!communionCertificateFileMetaFromDraft?.fileRefId) {
+            setError('Upload a Holy Communion certificate (or resume an offline draft with it) before saving offline.');
+            return;
+          }
         }
         if (!externalCommunion.baptismName.trim() || !externalCommunion.surname.trim()) {
           setError('Baptism name and surname are required for Holy Communion from another church.');
@@ -229,9 +536,16 @@ export default function ConfirmationCreateContent() {
         }
       }
     } else {
-      if (!certificateFile || certificateFile.size === 0) {
-        setError('Upload a baptism certificate when selecting Baptism from another Parish.');
-        return;
+      if (isOnline) {
+        if (!certificateFile || certificateFile.size === 0) {
+          setError('Upload a baptism certificate when selecting Baptism from another Parish.');
+          return;
+        }
+      } else {
+        if (!certificateFileMetaFromDraft?.fileRefId) {
+          setError('Upload a baptism certificate (or resume an offline draft with it) before saving offline.');
+          return;
+        }
       }
       if (!externalBaptism.baptismName.trim() || !externalBaptism.surname.trim()) {
         setError('Baptism name and surname are required for external baptism.');
@@ -247,9 +561,16 @@ export default function ConfirmationCreateContent() {
           return;
         }
       } else {
-        if (!communionCertificateFile || communionCertificateFile.size === 0) {
-          setError('Upload a Holy Communion certificate when Communion was in another church.');
-          return;
+        if (isOnline) {
+          if (!communionCertificateFile || communionCertificateFile.size === 0) {
+            setError('Upload a Holy Communion certificate when Communion was in another church.');
+            return;
+          }
+        } else {
+          if (!communionCertificateFileMetaFromDraft?.fileRefId) {
+            setError('Upload a Holy Communion certificate (or resume an offline draft with it) before saving offline.');
+            return;
+          }
         }
         if (!externalCommunion.baptismName.trim() || !externalCommunion.surname.trim()) {
           setError('Baptism name and surname are required for Holy Communion from another church.');
@@ -273,6 +594,128 @@ export default function ConfirmationCreateContent() {
 
     setSubmitting(true);
     try {
+      if (!isOnline) {
+        if (baptismSource === 'external') {
+          const baptismCert = certificateFileMetaFromDraft;
+          if (!baptismCert?.fileRefId) throw new Error('Missing offline baptism certificate file reference.');
+
+          const communionCertRef =
+            communionSource === 'other_church' ? communionCertificateFileMetaFromDraft : null;
+          if (communionSource === 'other_church' && !communionCertRef?.fileRefId) {
+            throw new Error('Missing offline Holy Communion certificate file reference.');
+          }
+
+          const itemId = await enqueueOfflineSubmission(
+            {
+              kind: 'confirmation_create',
+              payload: {
+                effectiveParishId,
+                effectiveParishName,
+                externalCommunion,
+                branch: {
+                  type: 'external_baptism',
+                  externalBaptism: {
+                    baptismName: externalBaptism.baptismName.trim(),
+                    surname: externalBaptism.surname.trim(),
+                    otherNames: externalBaptism.otherNames.trim(),
+                    gender: externalBaptism.gender,
+                    fathersName: externalBaptism.fathersName.trim(),
+                    mothersName: externalBaptism.mothersName.trim(),
+                    baptisedChurchAddress: externalBaptism.baptisedChurchAddress.trim(),
+                  },
+                  baptismCertificateAttachment: {
+                    fileRefId: baptismCert.fileRefId,
+                    name: baptismCert.name,
+                    mimeType: baptismCert.type,
+                    size: baptismCert.size,
+                  },
+                  communionSource,
+                  communionCertificateAttachment:
+                    communionSource === 'other_church' && communionCertRef
+                      ? {
+                          fileRefId: communionCertRef.fileRefId,
+                          name: communionCertRef.name,
+                          mimeType: communionCertRef.type,
+                          size: communionCertRef.size,
+                        }
+                      : undefined,
+                },
+                form,
+              },
+            },
+            { draftId: draftId ?? undefined }
+          );
+
+          setQueuedItemId(itemId);
+          return;
+        }
+
+        // baptismSource: this_parish
+        if (
+          communionSource === 'other_church' &&
+          selectedBaptismId > 0 &&
+          communionCertificateFileMetaFromDraft?.fileRefId
+        ) {
+          const itemId = await enqueueOfflineSubmission(
+            {
+              kind: 'confirmation_create',
+              payload: {
+                effectiveParishId,
+                effectiveParishName,
+                externalCommunion,
+                branch: {
+                  type: 'create_communion_from_other_church',
+                  selectedBaptismId,
+                  communionCertificateAttachment: {
+                    fileRefId: communionCertificateFileMetaFromDraft.fileRefId,
+                    name: communionCertificateFileMetaFromDraft.name,
+                    mimeType: communionCertificateFileMetaFromDraft.type,
+                    size: communionCertificateFileMetaFromDraft.size,
+                  },
+                },
+                form,
+              },
+            },
+            { draftId: draftId ?? undefined }
+          );
+          setQueuedItemId(itemId);
+          return;
+        }
+
+        const resolvedCommunionId =
+          selectedCommunionId && selectedCommunion ? selectedCommunion.id : communionByBaptism?.id;
+        const resolvedBaptismId = selectedCommunion
+          ? selectedCommunion.baptismId
+          : communionByBaptism
+            ? selectedBaptismId
+            : undefined;
+
+        if (!resolvedCommunionId || !resolvedBaptismId) {
+          throw new Error('No communion selected to link confirmation.');
+        }
+
+        const itemId = await enqueueOfflineSubmission(
+          {
+            kind: 'confirmation_create',
+            payload: {
+              effectiveParishId,
+              effectiveParishName,
+              externalCommunion,
+              branch: {
+                type: 'use_existing_ids',
+                baptismId: resolvedBaptismId,
+                communionId: resolvedCommunionId,
+              },
+              form,
+            },
+          },
+          { draftId: draftId ?? undefined }
+        );
+
+        setQueuedItemId(itemId);
+        return;
+      }
+
       let communionId: number;
       let baptismId: number;
 
@@ -369,7 +812,7 @@ export default function ConfirmationCreateContent() {
       if (communionByBaptism || selectedCommunionId) return true;
       if (communionSource === 'this_church') return false;
       return !!(
-        communionCertificateFile?.size &&
+        (isOnline ? communionCertificateFile?.size : communionCertificateFileMetaFromDraft?.fileRefId) &&
         externalCommunion.baptismName.trim() &&
         externalCommunion.surname.trim() &&
         externalCommunion.communionChurchAddress.trim() &&
@@ -377,13 +820,19 @@ export default function ConfirmationCreateContent() {
         externalCommunion.officiatingPriest.trim()
       );
     }
-    if (!certificateFile?.size || !externalBaptism.baptismName.trim() || !externalBaptism.surname.trim()) return false;
+    if (
+      (isOnline ? !certificateFile?.size : !certificateFileMetaFromDraft?.fileRefId) ||
+      !externalBaptism.baptismName.trim() ||
+      !externalBaptism.surname.trim()
+    ) {
+      return false;
+    }
     if (!externalBaptism.fathersName.trim() || !externalBaptism.mothersName.trim()) return false;
     if (communionSource === 'this_church') {
       return !!(externalCommunion.communionDate.trim() && externalCommunion.officiatingPriest.trim());
     }
     return !!(
-      communionCertificateFile?.size &&
+      (isOnline ? communionCertificateFile?.size : communionCertificateFileMetaFromDraft?.fileRefId) &&
       externalCommunion.baptismName.trim() &&
       externalCommunion.surname.trim() &&
       externalCommunion.communionChurchAddress.trim() &&
@@ -400,12 +849,12 @@ export default function ConfirmationCreateContent() {
       baptismSource={baptismSource}
       baptisms={baptisms}
       setBaptismSource={setBaptismSource}
-      setCertificateFile={setCertificateFile}
+      setCertificateFile={setCertificateFileWithDraftClear}
       setExternalBaptism={setExternalBaptism}
       setSelectedBaptismId={setSelectedBaptismId}
       setSearchQuery={setSearchQuery}
       setCommunionSource={setCommunionSource}
-      setCommunionCertificateFile={setCommunionCertificateFile}
+      setCommunionCertificateFile={setCommunionCertificateFileWithDraftClear}
       selectedBaptism={selectedBaptism}
       fullNameBaptism={fullNameBaptism}
       formatBaptismDate={formatBaptismDate}
@@ -431,6 +880,11 @@ export default function ConfirmationCreateContent() {
       error={error}
       submitting={submitting}
       canSubmit={canSubmit}
+      draftRecord={draftRecord}
+      draftStatus={draftStatus}
+      handleSaveDraft={handleSaveDraft}
+      handleResumeDraft={handleResumeDraft}
+      handleDiscardDraft={handleDiscardDraft}
       communionSearchQuery={communionSearchQuery}
       setCommunionSearchQuery={setCommunionSearchQuery}
       communionSearchFocused={communionSearchFocused}
@@ -440,6 +894,13 @@ export default function ConfirmationCreateContent() {
       selectedCommunionId={selectedCommunionId}
       setSelectedCommunionId={setSelectedCommunionId}
       selectedCommunion={selectedCommunion}
+      certificateFileNameFromDraft={certificateFileMetaFromDraft?.name ?? null}
+      communionCertificateFileNameFromDraft={communionCertificateFileMetaFromDraft?.name ?? null}
+      certificateAttachmentWarning={certificateAttachmentWarning}
+      communionAttachmentWarning={communionAttachmentWarning}
+      offlineQueueItemStatus={queuedItem?.status}
+      offlineQueueItemError={queuedItem?.lastError}
+      onOfflineQueueRetry={queuedItem?.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined}
     />
   );
 }

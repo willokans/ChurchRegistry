@@ -323,7 +323,7 @@ export default function DashboardPage() {
                   href="/baptisms"
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 min-h-[44px]"
                 >
-                  Search Records
+                  Sacramental Register
                 </Link>
               </div>
             </div>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
             {/* Sacraments overview + Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-800 mb-3">Latest sacrament records</h2>
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">Latest sacramental register entries</h2>
                 {recent.length === 0 ? (
                   <p className="text-sm text-gray-500">No recent records yet.</p>
                 ) : (
@@ -404,7 +404,7 @@ export default function DashboardPage() {
               </section>
               <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
+                  <h2 className="text-lg font-semibold text-gray-800">Internal Records Activity</h2>
                   <Link href="/baptisms" className="text-sm text-sancta-maroon hover:underline">
                     View all
                   </Link>

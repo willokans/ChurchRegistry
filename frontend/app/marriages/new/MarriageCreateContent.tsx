@@ -10,14 +10,23 @@ import {
   fetchBaptisms,
   fetchCommunions,
   fetchConfirmations,
+  fetchParishMarriageRequirements,
   createMarriageWithParties,
   uploadMarriageCertificate,
+  getStoredUser,
   type BaptismResponse,
   type FirstHolyCommunionResponse,
   type ConfirmationResponse,
   type MarriagePartyPayload,
   type CreateMarriageWithPartiesRequest,
 } from '@/lib/api';
+import { deleteDraft, loadDraft, saveDraft, type OfflineDraftRecord } from '@/lib/offline/drafts';
+import { useDebouncedDraftAutosave } from '@/lib/offline/draftAutosave';
+import { useNetworkStatus } from '@/lib/offline/network';
+import { enqueueOfflineSubmission } from '@/lib/offline/queue';
+import { useOfflineQueueItem } from '@/lib/offline/useOfflineQueueItem';
+import OfflineQueueItemStatus from '@/components/offline/OfflineQueueItemStatus';
+import { deleteQueueItemAfterSync, retryOfflineQueueItem } from '@/lib/offline/replay';
 
 function fullNameBaptism(b: BaptismResponse): string {
   return [b.baptismName, b.otherNames, b.surname].filter(Boolean).join(' ');
@@ -74,12 +83,30 @@ export default function MarriageCreateContent() {
   const { parishId: contextParishId, parishes } = useParish();
   const effectiveParishId = parishIdFromQuery ?? contextParishId ?? null;
 
+  const storedUser = getStoredUser();
+  const draftId =
+    effectiveParishId != null && !Number.isNaN(effectiveParishId) && storedUser?.username
+      ? `marriage_create:${effectiveParishId}:${storedUser.username}`
+      : null;
+
   const [baptisms, setBaptisms] = useState<BaptismResponse[]>([]);
   const [communions, setCommunions] = useState<FirstHolyCommunionResponse[]>([]);
   const [confirmations, setConfirmations] = useState<ConfirmationResponse[]>([]);
   const [loading, setLoading] = useState(!!effectiveParishId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isOnline } = useNetworkStatus();
+  const [queuedItemId, setQueuedItemId] = useState<string | null>(null);
+  const queuedItem = useOfflineQueueItem(queuedItemId);
+  /** null = policy not loaded yet; default UI treats as required until known. */
+  const [parishRequiresConfirmation, setParishRequiresConfirmation] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!queuedItem || queuedItem.status !== 'synced') return;
+    void deleteQueueItemAfterSync(queuedItem.id);
+    if (draftId) void deleteDraft(draftId);
+    router.push('/marriages');
+  }, [queuedItem, draftId, router]);
 
   const [groom, setGroom] = useState<MarriagePartyPayload>({ ...emptyParty });
   const [bride, setBride] = useState<MarriagePartyPayload>({ ...emptyParty });
@@ -126,34 +153,211 @@ export default function MarriageCreateContent() {
     { fullName: '', phone: '', address: '' },
   ]);
 
+  type MarriageDraftPayload = {
+    groom: typeof groom;
+    bride: typeof bride;
+    groomBaptismSource: SacramentSource;
+    groomCommunionSource: SacramentSource;
+    groomConfirmationSource: SacramentSource;
+    brideBaptismSource: SacramentSource;
+    brideCommunionSource: SacramentSource;
+    brideConfirmationSource: SacramentSource;
+    groomExternalBaptism: typeof groomExternalBaptism;
+    brideExternalBaptism: typeof brideExternalBaptism;
+    marriageDetails: typeof marriageDetails;
+    witnesses: typeof witnesses;
+  };
+
+  const [draftRecord, setDraftRecord] = useState<OfflineDraftRecord<MarriageDraftPayload> | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
+
+  useDebouncedDraftAutosave<MarriageDraftPayload>({
+    draftId,
+    formType: 'marriage_create',
+    payload: {
+      groom,
+      bride,
+      groomBaptismSource,
+      groomCommunionSource,
+      groomConfirmationSource,
+      brideBaptismSource,
+      brideCommunionSource,
+      brideConfirmationSource,
+      groomExternalBaptism,
+      brideExternalBaptism,
+      marriageDetails,
+      witnesses,
+    },
+    enabled: false,
+  });
+
   useEffect(() => {
     if (effectiveParishId === null || Number.isNaN(effectiveParishId)) return;
     let cancelled = false;
     setLoading(true);
-    Promise.all([
-      fetchBaptisms(effectiveParishId),
-      fetchCommunions(effectiveParishId),
-      fetchConfirmations(effectiveParishId),
-    ])
-      .then(([bPage, cPage, confPage]) => {
-        if (!cancelled) {
-          setBaptisms(bPage.content);
-          setCommunions(cPage.content);
-          setConfirmations(confPage.content);
-          const parishName = parishes.find((p) => p.id === effectiveParishId)?.parishName ?? '';
-          setMarriageDetails((d) => ({ ...d, parish: parishName, churchName: parishName }));
+    setParishRequiresConfirmation(null);
+    setError(null);
+
+    (async () => {
+      try {
+        try {
+          const req = await fetchParishMarriageRequirements(effectiveParishId);
+          if (cancelled) return;
+          setParishRequiresConfirmation(req.requireMarriageConfirmation);
+        } catch {
+          if (cancelled) return;
+          setParishRequiresConfirmation(true);
         }
-      })
-      .catch(() => {
+
+        const [bPage, cPage, confPage] = await Promise.all([
+          fetchBaptisms(effectiveParishId),
+          fetchCommunions(effectiveParishId),
+          fetchConfirmations(effectiveParishId),
+        ]);
+        if (cancelled) return;
+        setBaptisms(bPage.content);
+        setCommunions(cPage.content);
+        setConfirmations(confPage.content);
+        const parishName = parishes.find((p) => p.id === effectiveParishId)?.parishName ?? '';
+        setMarriageDetails((d) => ({ ...d, parish: parishName, churchName: parishName }));
+      } catch {
         if (!cancelled) setError('Failed to load parish records');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
   }, [effectiveParishId, parishes]);
+
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    setDraftStatus(null);
+    loadDraft<MarriageDraftPayload>(draftId)
+      .then((d) => {
+        if (cancelled) return;
+        setDraftRecord(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
+  const witnessList = witnesses.filter((w) => w.fullName.trim());
+  /** Until parish policy loads, treat confirmation as required (safe default). */
+  const confirmationRequired = parishRequiresConfirmation !== false;
+
+  // Enable "Save marriage" only when required fields are present.
+  // This mirrors the same checks performed in `handleSubmit`.
+  const canSaveMarriage =
+    effectiveParishId != null &&
+    !Number.isNaN(effectiveParishId) &&
+    groom.fullName.trim() !== '' &&
+    bride.fullName.trim() !== '' &&
+    !!marriageDetails.marriageDate &&
+    marriageDetails.diocese.trim() !== '' &&
+    marriageDetails.officiatingPriest.trim() !== '' &&
+    marriageDetails.parish.trim() !== '' &&
+    groom.maritalStatus != null && groom.maritalStatus.trim() !== '' &&
+    bride.maritalStatus != null && bride.maritalStatus.trim() !== '' &&
+    groom.residentialAddress != null && groom.residentialAddress.trim() !== '' &&
+    bride.residentialAddress != null && bride.residentialAddress.trim() !== '' &&
+    groom.nationality != null && groom.nationality.trim() !== '' &&
+    bride.nationality != null && bride.nationality.trim() !== '' &&
+    groom.dateOfBirth != null && String(groom.dateOfBirth).trim() !== '' &&
+    bride.dateOfBirth != null && String(bride.dateOfBirth).trim() !== '' &&
+    witnessList.length >= 2 &&
+    // External baptism requires uploaded certificate + entered required names.
+    (groomBaptismSource !== 'external' ||
+      (!!groom.baptismCertificatePath &&
+        groomExternalBaptism.baptismName.trim() !== '' &&
+        groomExternalBaptism.surname.trim() !== '' &&
+        groomExternalBaptism.fathersName.trim() !== '' &&
+        groomExternalBaptism.mothersName.trim() !== '')) &&
+    // Baptism must be selected/created when in-this-parish mode.
+    (groomBaptismSource !== 'external' || !!groom.baptismId) &&
+    (brideBaptismSource !== 'external' ||
+      (!!bride.baptismCertificatePath &&
+        brideExternalBaptism.baptismName.trim() !== '' &&
+        brideExternalBaptism.surname.trim() !== '' &&
+        brideExternalBaptism.fathersName.trim() !== '' &&
+        brideExternalBaptism.mothersName.trim() !== '')) &&
+    (brideBaptismSource !== 'external' || !!bride.baptismId) &&
+    // External communion requires uploaded certificate.
+    (groomCommunionSource !== 'external' || !!groom.communionCertificatePath) &&
+    (brideCommunionSource !== 'external' || !!bride.communionCertificatePath) &&
+    // In-parish communion: record must be selected.
+    (groomCommunionSource !== 'this_parish' || !!groom.communionId) &&
+    (brideCommunionSource !== 'this_parish' || !!bride.communionId) &&
+    // Confirmation (when required by parish policy)
+    (!confirmationRequired ||
+      ((groomConfirmationSource !== 'external' || !!groom.confirmationCertificatePath) &&
+        (brideConfirmationSource !== 'external' || !!bride.confirmationCertificatePath) &&
+        (groomConfirmationSource !== 'this_parish' || !!groom.confirmationId) &&
+        (brideConfirmationSource !== 'this_parish' || !!bride.confirmationId)));
+
+  async function handleSaveDraft() {
+    if (!draftId) return;
+    setDraftStatus('Saving draft locally…');
+    try {
+      const payload: MarriageDraftPayload = {
+        groom,
+        bride,
+        groomBaptismSource,
+        groomCommunionSource,
+        groomConfirmationSource,
+        brideBaptismSource,
+        brideCommunionSource,
+        brideConfirmationSource,
+        groomExternalBaptism,
+        brideExternalBaptism,
+        marriageDetails,
+        witnesses,
+      };
+      await saveDraft<MarriageDraftPayload>(draftId, 'marriage_create', payload);
+      const loaded = await loadDraft<MarriageDraftPayload>(draftId);
+      setDraftRecord(loaded);
+      setDraftStatus('Draft saved locally on this device.');
+    } catch {
+      setDraftStatus('Failed to save draft locally.');
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!draftRecord) return;
+    setGroom(draftRecord.payload.groom);
+    setBride(draftRecord.payload.bride);
+    setGroomBaptismSource(draftRecord.payload.groomBaptismSource);
+    setGroomCommunionSource(draftRecord.payload.groomCommunionSource);
+    setGroomConfirmationSource(draftRecord.payload.groomConfirmationSource);
+    setBrideBaptismSource(draftRecord.payload.brideBaptismSource);
+    setBrideCommunionSource(draftRecord.payload.brideCommunionSource);
+    setBrideConfirmationSource(draftRecord.payload.brideConfirmationSource);
+    setGroomExternalBaptism(draftRecord.payload.groomExternalBaptism);
+    setBrideExternalBaptism(draftRecord.payload.brideExternalBaptism);
+    setMarriageDetails(draftRecord.payload.marriageDetails);
+    setWitnesses(draftRecord.payload.witnesses);
+    setDraftStatus('Draft loaded from this device.');
+  }
+
+  async function handleDiscardDraft() {
+    if (!draftId) return;
+    setDraftStatus('Discarding draft…');
+    try {
+      await deleteDraft(draftId);
+      setDraftRecord(null);
+      setDraftStatus('Draft discarded.');
+    } catch {
+      setDraftStatus('Failed to discard draft.');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -170,6 +374,42 @@ export default function MarriageCreateContent() {
       setError('Marriage date, officiating priest, and parish are required.');
       return;
     }
+    if (!marriageDetails.diocese.trim()) {
+      setError('Diocese is required.');
+      return;
+    }
+    if (!groom.maritalStatus?.trim()) {
+      setError("Groom marital status is required.");
+      return;
+    }
+    if (!bride.maritalStatus?.trim()) {
+      setError("Bride marital status is required.");
+      return;
+    }
+    if (!groom.residentialAddress?.trim()) {
+      setError("Groom residential address is required.");
+      return;
+    }
+    if (!bride.residentialAddress?.trim()) {
+      setError("Bride residential address is required.");
+      return;
+    }
+    if (!groom.nationality?.trim()) {
+      setError("Groom nationality is required.");
+      return;
+    }
+    if (!bride.nationality?.trim()) {
+      setError("Bride nationality is required.");
+      return;
+    }
+    if (!groom.dateOfBirth?.toString().trim()) {
+      setError("Groom date of birth is required.");
+      return;
+    }
+    if (!bride.dateOfBirth?.toString().trim()) {
+      setError("Bride date of birth is required.");
+      return;
+    }
     if (groomBaptismSource === 'external') {
       if (!groom.baptismCertificatePath) {
         setError('Upload the groom baptism certificate for Baptism done elsewhere.');
@@ -183,6 +423,9 @@ export default function MarriageCreateContent() {
         setError("Groom external baptism father's and mother's names are required.");
         return;
       }
+    } else if (!groom.baptismId) {
+      setError('Select the groom baptism record.');
+      return;
     }
     if (brideBaptismSource === 'external') {
       if (!bride.baptismCertificatePath) {
@@ -197,6 +440,9 @@ export default function MarriageCreateContent() {
         setError("Bride external baptism father's and mother's names are required.");
         return;
       }
+    } else if (!bride.baptismId) {
+      setError('Select the bride baptism record.');
+      return;
     }
     if (groomCommunionSource === 'external' && !groom.communionCertificatePath) {
       setError('Upload the groom Holy Communion certificate for Communion done elsewhere.');
@@ -206,13 +452,31 @@ export default function MarriageCreateContent() {
       setError('Upload the bride Holy Communion certificate for Communion done elsewhere.');
       return;
     }
-    if (groomConfirmationSource === 'external' && !groom.confirmationCertificatePath) {
-      setError('Upload the groom Confirmation certificate for Confirmation done elsewhere.');
+    if (groomCommunionSource === 'this_parish' && !groom.communionId) {
+      setError('Select the groom Holy Communion record.');
       return;
     }
-    if (brideConfirmationSource === 'external' && !bride.confirmationCertificatePath) {
-      setError('Upload the bride Confirmation certificate for Confirmation done elsewhere.');
+    if (brideCommunionSource === 'this_parish' && !bride.communionId) {
+      setError('Select the bride Holy Communion record.');
       return;
+    }
+    if (confirmationRequired) {
+      if (groomConfirmationSource === 'external' && !groom.confirmationCertificatePath) {
+        setError('Upload the groom Confirmation certificate for Confirmation done elsewhere.');
+        return;
+      }
+      if (brideConfirmationSource === 'external' && !bride.confirmationCertificatePath) {
+        setError('Upload the bride Confirmation certificate for Confirmation done elsewhere.');
+        return;
+      }
+      if (groomConfirmationSource === 'this_parish' && !groom.confirmationId) {
+        setError('Select the groom Confirmation record.');
+        return;
+      }
+      if (brideConfirmationSource === 'this_parish' && !bride.confirmationId) {
+        setError('Select the bride Confirmation record.');
+        return;
+      }
     }
     const witnessList = witnesses.filter((w) => w.fullName.trim());
     if (witnessList.length < 2) {
@@ -294,6 +558,16 @@ export default function MarriageCreateContent() {
           sortOrder: i,
         })),
       };
+
+      if (!isOnline) {
+        const itemId = await enqueueOfflineSubmission(
+          { kind: 'marriage_create', payload },
+          { draftId: draftId ?? undefined }
+        );
+        setQueuedItemId(itemId);
+        return;
+      }
+
       await createMarriageWithParties(payload);
       router.push('/marriages');
     } catch (err) {
@@ -339,6 +613,53 @@ export default function MarriageCreateContent() {
         </div>
         <h1 className="text-2xl font-serif font-semibold text-sancta-maroon">Create Marriage Record</h1>
 
+        <p className="text-xs text-gray-500 -mt-2">
+          <span className="text-red-500">*</span> Fields marked with this symbol are mandatory.
+        </p>
+        <p className="rounded-lg border border-sancta-maroon/20 bg-sancta-maroon/5 px-3 py-2 text-sm text-gray-800">
+          <strong>For every marriage:</strong> both the groom and the bride must have <strong>Baptism</strong> and{' '}
+          <strong>Holy Communion</strong> documented (parish record and/or certificate, as you enter below).
+        </p>
+        {!confirmationRequired && parishRequiresConfirmation === false && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            This parish does not require <strong>Confirmation</strong>. The register entry is still anchored using
+            parish Baptism and Holy Communion (the groom&apos;s, or the bride&apos;s if the groom has no in-parish
+            baptism).
+          </p>
+        )}
+        {confirmationRequired && (
+          <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            This parish also requires <strong>Confirmation</strong> for <strong>both</strong> the groom and the bride
+            before the marriage can be registered (parish record and/or certificate). At least one in-parish
+            Confirmation record must be linked for the parish sacramental chain.
+          </p>
+        )}
+
+        {draftRecord && (
+          <div className="mt-6 max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <p className="text-sm font-medium">
+              Draft saved locally{draftRecord.updatedAt ? ` (${new Date(draftRecord.updatedAt).toLocaleString()})` : ''}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleResumeDraft}
+                className="rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+              >
+                Resume draft
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50"
+              >
+                Discard
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-amber-800">Offline drafts are stored on this device until they are submitted successfully.</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Groom & Bride: two columns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -359,7 +680,7 @@ export default function MarriageCreateContent() {
                   <input id="groom-fullName" type="text" required value={groom.fullName} onChange={(e) => setGroom((p) => ({ ...p, fullName: e.target.value }))} placeholder="Full Name" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-dob" className={labelClass}>Date of Birth</label>
+                  <label htmlFor="groom-dob" className={labelClass}>Date of Birth <span className="text-red-500">*</span></label>
                   <input id="groom-dob" type="date" value={groom.dateOfBirth ?? ''} onChange={(e) => setGroom((p) => ({ ...p, dateOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -367,11 +688,11 @@ export default function MarriageCreateContent() {
                   <input id="groom-pob" type="text" value={groom.placeOfBirth ?? ''} onChange={(e) => setGroom((p) => ({ ...p, placeOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-nationality" className={labelClass}>Nationality</label>
+                  <label htmlFor="groom-nationality" className={labelClass}>Nationality <span className="text-red-500">*</span></label>
                   <input id="groom-nationality" type="text" value={groom.nationality ?? ''} onChange={(e) => setGroom((p) => ({ ...p, nationality: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-address" className={labelClass}>Residential Address</label>
+                  <label htmlFor="groom-address" className={labelClass}>Residential Address <span className="text-red-500">*</span></label>
                   <input id="groom-address" type="text" value={groom.residentialAddress ?? ''} onChange={(e) => setGroom((p) => ({ ...p, residentialAddress: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -387,7 +708,7 @@ export default function MarriageCreateContent() {
                   <input id="groom-occupation" type="text" value={groom.occupation ?? ''} onChange={(e) => setGroom((p) => ({ ...p, occupation: e.target.value || undefined }))} placeholder="Select Occupation" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="groom-maritalStatus" className={labelClass}>Marital Status</label>
+                  <label htmlFor="groom-maritalStatus" className={labelClass}>Marital Status <span className="text-red-500">*</span></label>
                   <select id="groom-maritalStatus" value={groom.maritalStatus ?? ''} onChange={(e) => setGroom((p) => ({ ...p, maritalStatus: e.target.value || undefined }))} className={inputClass}>
                     <option value="">Select</option>
                     <option value="Bachelor / Widower">Bachelor / Widower</option>
@@ -397,6 +718,7 @@ export default function MarriageCreateContent() {
                 {/* Groom sacraments: Baptism */}
                 <SacramentSection
                   title="Baptism"
+                  required
                   labelSearch="Select Baptism Record"
                   source={groomBaptismSource}
                   setSource={setGroomBaptismSource}
@@ -437,9 +759,9 @@ export default function MarriageCreateContent() {
                   churchName={groom.communionChurch}
                   setChurchName={(v) => setGroom((p) => ({ ...p, communionChurch: v }))}
                 />
-                {/* Groom: Confirmation */}
                 <SacramentSection
                   title="Confirmation"
+                  required={confirmationRequired}
                   labelSearch="Select Confirmation Record"
                   source={groomConfirmationSource}
                   setSource={setGroomConfirmationSource}
@@ -475,7 +797,7 @@ export default function MarriageCreateContent() {
                   <input id="bride-fullName" type="text" required value={bride.fullName} onChange={(e) => setBride((p) => ({ ...p, fullName: e.target.value }))} placeholder="Full Name" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-dob" className={labelClass}>Date of Birth</label>
+                  <label htmlFor="bride-dob" className={labelClass}>Date of Birth <span className="text-red-500">*</span></label>
                   <input id="bride-dob" type="date" value={bride.dateOfBirth ?? ''} onChange={(e) => setBride((p) => ({ ...p, dateOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -483,11 +805,11 @@ export default function MarriageCreateContent() {
                   <input id="bride-pob" type="text" value={bride.placeOfBirth ?? ''} onChange={(e) => setBride((p) => ({ ...p, placeOfBirth: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-nationality" className={labelClass}>Nationality</label>
+                  <label htmlFor="bride-nationality" className={labelClass}>Nationality <span className="text-red-500">*</span></label>
                   <input id="bride-nationality" type="text" value={bride.nationality ?? ''} onChange={(e) => setBride((p) => ({ ...p, nationality: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-address" className={labelClass}>Residential Address</label>
+                  <label htmlFor="bride-address" className={labelClass}>Residential Address <span className="text-red-500">*</span></label>
                   <input id="bride-address" type="text" value={bride.residentialAddress ?? ''} onChange={(e) => setBride((p) => ({ ...p, residentialAddress: e.target.value || undefined }))} className={inputClass} />
                 </div>
                 <div>
@@ -503,7 +825,7 @@ export default function MarriageCreateContent() {
                   <input id="bride-occupation" type="text" value={bride.occupation ?? ''} onChange={(e) => setBride((p) => ({ ...p, occupation: e.target.value || undefined }))} placeholder="Select Occupation" className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="bride-maritalStatus" className={labelClass}>Marital Status</label>
+                  <label htmlFor="bride-maritalStatus" className={labelClass}>Marital Status <span className="text-red-500">*</span></label>
                   <select id="bride-maritalStatus" value={bride.maritalStatus ?? ''} onChange={(e) => setBride((p) => ({ ...p, maritalStatus: e.target.value || undefined }))} className={inputClass}>
                     <option value="">Select</option>
                     <option value="Bachelor / Widower">Bachelor / Widower</option>
@@ -512,6 +834,7 @@ export default function MarriageCreateContent() {
                 </div>
                 <SacramentSection
                   title="Baptism"
+                  required
                   labelSearch="Select Baptism Record"
                   source={brideBaptismSource}
                   setSource={setBrideBaptismSource}
@@ -553,6 +876,7 @@ export default function MarriageCreateContent() {
                 />
                 <SacramentSection
                   title="Confirmation"
+                  required={confirmationRequired}
                   labelSearch="Select Confirmation Record"
                   source={brideConfirmationSource}
                   setSource={setBrideConfirmationSource}
@@ -601,7 +925,7 @@ export default function MarriageCreateContent() {
                 <input id="marriageRegister" type="text" value={marriageDetails.marriageRegister} onChange={(e) => setMarriageDetails((d) => ({ ...d, marriageRegister: e.target.value }))} className={inputClass} />
               </div>
               <div>
-                <label htmlFor="diocese" className={labelClass}>Diocese</label>
+                <label htmlFor="diocese" className={labelClass}>Diocese <span className="text-red-500">*</span></label>
                 <input id="diocese" type="text" value={marriageDetails.diocese} onChange={(e) => setMarriageDetails((d) => ({ ...d, diocese: e.target.value }))} className={inputClass} />
               </div>
               <div>
@@ -693,14 +1017,30 @@ export default function MarriageCreateContent() {
               {error}
             </p>
           )}
-          <div className="flex gap-4">
+          {draftStatus && <p className="text-xs text-gray-600">{draftStatus}</p>}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={submitting}
+              className="rounded-xl border border-gray-300 px-5 py-3 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+            >
+              Save Draft
+            </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !canSaveMarriage}
               className="rounded-xl bg-sancta-maroon px-5 py-3 text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50"
             >
               {submitting ? 'Saving…' : 'Save marriage'}
             </button>
+            {queuedItem ? (
+              <OfflineQueueItemStatus
+                status={queuedItem.status}
+                error={queuedItem.lastError}
+                onRetry={queuedItem.status === 'failed' ? () => void retryOfflineQueueItem(queuedItem.id) : undefined}
+              />
+            ) : null}
             <Link href="/marriages" className="rounded-xl border border-gray-300 px-5 py-3 text-gray-700 font-medium hover:bg-gray-50">
               Cancel
             </Link>
@@ -714,6 +1054,7 @@ export default function MarriageCreateContent() {
 // Reusable sacrament block: link parish record or upload certificate
 function SacramentSection<T extends { id: number }>({
   title,
+  required,
   labelSearch,
   source,
   setSource,
@@ -728,6 +1069,7 @@ function SacramentSection<T extends { id: number }>({
   externalDetails,
 }: {
   title: string;
+  required?: boolean;
   labelSearch: string;
   source: SacramentSource;
   setSource: (s: SacramentSource) => void;
@@ -770,7 +1112,9 @@ function SacramentSection<T extends { id: number }>({
 
   return (
     <div className="border-t border-gray-100 pt-4 mt-4">
-      <span className="text-sm font-medium text-gray-700">{title}</span>
+      <span className="text-sm font-medium text-gray-700">
+        {title} {required ? <span className="text-red-500">*</span> : null}
+      </span>
       <div className="mt-2 flex flex-wrap gap-4">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="radio" checked={source === 'this_parish'} onChange={() => setSource('this_parish')} className="text-sancta-maroon focus:ring-sancta-maroon" />

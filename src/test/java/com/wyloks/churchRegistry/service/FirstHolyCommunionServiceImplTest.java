@@ -1,6 +1,7 @@
 package com.wyloks.churchRegistry.service;
 
 import com.wyloks.churchRegistry.dto.FirstHolyCommunionRequest;
+import com.wyloks.churchRegistry.dto.FirstHolyCommunionResponse;
 import com.wyloks.churchRegistry.entity.Baptism;
 import com.wyloks.churchRegistry.entity.FirstHolyCommunion;
 import com.wyloks.churchRegistry.repository.BaptismRepository;
@@ -14,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
@@ -63,5 +65,92 @@ class FirstHolyCommunionServiceImplTest {
         assertThatThrownBy(() -> communionService.create(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already exists");
+    }
+
+    @Test
+    void findById_baptismCertificatePendingTrue_whenExternalIssuingParishSetAndCertificateMissing() {
+        Baptism baptism = baseBaptism(1L)
+                .externalCertificateIssuingParish("Other Parish")
+                .externalCertificatePath(null)
+                .build();
+        FirstHolyCommunion communion = communionFor(baptism);
+
+        when(communionRepository.findById(10L)).thenReturn(Optional.of(communion));
+
+        Optional<FirstHolyCommunionResponse> result = communionService.findById(10L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().isBaptismCertificatePending()).isTrue();
+    }
+
+    @Test
+    void findById_baptismCertificatePendingFalse_whenExternalCertificateUploaded() {
+        Baptism baptism = baseBaptism(1L)
+                .externalCertificateIssuingParish("Other Parish")
+                .externalCertificatePath("baptism-certificates/abc.pdf")
+                .build();
+        FirstHolyCommunion communion = communionFor(baptism);
+
+        when(communionRepository.findById(10L)).thenReturn(Optional.of(communion));
+
+        Optional<FirstHolyCommunionResponse> result = communionService.findById(10L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().isBaptismCertificatePending()).isFalse();
+    }
+
+    @Test
+    void findById_baptismCertificatePendingFalse_whenInParishBaptism() {
+        Baptism baptism = baseBaptism(1L)
+                .externalCertificateIssuingParish(null)
+                .externalCertificatePath(null)
+                .build();
+        FirstHolyCommunion communion = communionFor(baptism);
+
+        when(communionRepository.findById(10L)).thenReturn(Optional.of(communion));
+
+        Optional<FirstHolyCommunionResponse> result = communionService.findById(10L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().isBaptismCertificatePending()).isFalse();
+    }
+
+    @Test
+    void findById_baptismCertificatePendingFalse_whenExternalIssuingParishBlank() {
+        Baptism baptism = baseBaptism(1L)
+                .externalCertificateIssuingParish("   ")
+                .externalCertificatePath(null)
+                .build();
+        FirstHolyCommunion communion = communionFor(baptism);
+
+        when(communionRepository.findById(10L)).thenReturn(Optional.of(communion));
+
+        Optional<FirstHolyCommunionResponse> result = communionService.findById(10L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().isBaptismCertificatePending()).isFalse();
+    }
+
+    private static Baptism.BaptismBuilder baseBaptism(long id) {
+        return Baptism.builder()
+                .id(id)
+                .baptismName("John")
+                .surname("Doe")
+                .gender("M")
+                .dateOfBirth(LocalDate.of(2015, 1, 1))
+                .fathersName("F")
+                .mothersName("M")
+                .sponsorNames("S")
+                .officiatingPriest("Fr. X");
+    }
+
+    private static FirstHolyCommunion communionFor(Baptism baptism) {
+        return FirstHolyCommunion.builder()
+                .id(10L)
+                .baptism(baptism)
+                .communionDate(LocalDate.of(2022, 6, 1))
+                .officiatingPriest("Fr. Smith")
+                .parish("St Mary")
+                .build();
     }
 }

@@ -48,6 +48,14 @@ public class HolyOrderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/confirmations/{confirmationId}/holy-order")
+    public ResponseEntity<HolyOrderResponse> getByConfirmationId(@PathVariable Long confirmationId) {
+        authorizationService.findConfirmationParishId(confirmationId).ifPresent(authorizationService::requireParishAccess);
+        return holyOrderService.findByConfirmationId(confirmationId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/holy-orders")
     public ResponseEntity<HolyOrderResponse> create(@Valid @RequestBody HolyOrderRequest request) {
         Long parishId = authorizationService.findConfirmationParishId(request.getConfirmationId())

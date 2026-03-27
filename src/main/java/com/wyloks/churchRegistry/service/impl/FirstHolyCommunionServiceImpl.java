@@ -116,24 +116,38 @@ public class FirstHolyCommunionServiceImpl implements FirstHolyCommunionService 
                 .collect(Collectors.toList());
     }
 
+    private static boolean isBaptismCertificatePending(Baptism baptism) {
+        if (baptism == null) {
+            return false;
+        }
+        String issuing = baptism.getExternalCertificateIssuingParish();
+        if (issuing == null || issuing.isBlank()) {
+            return false;
+        }
+        String path = baptism.getExternalCertificatePath();
+        return path == null || path.isBlank();
+    }
+
     private FirstHolyCommunionResponse toResponse(FirstHolyCommunion e) {
+        Baptism baptism = e.getBaptism();
         return FirstHolyCommunionResponse.builder()
                 .id(e.getId())
-                .baptismId(e.getBaptism().getId())
+                .baptismId(baptism.getId())
                 .communionDate(e.getCommunionDate())
                 .officiatingPriest(e.getOfficiatingPriest())
                 .parish(e.getParish())
                 .baptismCertificatePath(e.getBaptismCertificatePath())
                 .communionCertificatePath(e.getCommunionCertificatePath())
+                .baptismCertificatePending(isBaptismCertificatePending(baptism))
                 .createdAt(e.getCreatedAt())
-                .baptismName(e.getBaptism().getBaptismName())
-                .otherNames(e.getBaptism().getOtherNames())
-                .surname(e.getBaptism().getSurname())
-                .dateOfBirth(e.getBaptism().getDateOfBirth())
-                .baptismParishName(e.getBaptism().getParish() != null ? e.getBaptism().getParish().getParishName() : null)
-                .gender(e.getBaptism().getGender())
-                .fathersName(e.getBaptism().getFathersName())
-                .mothersName(e.getBaptism().getMothersName())
+                .baptismName(baptism.getBaptismName())
+                .otherNames(baptism.getOtherNames())
+                .surname(baptism.getSurname())
+                .dateOfBirth(baptism.getDateOfBirth())
+                .baptismParishName(baptism.getParish() != null ? baptism.getParish().getParishName() : null)
+                .gender(baptism.getGender())
+                .fathersName(baptism.getFathersName())
+                .mothersName(baptism.getMothersName())
                 .note(e.getNote())
                 .build();
     }

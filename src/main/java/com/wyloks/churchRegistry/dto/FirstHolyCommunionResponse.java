@@ -21,6 +21,8 @@ public class FirstHolyCommunionResponse {
     private String parish;
     private String baptismCertificatePath;
     private String communionCertificatePath;
+    /** True when baptism was recorded as external (another parish) but the certificate file is not yet stored. */
+    private boolean baptismCertificatePending;
     private OffsetDateTime createdAt;
 
     private String baptismName;

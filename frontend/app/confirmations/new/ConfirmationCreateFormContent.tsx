@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AddRecordDesktopOnlyMessage from '@/components/AddRecordDesktopOnlyMessage';
 import type { BaptismResponse, FirstHolyCommunionResponse, ConfirmationRequest } from '@/lib/api';
 import type { ConfirmationCreateFormProps } from './ConfirmationCreateForm';
+import OfflineQueueItemStatusView from '@/components/offline/OfflineQueueItemStatus';
 
 export type ConfirmationCreateFormContentProps = ConfirmationCreateFormProps;
 
@@ -58,6 +59,18 @@ export default function ConfirmationCreateFormContent(
     selectedCommunionId,
     setSelectedCommunionId,
     selectedCommunion,
+    draftRecord,
+    draftStatus,
+    handleSaveDraft,
+    handleResumeDraft,
+    handleDiscardDraft,
+    certificateFileNameFromDraft,
+    communionCertificateFileNameFromDraft,
+    certificateAttachmentWarning,
+    communionAttachmentWarning,
+    offlineQueueItemStatus,
+    offlineQueueItemError,
+    onOfflineQueueRetry,
   } = props;
 
   return (
@@ -377,10 +390,10 @@ export default function ConfirmationCreateFormContent(
                           </svg>
                         </span>
                         <span className="text-sm text-gray-500">
-                          {certificateFile ? certificateFile.name : 'No file chosen'}
+                          {certificateFile ? certificateFile.name : certificateFileNameFromDraft ?? 'No file chosen'}
                         </span>
                         <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                          {certificateFile ? 'Change file' : 'Browse Files'}
+                          {certificateFile || certificateFileNameFromDraft ? 'Change file' : 'Browse Files'}
                           <input
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
@@ -389,6 +402,11 @@ export default function ConfirmationCreateFormContent(
                           />
                         </label>
                       </div>
+                      {certificateAttachmentWarning && (
+                        <p role="status" className="mt-2 text-xs text-amber-800">
+                          {certificateAttachmentWarning}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -632,12 +650,19 @@ export default function ConfirmationCreateFormContent(
                         <label className="block text-sm font-medium text-gray-700">Upload Holy Communion Certificate <span className="text-red-500">(Required)</span></label>
                         <p className="mt-1 text-xs text-gray-500">Required when Communion was in another church</p>
                         <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-4 py-3">
-                          <span className="text-sm text-gray-500">{communionCertificateFile ? communionCertificateFile.name : 'No file chosen'}</span>
+                          <span className="text-sm text-gray-500">
+                            {communionCertificateFile ? communionCertificateFile.name : communionCertificateFileNameFromDraft ?? 'No file chosen'}
+                          </span>
                           <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                            {communionCertificateFile ? 'Change file' : 'Browse Files'}
+                            {communionCertificateFile || communionCertificateFileNameFromDraft ? 'Change file' : 'Browse Files'}
                             <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="sr-only" onChange={(e) => setCommunionCertificateFile(e.target.files?.[0] ?? null)} />
                           </label>
                         </div>
+                        {communionAttachmentWarning && (
+                          <p role="status" className="mt-2 text-xs text-amber-800">
+                            {communionAttachmentWarning}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -684,10 +709,53 @@ export default function ConfirmationCreateFormContent(
                 </div>
               )}
               <div className="flex flex-col gap-3">
+                {draftRecord && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                    <p className="text-sm font-medium">
+                      Draft saved locally
+                      {draftRecord.updatedAt ? ` (${new Date(draftRecord.updatedAt).toLocaleString()})` : ''}.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={handleResumeDraft}
+                        className="rounded-lg bg-sancta-maroon px-3 py-2 text-sm font-medium text-white hover:bg-sancta-maroon-dark"
+                      >
+                        Resume draft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDiscardDraft}
+                        className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50"
+                      >
+                        Discard
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-amber-800">
+                      Offline drafts are stored on this device until they are submitted successfully.
+                    </p>
+                  </div>
+                )}
                 {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+                {draftStatus && <p className="text-xs text-gray-600">{draftStatus}</p>}
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
                 <button type="submit" disabled={submitting || !canSubmit} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sancta-maroon px-4 py-3 min-h-[44px] text-white font-medium hover:bg-sancta-maroon-dark disabled:opacity-50">
                   {submitting ? 'Saving…' : 'Save Confirmation'}
                 </button>
+                {offlineQueueItemStatus ? (
+                  <OfflineQueueItemStatusView
+                    status={offlineQueueItemStatus}
+                    error={offlineQueueItemError}
+                    onRetry={offlineQueueItemStatus === 'failed' ? onOfflineQueueRetry : undefined}
+                  />
+                ) : null}
                 <Link href="/confirmations" className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[44px] text-gray-700 font-medium hover:bg-gray-50">Cancel</Link>
                 <p className="text-xs text-gray-500">* Required fields</p>
               </div>

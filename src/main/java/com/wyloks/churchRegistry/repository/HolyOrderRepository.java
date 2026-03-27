@@ -16,6 +16,8 @@ public interface HolyOrderRepository extends JpaRepository<HolyOrder, Long> {
 
     Optional<HolyOrder> findByConfirmationId(Long confirmationId);
 
+    Optional<HolyOrder> findByBaptismId(Long baptismId);
+
     @EntityGraph(attributePaths = {"baptism", "firstHolyCommunion", "confirmation", "parish"})
     List<HolyOrder> findByBaptismParishId(Long parishId);
 
