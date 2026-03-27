@@ -100,6 +100,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Deploy API to Fly staging
         id: deploy
@@ -173,6 +175,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Deploy to Fly staging
         working-directory: frontend
