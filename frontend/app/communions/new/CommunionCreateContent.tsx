@@ -124,11 +124,7 @@ export default function CommunionCreateContent() {
       externalBaptism,
       certificateAttachment: certificateFileMetaFromDraft,
     },
-    enabled: Boolean(draftId),
-    onAutosaved: (record) => {
-      setDraftRecord(record);
-      setDraftStatus('Draft autosaved locally.');
-    },
+    enabled: false,
   });
 
   useEffect(() => {
@@ -703,7 +699,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-fathersName" className="block text-sm font-medium text-gray-700">
-                          Father&apos;s Name
+                          Father&apos;s Name <span className="text-gray-500">(Optional)</span>
                         </label>
                         <input
                           id="external-fathersName"
@@ -717,7 +713,7 @@ export default function CommunionCreateContent() {
                       </div>
                       <div>
                         <label htmlFor="external-mothersName" className="block text-sm font-medium text-gray-700">
-                          Mother&apos;s Name
+                          Mother&apos;s Name <span className="text-gray-500">(Optional)</span>
                         </label>
                         <input
                           id="external-mothersName"
