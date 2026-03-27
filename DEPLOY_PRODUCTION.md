@@ -40,9 +40,12 @@ Copy staging values into the `_PROD` secrets. CORS must include prod frontend UR
 | `API_JWT_SECRET_PROD` | Same as `API_JWT_SECRET` or distinct |
 | `API_CORS_ALLOWED_ORIGINS_PROD` | `https://church-registry-staging.fly.dev,https://church-registry.fly.dev` (staging + prod frontend URLs) |
 | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Same as `SUPABASE_SERVICE_ROLE_KEY` |
+| `NEXT_PUBLIC_SUPABASE_URL_PROD` | Same as staging project URL (`https://<staging-ref>.supabase.co`) — must match the DB used for `app_users` |
 | `NEXT_PUBLIC_API_URL_PROD` | `https://church-registry-api.fly.dev` |
 
-Optional: `API_JWT_EXPIRATION_MS_PROD`, `API_JWT_REFRESH_EXPIRATION_MS_PROD`.
+Optional: `API_JWT_EXPIRATION_MS_PROD`, `API_JWT_REFRESH_EXPIRATION_MS_PROD`, `SUPABASE_URL_PROD` (only if storage URL inference from the JDBC username fails on the API).
+
+**Frontend auth:** Login uses Next.js API routes that read `app_users` via Supabase. Set `NEXT_PUBLIC_SUPABASE_URL_PROD` and `SUPABASE_SERVICE_ROLE_KEY_PROD` to the **same** Supabase project as the database credentials (staging project during Pre Postgres).
 
 ### 2b. GitHub Secrets (if prod apps are in a different org)
 
@@ -71,6 +74,35 @@ Summary:
 2. Run `supabase/production-setup.sql` in the SQL Editor to create storage buckets
 3. Collect credentials: JDBC URL, username, password, service role key
 4. Liquibase runs automatically when the API first connects — no manual schema migration
+
+### Post Postgres: cutover to production database
+
+When the production Supabase project exists and buckets are created, **point production at prod** by updating secrets and redeploying.
+
+1. **Storage (if not done):** In the **production** project SQL Editor, run [supabase/production-setup.sql](supabase/production-setup.sql). Confirm buckets: `baptism-certificates`, `communion-certificates`, `marriage-certificates`.
+
+2. **Collect production values** from Supabase Dashboard (production project): JDBC pooler URL, user `postgres.<ref>`, database password, **service_role** key, **Project URL** (`https://<ref>.supabase.co`).
+
+3. **Update GitHub Actions secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Post Postgres value |
+   |--------|---------------------|
+   | `API_DATABASE_URL_PROD` | Production JDBC URL (Transaction pooler, port 6543, `sslmode=require&preferQueryMode=simple&prepareThreshold=0`) |
+   | `API_DATABASE_USERNAME_PROD` | Production `postgres.<project_ref>` user |
+   | `API_DATABASE_PASSWORD_PROD` | Production database password |
+   | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Production **service_role** key (must match this project) |
+   | `NEXT_PUBLIC_SUPABASE_URL_PROD` | Production project URL — **must** match the project used for DB + storage so login and API routes stay consistent |
+   | `API_CORS_ALLOWED_ORIGINS_PROD` | Your production frontend origin(s), e.g. `https://app.parishregistry.ng` |
+   | `NEXT_PUBLIC_API_URL_PROD` | Public API base URL, e.g. `https://api.parishregistry.ng` |
+   | `API_JWT_SECRET_PROD` | Prefer a **new** strong secret for production (users must sign in again) or keep existing if you must avoid invalidating sessions |
+
+   Optional: `SUPABASE_URL_PROD` — set to the same Project URL if you want the Spring API to use an explicit `SUPABASE_URL` (otherwise it is inferred from `SPRING_DATASOURCE_USERNAME`).
+
+4. **Redeploy:** Push to `main` or run **Deploy to Production** manually (Actions → workflow_dispatch). The workflow syncs Fly secrets for `church-registry-api` and `church-registry`, then deploys both.
+
+5. **Verify:** `GET https://api.parishregistry.ng/api/health` (or your Fly URL), sign in on the production app, upload a test certificate if applicable.
+
+6. **Manual Fly alternative** (without GitHub): from the repo root, set secrets on each app to match the table above, e.g. `fly secrets import --app church-registry-api` with `SPRING_DATASOURCE_*`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `SUPABASE_SERVICE_ROLE_KEY`, and optionally `SUPABASE_URL`; then `fly secrets import --app church-registry` with `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Deploy with `fly deploy -c fly.api.prod.toml --app church-registry-api` and `cd frontend && fly deploy -c fly.prod.toml --app church-registry`.
 
 ---
 
@@ -121,7 +153,9 @@ Use `.github/workflows/deploy-production.yml` (trigger: `push` to `main`). Requi
 | `API_JWT_SECRET_PROD` | Production JWT secret (distinct from staging) |
 | `API_CORS_ALLOWED_ORIGINS_PROD` | `https://app.parishregistry.ng` |
 | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Production Supabase service role key |
+| `NEXT_PUBLIC_SUPABASE_URL_PROD` | Production Supabase project URL (same project as DB) |
 | `NEXT_PUBLIC_API_URL_PROD` | `https://api.parishregistry.ng` |
+| `SUPABASE_URL_PROD` | Optional; explicit `SUPABASE_URL` for the API |
 
 ---
 
