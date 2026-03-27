@@ -1,5 +1,6 @@
 -- Production Supabase: Storage bucket setup for Church Registry
 -- Run this in Supabase SQL Editor after creating the production project.
+-- Database schema and RLS are applied by Liquibase when the API first connects (not this file).
 -- Do NOT add permissive policies; certificate access goes through Spring API (service role).
 
 -- Baptism certificates (used when registering communion with "Baptism from another Parish")

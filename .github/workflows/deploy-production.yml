@@ -83,13 +83,14 @@ jobs:
           API_JWT_EXPIRATION_MS_PROD: ${{ secrets.API_JWT_EXPIRATION_MS_PROD }}
           API_JWT_REFRESH_EXPIRATION_MS_PROD: ${{ secrets.API_JWT_REFRESH_EXPIRATION_MS_PROD }}
           SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          SUPABASE_URL_PROD: ${{ secrets.SUPABASE_URL_PROD }}
         run: |
           set -euo pipefail
           APP_NAME="church-registry-api"
 
           # Pre Postgres: use staging credentials. Post Postgres: use prod credentials.
           # All _PROD secrets must be set in GitHub (copy from staging for Pre Postgres).
-          required=(API_DATABASE_URL_PROD API_DATABASE_USERNAME_PROD API_DATABASE_PASSWORD_PROD API_JWT_SECRET_PROD API_CORS_ALLOWED_ORIGINS_PROD)
+          required=(API_DATABASE_URL_PROD API_DATABASE_USERNAME_PROD API_DATABASE_PASSWORD_PROD API_JWT_SECRET_PROD API_CORS_ALLOWED_ORIGINS_PROD SUPABASE_SERVICE_ROLE_KEY_PROD)
           for key in "${required[@]}"; do
             if [ -z "${!key:-}" ]; then
               echo "Missing required GitHub secret: $key"
@@ -97,23 +98,26 @@ jobs:
             fi
           done
 
-          # Validate JDBC URL format
-          if ! echo "$API_DATABASE_URL_PROD" | grep -qE '^jdbc:postgresql://[^/]+:[0-9]+/'; then
+          # Validate JDBC URL format (port optional; JDBC allows default 5432)
+          API_DATABASE_URL_PROD="$(printf '%s' "$API_DATABASE_URL_PROD" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if ! printf '%s' "$API_DATABASE_URL_PROD" | grep -qE '^jdbc:postgresql://[^/]+/'; then
             echo "ERROR: API_DATABASE_URL_PROD must be a full JDBC URL, e.g.:"
             echo "  jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require&preferQueryMode=simple&prepareThreshold=0"
+            echo "  (with or without an explicit :port before /database)"
             exit 1
           fi
 
           # Use secrets import (stdin) to preserve & and other special chars in URL
           {
-            printf 'SPRING_DATASOURCE_URL=%s\n' "$(printf '%s' "$API_DATABASE_URL_PROD" | tr -d '\n')"
+            printf 'SPRING_DATASOURCE_URL=%s\n' "$API_DATABASE_URL_PROD"
             printf 'SPRING_DATASOURCE_USERNAME=%s\n' "$API_DATABASE_USERNAME_PROD"
             printf 'SPRING_DATASOURCE_PASSWORD=%s\n' "$API_DATABASE_PASSWORD_PROD"
             printf 'JWT_SECRET=%s\n' "$API_JWT_SECRET_PROD"
             printf 'CORS_ALLOWED_ORIGINS=%s\n' "$API_CORS_ALLOWED_ORIGINS_PROD"
             printf 'JWT_EXPIRATION_MS=%s\n' "${API_JWT_EXPIRATION_MS_PROD:-3600000}"
             printf 'JWT_REFRESH_EXPIRATION_MS=%s\n' "${API_JWT_REFRESH_EXPIRATION_MS_PROD:-604800000}"
-            [ -n "${SUPABASE_SERVICE_ROLE_KEY_PROD:-}" ] && printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
+            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
+            [ -n "${SUPABASE_URL_PROD:-}" ] && printf 'SUPABASE_URL=%s\n' "$(printf '%s' "$SUPABASE_URL_PROD" | tr -d '\n')"
           } | flyctl secrets import --stage --app "$APP_NAME"
 
       - name: Deploy API to Fly production
@@ -193,14 +197,27 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
+          NEXT_PUBLIC_SUPABASE_URL_PROD: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
         run: |
           set -euo pipefail
           FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
 
-          flyctl secrets set \
-            NEXT_PUBLIC_API_URL="$FRONTEND_API_URL" \
-            --stage \
-            --app church-registry
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL_PROD:-}" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_URL_PROD is required (Next.js login and API routes use Supabase; use staging project URL for Pre Postgres, prod URL after cutover)"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY_PROD:-}" ]; then
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY_PROD is required for frontend (same value as API)"
+            exit 1
+          fi
+
+          # stdin import preserves special characters in keys (e.g. JWT padding '=')
+          {
+            printf 'NEXT_PUBLIC_API_URL=%s\n' "$(printf '%s' "$FRONTEND_API_URL" | tr -d '\n')"
+            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$(printf '%s' "$NEXT_PUBLIC_SUPABASE_URL_PROD" | tr -d '\n')"
+            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
+          } | flyctl secrets import --stage --app church-registry
 
       - name: Deploy to Fly production
         working-directory: frontend

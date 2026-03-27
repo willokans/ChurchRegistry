@@ -78,17 +78,30 @@ Collect these for production deployment (GitHub Secrets or Fly secrets):
 | `API_DATABASE_USERNAME_PROD` | Connection string → User | `postgres.xxxxxxxxxxxx` |
 | `API_DATABASE_PASSWORD_PROD` | Database password from Step 1 | (your password) |
 | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Project Settings → API → service_role | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-| `SUPABASE_URL_PROD` (optional) | Project Settings → API → Project URL | `https://xxxxxxxxxxxx.supabase.co` |
+| `SUPABASE_URL_PROD` (optional) | Same as Project URL | Explicit `SUPABASE_URL` for the Spring API if you do not rely on inference from the JDBC username |
+| `NEXT_PUBLIC_SUPABASE_URL_PROD` | Same as Project URL | Required for production **frontend** Fly app (Next.js login and API routes use this + the service role key) |
 
 Use **distinct** JWT secrets and passwords for production vs staging.
 
 ---
 
-## Phase 4: Verify Setup
+## Phase 4: Connect GitHub Actions and redeploy
+
+After the buckets exist and you have the values above:
+
+1. Update the GitHub secrets listed in [DEPLOY_PRODUCTION.md](../DEPLOY_PRODUCTION.md) (Post Postgres cutover table), especially `NEXT_PUBLIC_SUPABASE_URL_PROD` so it points at **this** production project (not staging).
+2. Push to `main` or run the **Deploy to Production** workflow. It applies Fly secrets and deploys the API and frontend.
+
+See **Post Postgres: cutover to production database** in [DEPLOY_PRODUCTION.md](../DEPLOY_PRODUCTION.md) for the full ordered checklist.
+
+---
+
+## Phase 5: Verify Setup
 
 1. **Storage buckets:** Storage → Buckets — all three certificate buckets exist
 2. **First API deploy:** Deploy API with prod credentials; check Fly logs for Liquibase success
 3. **Health check:** `GET https://api.parishregistry.ng/api/health` returns 200
+4. **Frontend:** Sign in works (requires `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` on the frontend app for the same project)
 
 ---
 
