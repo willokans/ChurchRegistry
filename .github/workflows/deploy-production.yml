@@ -125,6 +125,9 @@ jobs:
           } > "$SECRETS_IMPORT"
           flyctl secrets import --stage --app "$APP_NAME" < "$SECRETS_IMPORT"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Deploy API to Fly production
         id: deploy
         env:
@@ -132,8 +135,8 @@ jobs:
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
         run: |
           set -euo pipefail
-          # --depot=false avoids Depot builder queue/timeouts in CI ("context deadline exceeded")
-          flyctl deploy -c fly.api.prod.toml --remote-only --depot=false --app church-registry-api
+          # --local-only: build on GitHub runner Docker (avoids Fly remote builder CPU shortages / Depot issues)
+          flyctl deploy -c fly.api.prod.toml --local-only --app church-registry-api
 
       - name: Show Fly logs on deploy failure
         if: failure()
@@ -228,9 +231,12 @@ jobs:
           } > "$SECRETS_IMPORT"
           flyctl secrets import --stage --app church-registry < "$SECRETS_IMPORT"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Deploy to Fly production
         working-directory: frontend
-        run: flyctl deploy -c fly.prod.toml --remote-only --depot=false --app church-registry
+        run: flyctl deploy -c fly.prod.toml --local-only --app church-registry
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
