@@ -206,14 +206,15 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD || secrets.FLY_API_TOKEN }}
           NEXT_PUBLIC_API_URL_PROD: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
-          NEXT_PUBLIC_SUPABASE_URL_PROD: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD }}
+          # Same project URL for all; fallbacks help Pre Postgres when only one name is set in GitHub
+          NEXT_PUBLIC_SUPABASE_URL_PROD: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.SUPABASE_URL_PROD }}
           SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
         run: |
           set -euo pipefail
           FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
 
           if [ -z "${NEXT_PUBLIC_SUPABASE_URL_PROD:-}" ]; then
-            echo "::error::NEXT_PUBLIC_SUPABASE_URL_PROD is required (Next.js login and API routes use Supabase; use staging project URL for Pre Postgres, prod URL after cutover)"
+            echo "::error::Set a Supabase project URL secret: NEXT_PUBLIC_SUPABASE_URL_PROD (preferred), or NEXT_PUBLIC_SUPABASE_URL, or SUPABASE_URL_PROD — same value as your DB project (staging URL OK until prod Supabase exists)"
             exit 1
           fi
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY_PROD:-}" ]; then
