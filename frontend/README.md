@@ -31,6 +31,25 @@ The frontend is UI-only and does not fall back to same-origin Next route handler
 - In production, internal Next `/api/*` routes are blocked except `/api/health`.
 - Set `NEXT_ALLOW_INTERNAL_API_ROUTES=true` only for emergency rollback scenarios.
 
+## Sentry (Errors + Releases)
+
+Set these environment variables in staging/production:
+
+- `NEXT_PUBLIC_SENTRY_DSN` (browser SDK)
+- `SENTRY_DSN` (server/edge SDK, can match public DSN)
+- `SENTRY_ENVIRONMENT` (`staging`, `production`, etc.)
+- `SENTRY_RELEASE` (for example, the Git SHA used for deploy)
+
+Optional tracing controls:
+
+- `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` (default `0`)
+- `SENTRY_TRACES_SAMPLE_RATE` (default `0`)
+
+Internal verification route:
+
+- Visit `/sentry-test` in local/staging to trigger test client/server errors.
+- In production this route is disabled by default; set `ENABLE_SENTRY_TEST_PAGE=true` to enable temporarily.
+
 ## Governance Docs
 
 - Public privacy notice (share with users): `docs/PRIVACY_NOTICE.md`

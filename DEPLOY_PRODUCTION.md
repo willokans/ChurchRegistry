@@ -42,6 +42,10 @@ Copy staging values into the `_PROD` secrets. CORS must include prod frontend UR
 | `SUPABASE_SERVICE_ROLE_KEY_PROD` | Same as `SUPABASE_SERVICE_ROLE_KEY` |
 | `NEXT_PUBLIC_SUPABASE_URL_PROD` | Same as staging project URL (`https://<staging-ref>.supabase.co`) — must match the DB used for `app_users` |
 | `NEXT_PUBLIC_API_URL_PROD` | `https://church-registry-api.fly.dev` |
+| `API_SENTRY_DSN_PROD` | Sentry DSN for backend ingestion |
+| `WEB_SENTRY_DSN_PROD` | Sentry DSN for frontend/browser ingestion |
+| `SENTRY_ENVIRONMENT_PROD` | `production` |
+| `SENTRY_RELEASE_PROD` | Release identifier (for example Git SHA) |
 
 Optional: `API_JWT_EXPIRATION_MS_PROD`, `API_JWT_REFRESH_EXPIRATION_MS_PROD`, `SUPABASE_URL_PROD` (only if storage URL inference from the JDBC username fails on the API).
 
@@ -127,6 +131,9 @@ Set these on `church-registry-api`:
 | `JWT_SECRET` | **Distinct** from staging; min 32 bytes |
 | `CORS_ALLOWED_ORIGINS` | `https://app.sacramentregistry.com` (and custom domain when ready) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Production Supabase service role key |
+| `SENTRY_DSN` | Backend Sentry DSN |
+| `SENTRY_ENVIRONMENT` | `production` |
+| `SENTRY_RELEASE` | Deploy release identifier (for example Git SHA) |
 
 Optional: `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL` if storage URL inference fails.
 
@@ -137,6 +144,10 @@ Set on `church-registry`:
 | Secret | Description |
 |--------|-------------|
 | `NEXT_PUBLIC_API_URL` | `https://api.sacramentregistry.com` (or Fly URL before custom domain) |
+| `NEXT_PUBLIC_SENTRY_DSN` | Frontend/browser Sentry DSN |
+| `SENTRY_DSN` | Frontend server/edge Sentry DSN (can match public DSN) |
+| `SENTRY_ENVIRONMENT` | `production` |
+| `SENTRY_RELEASE` | Deploy release identifier (for example Git SHA) |
 
 ---
 
@@ -156,6 +167,10 @@ Use `.github/workflows/deploy-production.yml` (trigger: `push` to `main`). Requi
 | `NEXT_PUBLIC_SUPABASE_URL_PROD` | Production Supabase project URL (same project as DB) |
 | `NEXT_PUBLIC_API_URL_PROD` | `https://api.sacramentregistry.com` |
 | `SUPABASE_URL_PROD` | Optional; explicit `SUPABASE_URL` for the API |
+| `API_SENTRY_DSN_PROD` | Backend Sentry DSN |
+| `WEB_SENTRY_DSN_PROD` | Frontend/browser Sentry DSN |
+| `SENTRY_ENVIRONMENT_PROD` | `production` |
+| `SENTRY_RELEASE_PROD` | Release identifier (for example Git SHA) |
 
 ---
 
@@ -178,4 +193,8 @@ Production URLs: https://sacramentregistry.com (frontend), https://api.sacrament
 - Use `application-prod.yaml` (set via `SPRING_PROFILES_ACTIVE=prod`)
 - Distinct JWT secrets for staging vs production
 - Consider `min_machines_running = 1` to avoid cold starts
-- Optional: monitoring (Fly metrics, Sentry, UptimeRobot)
+- Configure Sentry alerts:
+  - new issue in production
+  - error spike threshold alert
+  - notify on-call channel (email/Slack)
+- Optional: monitoring (Fly metrics, UptimeRobot)
