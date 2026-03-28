@@ -52,10 +52,16 @@ describe('Landing page (home)', () => {
     expect(screen.getByText(/Access is by invitation only/i)).toBeInTheDocument();
   });
 
-  it('renders footer with Parish Registry branding', () => {
+  it('renders footer with Sacrament Registry branding', () => {
     render(<LandingPage />);
-    expect(document.body).toHaveTextContent('Parish Registry');
+    expect(document.body).toHaveTextContent('Sacrament Registry');
     expect(document.body).toHaveTextContent(/Sacramental Record Management System/i);
+  });
+
+  it('shows Privacy Notice link in footer', () => {
+    render(<LandingPage />);
+    const privacyLink = screen.getByRole('link', { name: 'Privacy Notice' });
+    expect(privacyLink).toHaveAttribute('href', '/privacy');
   });
 
   it('when authenticated redirects to /dashboard', async () => {

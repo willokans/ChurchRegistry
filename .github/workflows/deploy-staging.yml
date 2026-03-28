@@ -62,6 +62,8 @@ jobs:
           API_JWT_EXPIRATION_MS: ${{ secrets.API_JWT_EXPIRATION_MS }}
           API_JWT_REFRESH_EXPIRATION_MS: ${{ secrets.API_JWT_REFRESH_EXPIRATION_MS }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          API_SENTRY_DSN: ${{ secrets.API_SENTRY_DSN }}
+          SENTRY_RELEASE: ${{ secrets.SENTRY_RELEASE }}
         run: |
           set -euo pipefail
           APP_NAME="${FLY_API_APP_NAME:-church-registry-api-staging}"
@@ -81,7 +83,9 @@ jobs:
             exit 1
           fi
 
-          # Use secrets import (stdin) to preserve & and other special chars in URL
+          # Temp file avoids pipefail failure when optional SUPABASE_SERVICE_ROLE_KEY is unset (`[ -n ... ] &&` exits 1)
+          SECRETS_IMPORT="$(mktemp)"
+          trap 'rm -f "$SECRETS_IMPORT"' EXIT
           {
             printf 'SPRING_DATASOURCE_URL=%s\n' "$(printf '%s' "$API_DATABASE_URL" | tr -d '\n')"
             printf 'SPRING_DATASOURCE_USERNAME=%s\n' "$API_DATABASE_USERNAME"
@@ -90,8 +94,21 @@ jobs:
             printf 'CORS_ALLOWED_ORIGINS=%s\n' "$API_CORS_ALLOWED_ORIGINS"
             printf 'JWT_EXPIRATION_MS=%s\n' "${API_JWT_EXPIRATION_MS:-3600000}"
             printf 'JWT_REFRESH_EXPIRATION_MS=%s\n' "${API_JWT_REFRESH_EXPIRATION_MS:-604800000}"
-            [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ] && printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY"
-          } | flyctl secrets import --stage --app "$APP_NAME"
+            printf 'SENTRY_ENVIRONMENT=%s\n' "staging"
+            printf 'SENTRY_RELEASE=%s\n' "${SENTRY_RELEASE:-$GITHUB_SHA}"
+            if [ -n "${API_SENTRY_DSN:-}" ]; then
+              printf 'SENTRY_DSN=%s\n' "$(printf '%s' "$API_SENTRY_DSN" | tr -d '\n')"
+            fi
+            if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+              printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY"
+            fi
+          } > "$SECRETS_IMPORT"
+          flyctl secrets import --stage --app "$APP_NAME" < "$SECRETS_IMPORT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Deploy API to Fly staging
         id: deploy
@@ -101,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME="${FLY_API_APP_NAME:-church-registry-api-staging}"
-          flyctl deploy -c fly.api.toml --remote-only --app "$APP_NAME"
+          flyctl deploy -c fly.api.toml --local-only --app "$APP_NAME"
 
       - name: Show Fly logs on deploy failure
         if: failure()
@@ -152,6 +169,8 @@ jobs:
           FLY_FRONTEND_APP_NAME: ${{ vars.FLY_FRONTEND_APP_NAME }}
           FLY_API_APP_NAME: ${{ vars.FLY_API_APP_NAME }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          WEB_SENTRY_DSN: ${{ secrets.WEB_SENTRY_DSN }}
+          SENTRY_RELEASE: ${{ secrets.SENTRY_RELEASE }}
         run: |
           set -euo pipefail
           FRONTEND_APP="${FLY_FRONTEND_APP_NAME:-church-registry-staging}"
@@ -160,12 +179,27 @@ jobs:
 
           flyctl secrets set \
             NEXT_PUBLIC_API_URL="$FRONTEND_API_URL" \
+            SENTRY_ENVIRONMENT="staging" \
+            SENTRY_RELEASE="${SENTRY_RELEASE:-$GITHUB_SHA}" \
             --stage \
             --app "$FRONTEND_APP"
 
+          if [ -n "${WEB_SENTRY_DSN:-}" ]; then
+            flyctl secrets set \
+              NEXT_PUBLIC_SENTRY_DSN="$WEB_SENTRY_DSN" \
+              SENTRY_DSN="$WEB_SENTRY_DSN" \
+              --stage \
+              --app "$FRONTEND_APP"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+
       - name: Deploy to Fly staging
         working-directory: frontend
-        run: flyctl deploy --remote-only --app "${FLY_FRONTEND_APP_NAME:-church-registry-staging}"
+        run: flyctl deploy --local-only --app "${FLY_FRONTEND_APP_NAME:-church-registry-staging}"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_FRONTEND_APP_NAME: ${{ vars.FLY_FRONTEND_APP_NAME }}

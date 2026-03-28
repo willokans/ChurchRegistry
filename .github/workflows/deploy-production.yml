@@ -84,6 +84,8 @@ jobs:
           API_JWT_REFRESH_EXPIRATION_MS_PROD: ${{ secrets.API_JWT_REFRESH_EXPIRATION_MS_PROD }}
           SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
           SUPABASE_URL_PROD: ${{ secrets.SUPABASE_URL_PROD }}
+          API_SENTRY_DSN_PROD: ${{ secrets.API_SENTRY_DSN_PROD }}
+          SENTRY_RELEASE_PROD: ${{ secrets.SENTRY_RELEASE_PROD }}
         run: |
           set -euo pipefail
           APP_NAME="church-registry-api"
@@ -119,6 +121,11 @@ jobs:
             printf 'JWT_EXPIRATION_MS=%s\n' "${API_JWT_EXPIRATION_MS_PROD:-3600000}"
             printf 'JWT_REFRESH_EXPIRATION_MS=%s\n' "${API_JWT_REFRESH_EXPIRATION_MS_PROD:-604800000}"
             printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
+            printf 'SENTRY_ENVIRONMENT=%s\n' "production"
+            printf 'SENTRY_RELEASE=%s\n' "${SENTRY_RELEASE_PROD:-$GITHUB_SHA}"
+            if [ -n "${API_SENTRY_DSN_PROD:-}" ]; then
+              printf 'SENTRY_DSN=%s\n' "$(printf '%s' "$API_SENTRY_DSN_PROD" | tr -d '\n')"
+            fi
             if [ -n "${SUPABASE_URL_PROD:-}" ]; then
               printf 'SUPABASE_URL=%s\n' "$(printf '%s' "$SUPABASE_URL_PROD" | tr -d '\n')"
             fi
@@ -127,6 +134,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Deploy API to Fly production
         id: deploy
@@ -210,6 +219,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL_PROD: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.SUPABASE_URL_PROD || vars.NEXT_PUBLIC_SUPABASE_URL }}
           API_DATABASE_USERNAME_PROD: ${{ secrets.API_DATABASE_USERNAME_PROD }}
           SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          WEB_SENTRY_DSN_PROD: ${{ secrets.WEB_SENTRY_DSN_PROD }}
+          SENTRY_RELEASE_PROD: ${{ secrets.SENTRY_RELEASE_PROD }}
         run: |
           set -euo pipefail
           FRONTEND_API_URL="${NEXT_PUBLIC_API_URL_PROD:-https://church-registry-api.fly.dev}"
@@ -241,11 +252,19 @@ jobs:
             printf 'NEXT_PUBLIC_API_URL=%s\n' "$(printf '%s' "$FRONTEND_API_URL" | tr -d '\n')"
             printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$(printf '%s' "$SUPABASE_URL_RESOLVED" | tr -d '\n')"
             printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY_PROD"
+            printf 'SENTRY_ENVIRONMENT=%s\n' "production"
+            printf 'SENTRY_RELEASE=%s\n' "${SENTRY_RELEASE_PROD:-$GITHUB_SHA}"
+            if [ -n "${WEB_SENTRY_DSN_PROD:-}" ]; then
+              printf 'NEXT_PUBLIC_SENTRY_DSN=%s\n' "$(printf '%s' "$WEB_SENTRY_DSN_PROD" | tr -d '\n')"
+              printf 'SENTRY_DSN=%s\n' "$(printf '%s' "$WEB_SENTRY_DSN_PROD" | tr -d '\n')"
+            fi
           } > "$SECRETS_IMPORT"
           flyctl secrets import --stage --app church-registry < "$SECRETS_IMPORT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Deploy to Fly production
         working-directory: frontend

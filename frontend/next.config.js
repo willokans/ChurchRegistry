@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -23,4 +25,9 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  // Sentry webpack plugin logs are too noisy for regular builds.
+  silent: true,
+  // Upload a broader set of source maps in production for better stack traces.
+  widenClientFileUpload: true,
+});

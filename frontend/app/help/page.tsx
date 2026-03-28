@@ -195,12 +195,12 @@ export default function HelpPage() {
             Install the App
           </h2>
           <p className="mt-2 text-gray-600 text-sm leading-relaxed">
-            You can add Parish Registry to your home screen for quicker access. This doesn&apos;t change how you sign in or how the records work—it just makes opening the app faster.
+            You can add Sacrament Registry to your home screen for quicker access. This doesn&apos;t change how you sign in or how the records work—it just makes opening the app faster.
           </p>
 
           <h3 className="mt-4 font-medium text-gray-800 text-sm">How to install</h3>
           <ol className="mt-2 text-gray-600 text-sm leading-relaxed list-decimal list-inside space-y-1">
-            <li>Open Parish Registry in your browser (for example: the Dashboard page).</li>
+            <li>Open Sacrament Registry in your browser (for example: the Dashboard page).</li>
             <li>Look for an “Install” or “Add to Home Screen” option from your browser.</li>
             <li>If you don&apos;t see it, open your browser menu (usually the “Share” or “Apps” option) and choose “Add to Home Screen”.</li>
             <li>Follow the prompts to install.</li>
@@ -282,11 +282,20 @@ export default function HelpPage() {
           <p className="mt-2 text-gray-600 text-sm leading-relaxed">
             Contact your parish administrator for assistance with access, data questions, or technical issues.
           </p>
+          <p className="mt-3 text-gray-600 text-sm leading-relaxed">
+            For how personal data is handled, review our privacy notice.
+          </p>
+          <Link
+            href="/privacy"
+            className="mt-1 inline-block text-sm font-medium text-sancta-maroon hover:underline"
+          >
+            Read Privacy Notice →
+          </Link>
           <a
-            href="mailto:parishregistry@example.com"
+            href="mailto:support@sacramentregistry.com"
             className="mt-3 inline-block text-sm font-medium text-sancta-maroon hover:underline"
           >
-            parishregistry@example.com
+            support@sacramentregistry.com
           </a>
         </section>
       </div>

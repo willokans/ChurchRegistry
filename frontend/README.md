@@ -1,6 +1,6 @@
-# Parish Registry – Frontend
+# Sacrament Registry – Frontend
 
-Next.js 14 (App Router) app for the Parish Registry. Login and home are implemented with TDD.
+Next.js 14 (App Router) app for the Sacrament Registry. Login and home are implemented with TDD.
 
 ## Setup
 
@@ -19,7 +19,7 @@ cp .env.local.example .env.local
 ## Auth
 
 - **Login:** `/login` – username/password; on success stores token and refresh token in `localStorage` and redirects to home.
-- **Home:** `/` – protected; redirects to `/login` if not authenticated. Shows “Parish Registry” and “Welcome, {displayName}”.
+- **Home:** `/` – protected; redirects to `/login` if not authenticated. Shows “Sacrament Registry” and “Welcome, {displayName}”.
 
 Ensure the Spring backend is running (e.g. `./mvnw spring-boot:run` in the repo root) and `NEXT_PUBLIC_API_URL` points to it.
 The frontend is UI-only and does not fall back to same-origin Next route handlers.
@@ -30,6 +30,30 @@ The frontend is UI-only and does not fall back to same-origin Next route handler
 - Next.js is a client-only UI that calls Spring via `NEXT_PUBLIC_API_URL`.
 - In production, internal Next `/api/*` routes are blocked except `/api/health`.
 - Set `NEXT_ALLOW_INTERNAL_API_ROUTES=true` only for emergency rollback scenarios.
+
+## Sentry (Errors + Releases)
+
+Set these environment variables in staging/production:
+
+- `NEXT_PUBLIC_SENTRY_DSN` (browser SDK)
+- `SENTRY_DSN` (server/edge SDK, can match public DSN)
+- `SENTRY_ENVIRONMENT` (`staging`, `production`, etc.)
+- `SENTRY_RELEASE` (for example, the Git SHA used for deploy)
+
+Optional tracing controls:
+
+- `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` (default `0`)
+- `SENTRY_TRACES_SAMPLE_RATE` (default `0`)
+
+Internal verification route:
+
+- Visit `/sentry-test` in local/staging to trigger test client/server errors.
+- In production this route is disabled by default; set `ENABLE_SENTRY_TEST_PAGE=true` to enable temporarily.
+
+## Governance Docs
+
+- Public privacy notice (share with users): `docs/PRIVACY_NOTICE.md`
+- Internal governance runbook (ops/compliance only): `docs/NDPA_GOVERNANCE_PACK.md`
 
 ## Deploy to Fly.io (staging)
 

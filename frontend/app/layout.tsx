@@ -4,8 +4,12 @@ import { PWARegister } from '@/components/PWARegister';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Parish Registry',
+  title: 'Sacrament Registry',
   description: 'Sacramental records',
+  appleWebApp: {
+    title: 'Sacrament Registry',
+    capable: true,
+  },
 };
 
 export const viewport: Viewport = {

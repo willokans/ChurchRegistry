@@ -17,7 +17,7 @@ public class OpenApiConfig {
     public OpenAPI churchRegistryOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Parish Registry API")
+                        .title("Sacrament Registry API")
                         .description("REST API for sacramental records (Baptism, First Holy Communion, Confirmation, Marriage, Holy Order). " +
                                 "**Auth:** Use POST /api/auth/login with username/password to get an access token and refresh token. " +
                                 "Use POST /api/auth/refresh with the refresh token to obtain a new access token. " +

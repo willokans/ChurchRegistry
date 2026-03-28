@@ -5,7 +5,7 @@ This guide walks through creating and configuring a new Supabase project for pro
 ## Prerequisites
 
 - Supabase account ([supabase.com](https://supabase.com))
-- Domain: `parishregistry.ng` (use `app.parishregistry.ng` and `api.parishregistry.ng`)
+- Domain: `sacramentregistry.com` (use `app.sacramentregistry.com` and `api.sacramentregistry.com`)
 
 ---
 
@@ -17,7 +17,7 @@ This guide walks through creating and configuring a new Supabase project for pro
 2. Click **New Project**
 3. Choose your organization (or create one)
 4. Fill in:
-   - **Name:** `church-registry-production` (or `parish-registry-prod`)
+   - **Name:** `church-registry-production` (or `sacrament-registry-prod`)
    - **Database Password:** Generate a strong password and **save it securely**
    - **Region:** Choose closest to your users (e.g. `eu-west-1` for Nigeria)
 5. Click **Create new project**
@@ -100,7 +100,7 @@ See **Post Postgres: cutover to production database** in [DEPLOY_PRODUCTION.md](
 
 1. **Storage buckets:** Storage → Buckets — all three certificate buckets exist
 2. **First API deploy:** Deploy API with prod credentials; check Fly logs for Liquibase success
-3. **Health check:** `GET https://api.parishregistry.ng/api/health` returns 200
+3. **Health check:** `GET https://api.sacramentregistry.com/api/health` returns 200
 4. **Frontend:** Sign in works (requires `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` on the frontend app for the same project)
 
 ---

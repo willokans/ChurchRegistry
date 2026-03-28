@@ -4,7 +4,7 @@ import { getUserFromToken, getBaptismById, getParishes, getDioceses } from '@/li
 import { buildBaptismCertificatePdf } from '@/lib/baptism-certificate-pdf';
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'Parish Registry <onboarding@resend.dev>';
+const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'Sacrament Registry <onboarding@resend.dev>';
 
 function isValidEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s?.trim() ?? '');

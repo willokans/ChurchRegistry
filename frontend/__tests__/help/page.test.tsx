@@ -103,8 +103,14 @@ describe('Help page', () => {
 
   it('renders Contact Support with mailto link', () => {
     render(<HelpPage />);
-    const link = screen.getByRole('link', { name: 'parishregistry@example.com' });
-    expect(link).toHaveAttribute('href', 'mailto:parishregistry@example.com');
+    const link = screen.getByRole('link', { name: 'support@sacramentregistry.com' });
+    expect(link).toHaveAttribute('href', 'mailto:support@sacramentregistry.com');
+  });
+
+  it('links to privacy notice from Contact Support section', () => {
+    render(<HelpPage />);
+    const link = screen.getByRole('link', { name: /Read Privacy Notice/i });
+    expect(link).toHaveAttribute('href', '/privacy');
   });
 
   it('redirects to /login when not authenticated', () => {

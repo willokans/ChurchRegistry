@@ -212,7 +212,7 @@ export default function DashboardPage() {
   const parish = parishId ? parishes.find((p) => p.id === parishId) : undefined;
   const parishName = parish?.parishName ?? null;
   const churchBranding = getChurchBranding(parishName);
-  const welcomeTitle = churchBranding?.appTitle ?? (parishName ? `${parishName} Parish Registry` : null);
+  const welcomeTitle = churchBranding?.appTitle ?? (parishName ? `${parishName} Sacrament Registry` : null);
   const greeting = getGreeting();
   const displayName = user?.displayName || user?.username || '…';
 

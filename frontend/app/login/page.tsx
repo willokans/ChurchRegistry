@@ -91,7 +91,7 @@ export default function LoginPage() {
       {/* Header: cross, title, tagline */}
       <header className="text-center mb-4 sm:mb-8">
         <CrossIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-sancta-gold mb-2" />
-        <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Parish Registry</h1>
+        <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-sancta-maroon">Sacrament Registry</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-1">Growing in faith together.</p>
       </header>
 
@@ -103,11 +103,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email or Phone number */}
+          {/* Username */}
           <div>
             <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
               <EnvelopeIcon className="w-4 h-4 text-gray-500" />
-              Email or Phone number
+              Username
             </label>
             <input
               id="username"
@@ -116,7 +116,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              placeholder="e.g. 0801 234 5678 or name@parish.org"
+              placeholder="Enter username"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 focus:border-sancta-maroon text-gray-900 placeholder-gray-500"
             />
           </div>
@@ -180,6 +180,10 @@ export default function LoginPage() {
           <p>
             <Link href="/" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
               Home
+            </Link>
+            <span className="mx-2 text-gray-300">·</span>
+            <Link href="/privacy" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">
+              Privacy Notice
             </Link>
             <span className="mx-2 text-gray-300">·</span>
             <Link href="/login/forgot-password" className="text-sm text-sancta-maroon hover:underline focus:outline-none focus:ring-2 focus:ring-sancta-maroon/30 rounded">

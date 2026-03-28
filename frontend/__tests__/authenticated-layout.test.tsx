@@ -1,6 +1,6 @@
 /**
  * TDD: Authenticated layout tests.
- * - When authenticated: renders header with Parish Registry branding and cross, sidebar, and children
+ * - When authenticated: renders header with Sacrament Registry branding and cross, sidebar, and children
  * - When not authenticated: redirects to /login and does not render layout content
  */
 import { render, screen, within, waitFor } from '@testing-library/react';
@@ -60,13 +60,13 @@ describe('AuthenticatedLayout', () => {
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: originalOnLine });
   });
 
-  it('renders header with Parish Registry branding when authenticated', () => {
+  it('renders header with Sacrament Registry branding when authenticated', () => {
     render(
       <AuthenticatedLayout>
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    expect(screen.getAllByText('Parish Registry').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Sacrament Registry').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders a cross in the header when authenticated', () => {
@@ -75,7 +75,7 @@ describe('AuthenticatedLayout', () => {
         <p>Dashboard content</p>
       </AuthenticatedLayout>
     );
-    const brandingHeader = screen.getAllByText('Parish Registry')[0].closest('header');
+    const brandingHeader = screen.getAllByText('Sacrament Registry')[0].closest('header');
     expect(brandingHeader).toBeInTheDocument();
     expect(brandingHeader?.querySelector('svg')).toBeInTheDocument();
   });
@@ -129,6 +129,16 @@ describe('AuthenticatedLayout', () => {
     expect(helpLink).toHaveAttribute('href', '/help');
   });
 
+  it('Privacy Notice link points to /privacy in authenticated surfaces', () => {
+    render(
+      <AuthenticatedLayout>
+        <p>Dashboard content</p>
+      </AuthenticatedLayout>
+    );
+    const privacyLinks = screen.getAllByRole('link', { name: 'Privacy Notice' });
+    expect(privacyLinks.some((link) => link.getAttribute('href') === '/privacy')).toBe(true);
+  });
+
   it('redirects to /login when no token', () => {
     (getStoredToken as jest.Mock).mockReturnValue(null);
     render(
@@ -137,7 +147,7 @@ describe('AuthenticatedLayout', () => {
       </AuthenticatedLayout>
     );
     expect(mockPush).toHaveBeenCalledWith('/login');
-    expect(screen.queryByText('Parish Registry')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sacrament Registry')).not.toBeInTheDocument();
   });
 
   it('redirects to /login when no user', () => {
